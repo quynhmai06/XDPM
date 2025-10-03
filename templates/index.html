@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Second-hand EV & Battery Trading Platform</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+</head>
+<body>
+  <header class="header">
+    <div class="header-container">
+      <div class="logo-section">
+        <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+        <img src="/static/images/logo.png" alt="EV Trading" class="logo"/>
+      </div>
+      <div class="user-menu">
+        <a href="/policy" class="user-menu-item">Chính sách</a>
+        <a href="#" class="user-menu-item"><i class="far fa-comment"></i> Chat</a>
+        <a href="#" class="user-menu-item"><i class="far fa-bell"></i> Thông báo</a>
+
+        {% if session.get('user_id') %}
+          <div class="user-avatar-wrap">
+            <button class="avatar-btn" onclick="toggleUserMenu(event)">
+              <span class="avatar-circle">
+                {{ (session.get('username') or 'U')[:1] | upper }}
+              </span>
+            </button>
+            <div id="userDropdown" class="user-dropdown" style="display:none">
+              <div class="dropdown-name">{{ session.get('username') }}</div>
+              <a href="#" class="dropdown-item">Hồ sơ</a>
+              <a href="{{ url_for('logout') }}" class="dropdown-item">Đăng xuất</a>
+            </div>
+          </div>
+          <a href="/add" class="post-button">Đăng tin</a>
+        {% else %}
+          <a href="{{ url_for('login_bp.login') }}" class="user-menu-item">Đăng nhập</a>
+          <a href="{{ url_for('register_bp.register') }}" class="user-menu-item">Đăng ký</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+  <section class="search-section">
+    <div class="search-container">
+      <h1 class="search-title">Second-hand EV & Battery Trading Platform</h1>
+      <h2 class="search-subtitle">Nền tảng giao dịch pin và xe điện qua sử dụng</h2>
+      <div class="search-box">
+        <input type="text" class="search-input" placeholder="Tìm kiếm xe điện, pin..."/>
+        <select class="location-dropdown">
+          <option value="">Chọn khu vực</option>
+          <option value="hcm">TP. Hồ Chí Minh</option>
+          <option value="hn">Hà Nội</option>
+          <option value="dn">Đà Nẵng</option>
+        </select>
+        <button class="search-button">Tìm kiếm</button>
+      </div>
+    </div>
+  </section>
+  <section class="product-section">
+    <div class="section-header">
+      <h2 class="section-title">Xe điện nổi bật</h2>
+      <a href="#" class="view-all">Xem tất cả</a>
+    </div>
+    <div class="product-grid">
+      <a href="#" class="product-card">
+        <img src="/static/images/v1.jpg" alt="VinFast VF e34" class="product-image"/>
+        <div class="product-info">
+          <h3 class="product-title">VinFast VF e34 2023 - Như mới</h3>
+          <div class="product-price">590.000.000 đ</div>
+          <div class="product-location"><i class="fas fa-map-marker-alt"></i> TP. Hồ Chí Minh</div>
+        </div>
+      </a>
+      <a href="#" class="product-card">
+        <img src="/static/images/v3.jpg" alt="Tesla Model 3" class="product-image"/>
+        <div class="product-info">
+          <h3 class="product-title">Tesla Model 3 Standard Range Plus 2022</h3>
+          <div class="product-price">1.090.000.000 đ</div>
+          <div class="product-location"><i class="fas fa-map-marker-alt"></i> Hà Nội</div>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <section class="product-section">
+    <div class="section-header">
+      <h2 class="section-title">Pin xe điện mới về</h2>
+      <a href="#" class="view-all">Xem tất cả</a>
+    </div>
+    <div class="product-grid"></div>
+  </section>
+
+  <div id="authModal" class="modal" style="display:none">
+    <div class="modal-content">
+      <span class="close" onclick="document.getElementById('authModal').style.display='none'">&times;</span>
+      <div class="auth-tabs">
+        <button onclick="showTab('login')">Đăng nhập</button>
+        <button onclick="showTab('register')">Đăng ký</button>
+      </div>
+      <div id="loginTab" class="tab-content">
+        <form id="loginForm">
+          <input type="email" name="email" placeholder="Email" required/>
+          <input type="password" name="password" placeholder="Mật khẩu" required/>
+          <button type="submit">Đăng nhập</button>
+        </form>
+      </div>
+      <div id="registerTab" class="tab-content" style="display:none">
+        <form id="registerForm">
+          <input type="email" name="email" placeholder="Email" required/>
+          <input type="text" name="phone" placeholder="Số điện thoại" required/>
+          <input type="password" name="password" placeholder="Mật khẩu" required/>
+          <input type="password" name="confirmPassword" placeholder="Xác nhận mật khẩu" required/>
+          <button type="submit">Đăng ký</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div id="profileModal" class="modal" style="display:none">
+    <div class="modal-content">
+      <span class="close" onclick="document.getElementById('profileModal').style.display='none'">&times;</span>
+      <h2>Hồ sơ cá nhân</h2>
+      <form id="profileForm">
+        <input type="text" name="name" placeholder="Tên"/>
+        <input type="date" name="dob" placeholder="Ngày sinh"/>
+        <input type="text" name="address" placeholder="Địa chỉ"/>
+        <input type="file" name="avatar" accept="image/*"/>
+        <button type="submit">Cập nhật hồ sơ</button>
+      </form>
+      <div id="roleInfo"></div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p>© 2025 EV Trading Platform. Tất cả quyền được bảo lưu.</p>
+  </footer>
+
+  <script>
+    function showTab(tab){
+      document.getElementById("loginTab").style.display = (tab === "login") ? "block" : "none";
+      document.getElementById("registerTab").style.display = (tab === "register") ? "block" : "none";
+    }
+    function openAuthModal(){
+      showTab("login");
+      document.getElementById("authModal").style.display = "block";
+    }
+    function toggleUserMenu(e){
+      e.preventDefault();
+      const dd = document.getElementById('userDropdown');
+      dd.style.display = (!dd.style.display || dd.style.display === 'none') ? 'block' : 'none';
+    }
+    document.addEventListener('click', function(ev){
+      const wrap = document.querySelector('.user-avatar-wrap');
+      const dd = document.getElementById('userDropdown');
+      if (!wrap || !dd) return;
+      if (!wrap.contains(ev.target)) dd.style.display = 'none';
+    });
+  </script>
+</body>
+</html>
