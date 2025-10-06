@@ -14,32 +14,35 @@
         <button class="menu-toggle"><i class="fas fa-bars"></i></button>
         <img src="/static/images/logo.png" alt="EV Trading" class="logo"/>
       </div>
+
       <div class="user-menu">
         <a href="/policy" class="user-menu-item">Chính sách</a>
         <a href="#" class="user-menu-item"><i class="far fa-comment"></i> Chat</a>
         <a href="#" class="user-menu-item"><i class="far fa-bell"></i> Thông báo</a>
 
-        {% if session.get('user_id') %}
+        {% if session.get('user') %}
           <div class="user-avatar-wrap">
             <button class="avatar-btn" onclick="toggleUserMenu(event)">
               <span class="avatar-circle">
-                {{ (session.get('username') or 'U')[:1] | upper }}
+                {{ (session['user'].get('username') or 'U')[:1] | upper }}
               </span>
             </button>
             <div id="userDropdown" class="user-dropdown" style="display:none">
-              <div class="dropdown-name">{{ session.get('username') }}</div>
+              <div class="dropdown-name">{{ session['user'].get('username') }}</div>
               <a href="#" class="dropdown-item">Hồ sơ</a>
-              <a href="{{ url_for('logout') }}" class="dropdown-item">Đăng xuất</a>
+              <a href="{{ url_for('logout_page') }}" class="dropdown-item">Đăng xuất</a>
             </div>
           </div>
           <a href="/add" class="post-button">Đăng tin</a>
         {% else %}
-          <a href="{{ url_for('login_bp.login') }}" class="user-menu-item">Đăng nhập</a>
-          <a href="{{ url_for('register_bp.register') }}" class="user-menu-item">Đăng ký</a>
+          <!-- DẪN TỚI TRANG LOGIN/REGISTER CŨ CỦA GATEWAY -->
+          <a href="{{ url_for('login_page') }}" class="user-menu-item">Đăng nhập</a>
+          <a href="{{ url_for('register_page') }}" class="user-menu-item">Đăng ký</a>
         {% endif %}
       </div>
     </div>
   </header>
+
   <section class="search-section">
     <div class="search-container">
       <h1 class="search-title">Second-hand EV & Battery Trading Platform</h1>
@@ -56,6 +59,7 @@
       </div>
     </div>
   </section>
+
   <section class="product-section">
     <div class="section-header">
       <h2 class="section-title">Xe điện nổi bật</h2>
@@ -89,6 +93,7 @@
     <div class="product-grid"></div>
   </section>
 
+  <!-- Modal giữ nguyên, nhưng nếu muốn submit thực sự qua gateway thì thêm action vào form như ghi chú -->
   <div id="authModal" class="modal" style="display:none">
     <div class="modal-content">
       <span class="close" onclick="document.getElementById('authModal').style.display='none'">&times;</span>
@@ -97,6 +102,12 @@
         <button onclick="showTab('register')">Đăng ký</button>
       </div>
       <div id="loginTab" class="tab-content">
+        <!-- Nếu muốn form này chạy thật: thêm method+action
+        <form id="loginForm" method="POST" action="{{ url_for('login_page') }}">
+          <input type="text" name="username" placeholder="Tên đăng nhập" required/>
+          <input type="password" name="password" placeholder="Mật khẩu" required/>
+          <button type="submit">Đăng nhập</button>
+        </form> -->
         <form id="loginForm">
           <input type="email" name="email" placeholder="Email" required/>
           <input type="password" name="password" placeholder="Mật khẩu" required/>
@@ -104,6 +115,14 @@
         </form>
       </div>
       <div id="registerTab" class="tab-content" style="display:none">
+        <!-- Nếu muốn form này chạy thật: thêm method+action
+        <form id="registerForm" method="POST" action="{{ url_for('register_page') }}">
+          <input type="text" name="username" placeholder="Tên đăng nhập" required/>
+          <input type="email" name="email" placeholder="Email" required/>
+          <input type="password" name="password" placeholder="Mật khẩu" required/>
+          <input type="password" name="confirm_password" placeholder="Xác nhận mật khẩu" required/>
+          <button type="submit">Đăng ký</button>
+        </form> -->
         <form id="registerForm">
           <input type="email" name="email" placeholder="Email" required/>
           <input type="text" name="phone" placeholder="Số điện thoại" required/>
