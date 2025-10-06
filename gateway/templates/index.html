@@ -35,7 +35,6 @@
           </div>
           <a href="/add" class="post-button">Đăng tin</a>
         {% else %}
-          <!-- DẪN TỚI TRANG LOGIN/REGISTER CŨ CỦA GATEWAY -->
           <a href="{{ url_for('login_page') }}" class="user-menu-item">Đăng nhập</a>
           <a href="{{ url_for('register_page') }}" class="user-menu-item">Đăng ký</a>
         {% endif %}
@@ -92,8 +91,6 @@
     </div>
     <div class="product-grid"></div>
   </section>
-
-  <!-- Modal giữ nguyên, nhưng nếu muốn submit thực sự qua gateway thì thêm action vào form như ghi chú -->
   <div id="authModal" class="modal" style="display:none">
     <div class="modal-content">
       <span class="close" onclick="document.getElementById('authModal').style.display='none'">&times;</span>
@@ -102,28 +99,14 @@
         <button onclick="showTab('register')">Đăng ký</button>
       </div>
       <div id="loginTab" class="tab-content">
-        <!-- Nếu muốn form này chạy thật: thêm method+action
         <form id="loginForm" method="POST" action="{{ url_for('login_page') }}">
-          <input type="text" name="username" placeholder="Tên đăng nhập" required/>
-          <input type="password" name="password" placeholder="Mật khẩu" required/>
-          <button type="submit">Đăng nhập</button>
-        </form> -->
-        <form id="loginForm">
           <input type="email" name="email" placeholder="Email" required/>
           <input type="password" name="password" placeholder="Mật khẩu" required/>
           <button type="submit">Đăng nhập</button>
         </form>
       </div>
       <div id="registerTab" class="tab-content" style="display:none">
-        <!-- Nếu muốn form này chạy thật: thêm method+action
         <form id="registerForm" method="POST" action="{{ url_for('register_page') }}">
-          <input type="text" name="username" placeholder="Tên đăng nhập" required/>
-          <input type="email" name="email" placeholder="Email" required/>
-          <input type="password" name="password" placeholder="Mật khẩu" required/>
-          <input type="password" name="confirm_password" placeholder="Xác nhận mật khẩu" required/>
-          <button type="submit">Đăng ký</button>
-        </form> -->
-        <form id="registerForm">
           <input type="email" name="email" placeholder="Email" required/>
           <input type="text" name="phone" placeholder="Số điện thoại" required/>
           <input type="password" name="password" placeholder="Mật khẩu" required/>
