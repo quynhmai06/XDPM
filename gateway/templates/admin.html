@@ -108,14 +108,16 @@
                     <span class="chip chip-success">Đã duyệt</span>
                   {% else %}
                     <span class="chip chip-warning">Chờ duyệt</span>
-                    <a class="btn btn-ghost success" href="/admin/approve_user/{{ user.id }}">
-                      <i class="fa-regular fa-circle-check"></i> Duyệt
-                    </a>
+                    <form action="{{ url_for('approve_user', user_id=user.id) }}" method="post" style="display:inline">
+                      <button class="btn btn-ghost success" type="submit">
+                        <i class="fa-regular fa-circle-check"></i> Duyệt
+                      </button>
+                    </form>
                   {% endif %}
                 </td>
                 <td class="td-actions">
                   <a class="btn btn-ghost danger" 
-                    href="{{ url_for('admin.delete_user', user_id=user.id) }}" 
+                    href="{{ url_for('delete_user', user_id=user.id) }}"
                     onclick="return confirm('Bạn có chắc chắn muốn xóa tài khoản này?')">
                     <i class="fa-regular fa-trash-can"></i> Xóa
                   </a>
@@ -234,7 +236,7 @@
         {% endif %}
       {% endwith %}
 
-      <form method="POST" action="{{ url_for('login_page') }}">
+      <form method="POST" action="{{ url_for('admin_login') }}">
         <input type="text" name="username" placeholder="Tên đăng nhập" required
               style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:10px;margin:8px 0;">
         <input type="password" name="password" placeholder="Mật khẩu" required

@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ev
+      POSTGRES_PASSWORD: evpass
+      POSTGRES_DB: evdb
+    volumes: [dbdata:/var/lib/postgresql/data]
+    ports: ["5432:5432"]
+
+  auth_service:
+    build: ./auth-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+      JWT_SECRET: supersecret
+    depends_on: [db]
+    ports: ["5001:5001"] 
+
+  admin_service:
+    build: ./admin-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+      JWT_SECRET: supersecret
+    depends_on: [db]
+    ports: ["5002:5002"]   
+
+  web_gateway:
+    build: ./gateway
+    environment:
+      AUTH_URL:  http://auth_service:5001   
+      ADMIN_URL: http://admin_service:5002
+      GATEWAY_SECRET: dev
+    depends_on: [auth_service, admin_service]
+    ports: ["8000:8000"]
+
+volumes:
+  dbdata:
