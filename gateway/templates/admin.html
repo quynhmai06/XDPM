@@ -16,8 +16,8 @@
         <img src="/static/images/logo.png" alt="EV Trading" class="logo"/>
       </div>
       <div class="user-menu">
-        {% if session.get('is_admin') %}
-          <a href="{{ url_for('admin.logout') }}" class="user-menu-item">Đăng xuất</a>
+        {% if session.get('user') and session['user'].get('role') == 'admin' %}
+          <a href="{{ url_for('logout_page') }}" class="user-menu-item">Đăng xuất</a>
         {% else %}
           <a href="#" class="user-menu-item" onclick="openAdminLogin(event)">Đăng nhập</a>
         {% endif %}
@@ -234,7 +234,7 @@
         {% endif %}
       {% endwith %}
 
-      <form method="POST" action="{{ url_for('admin.admin_login') }}">
+      <form method="POST" action="{{ url_for('login_page') }}">
         <input type="text" name="username" placeholder="Tên đăng nhập" required
               style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:10px;margin:8px 0;">
         <input type="password" name="password" placeholder="Mật khẩu" required
