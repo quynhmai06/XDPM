@@ -17,7 +17,7 @@
       </div>
       <div class="user-menu">
         {% if session.get('user') and session['user'].get('role') == 'admin' %}
-          <a href="{{ url_for('logout_page') }}" class="user-menu-item">Đăng xuất</a>
+          <a href="{{ url_for('admin_logout') }}" class="user-menu-item">Đăng xuất</a>
         {% else %}
           <a href="#" class="user-menu-item" onclick="openAdminLogin(event)">Đăng nhập</a>
         {% endif %}

@@ -1,11 +1,10 @@
+# init_db.py
 from models import db, User
 from werkzeug.security import generate_password_hash
 from app import app
 
 with app.app_context():
-    print("🔄 Đang khởi tạo cơ sở dữ liệu...")
-    db.drop_all()
-    db.create_all()
+    db.create_all()  
 
     if not User.query.filter_by(username="admin").first():
         admin = User(
@@ -17,6 +16,6 @@ with app.app_context():
         )
         db.session.add(admin)
         db.session.commit()
-        print("✅ Đã tạo tài khoản admin: admin / 12345")
+        print("✅ Seed admin (1 lần)")
     else:
-        print("ℹ️ Tài khoản admin đã tồn tại, bỏ qua seed.")
+        print("ℹ️ Admin đã tồn tại, bỏ qua.")

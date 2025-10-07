@@ -13,8 +13,14 @@ def decode_token(token: str):
     return jwt.decode(token, JWT_SECRET, algorithms=JWT_ALGOS)
 
 def is_admin_session() -> bool:
-    user = session.get("user")
-    return bool(user and user.get("role") == "admin")
+    token = session.get("access_token")
+    if not token:
+        return False
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=JWT_ALGOS)
+        return payload.get("role") == "admin"
+    except Exception:
+        return False
 
 @app.route("/", endpoint="home")
 def home():
@@ -42,16 +48,27 @@ def login_page():
 
         if r.ok:
             token = r.json().get("access_token")
-            payload = jwt.decode(token, JWT_SECRET, algorithms=JWT_ALGOS)
+            payload = decode_token(token)
             session["access_token"] = token
-            session["user"] = payload
+            # session['user'] chỉ dùng cho hiển thị UI
+            session["user"] = {"username": payload.get("username"), "role": payload.get("role")}
 
             next_url = request.args.get("next") or session.pop("next_after_login", None)
             if payload.get("role") == "admin":
                 return redirect(next_url or url_for("admin_page"))
             return redirect(next_url or url_for("home"))
 
-        flash("Sai tài khoản hoặc mật khẩu.", "error")
+        # Hiển thị thông báo theo mã lỗi từ auth_service
+        msg = "Đăng nhập thất bại."
+        if r.headers.get("content-type", "").startswith("application/json"):
+            err = (r.json() or {}).get("error")
+            if err == "invalid_credentials":
+                msg = "Sai tài khoản hoặc mật khẩu."
+            elif err == "not_approved":
+                msg = "Tài khoản chưa được admin duyệt. Vui lòng chờ duyệt."
+            elif err == "locked":
+                msg = "Tài khoản đã bị khóa."
+        flash(msg, "error")
 
     return render_template("login.html")
 
@@ -90,22 +107,19 @@ def register_page():
 
 @app.get("/logout", endpoint="logout_page")
 def logout_page():
-    was_admin = is_admin_session()
     session.clear()
     flash("Đã đăng xuất!", "success")
-    return redirect(url_for("admin_page") if was_admin else url_for("home"))
+    return redirect(url_for("home"))
 
 @app.route("/admin", methods=["GET"], endpoint="admin_page")
 def admin_page():
-    users = []
-    products = []
-    transactions = []
+    users, products, transactions = [], [], []
 
     if is_admin_session():
         try:
             headers = {"Authorization": f"Bearer {session['access_token']}"}
             r = requests.get(f"{AUTH_URL}/auth/admin/users", headers=headers, timeout=5)
-            if r.ok and r.headers.get("content-type","").startswith("application/json"):
+            if r.ok and r.headers.get("content-type", "").startswith("application/json"):
                 users = r.json().get("data", [])
             else:
                 flash("Không lấy được danh sách người dùng.", "error")
@@ -140,7 +154,17 @@ def admin_login():
         return redirect(url_for("admin_page"))
 
     if not r.ok:
-        flash("Đăng nhập thất bại.", "error")
+        # đọc thông báo lỗi cụ thể
+        msg = "Đăng nhập thất bại."
+        if r.headers.get("content-type", "").startswith("application/json"):
+            err = (r.json() or {}).get("error")
+            if err == "invalid_credentials":
+                msg = "Sai tài khoản hoặc mật khẩu."
+            elif err == "not_approved":
+                msg = "Tài khoản chưa được admin duyệt. Vui lòng chờ duyệt."
+            elif err == "locked":
+                msg = "Tài khoản đã bị khóa."
+        flash(msg, "error")
         return redirect(url_for("admin_page"))
 
     token = r.json().get("access_token")
@@ -159,7 +183,7 @@ def admin_login():
         return redirect(url_for("admin_page"))
 
     session["access_token"] = token
-    session["user"] = payload
+    session["user"] = {"username": payload.get("username"), "role": payload.get("role")}
     flash("Đăng nhập admin thành công!", "success")
     return redirect(url_for("admin_page"))
 
@@ -181,25 +205,35 @@ def approve_user(user_id):
         flash("Không kết nối được auth service.", "error")
     return redirect(url_for("admin_page"))
 
-@app.get("/admin/delete_user/<int:user_id>", endpoint="delete_user")
+@app.route("/admin/delete_user/<int:user_id>", methods=["POST","GET"])
 def delete_user(user_id):
     if not is_admin_session():
-        session["next_after_login"] = url_for("delete_user", user_id=user_id)
+        # lưu lại nơi cần quay về sau khi login
+        session["next_after_login"] = url_for("admin_page")
         return redirect(url_for("login_page"))
+
     try:
-        headers = {"Authorization": f"Bearer {session['access_token']}", "Content-Type": "application/json"}
+        headers = {
+            "Authorization": f"Bearer {session['access_token']}",
+            "Content-Type": "application/json",
+        }
         r = requests.patch(
             f"{AUTH_URL}/auth/users/{user_id}/status",
             json={"status": "locked"},
             headers=headers,
             timeout=5,
         )
-        if r.ok:
-            flash("Đã khóa tài khoản (thay cho xóa).", "success")
-        else:
-            flash("Khóa tài khoản thất bại.", "error")
+        flash("Đã khóa tài khoản." if r.ok else "Khóa tài khoản thất bại.",
+              "success" if r.ok else "error")
     except requests.RequestException:
         flash("Không kết nối được auth service.", "error")
+
+    return redirect(url_for("admin_page"))
+
+@app.get("/admin/logout", endpoint="admin_logout")
+def admin_logout():
+    session.clear()
+    flash("Đã đăng xuất khỏi Admin!", "success")
     return redirect(url_for("admin_page"))
 
 if __name__ == "__main__":
