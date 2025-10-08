@@ -33,7 +33,12 @@
               <a href="{{ url_for('logout_page') }}" class="dropdown-item">Đăng xuất</a>
             </div>
           </div>
-          <a href="/add" class="post-button">Đăng tin</a>
+          {% if session.get('user') %}
+             <a href="{{ url_for('add_listing') }}" class="post-button">Đăng tin</a>
+          {% else %}
+            <a href="{{ url_for('login_page') }}" class="post-button">Đăng tin</a>
+          {% endif %}
+
         {% else %}
           <a href="{{ url_for('login_page') }}" class="user-menu-item">Đăng nhập</a>
           <a href="{{ url_for('register_page') }}" class="user-menu-item">Đăng ký</a>
