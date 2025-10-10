@@ -34,6 +34,7 @@ def require_admin():
 def to_json(p: Product):
     return {
         "id": p.id,
+        "product_type": p.product_type,   
         "name": p.name,
         "description": p.description,
         "price": p.price,
@@ -42,6 +43,9 @@ def to_json(p: Product):
         "year": p.year,
         "mileage": p.mileage,
         "battery_capacity": p.battery_capacity,
+        "battery_chemistry": p.battery_chemistry,
+        "soh_percent": p.soh_percent,   
+        "cycle_count": p.cycle_count,   
         "owner": p.owner,
         "main_image_url": p.main_image_url,
         "sub_image_urls": json.loads(p.sub_image_urls or "[]"),
