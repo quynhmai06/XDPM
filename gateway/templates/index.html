@@ -1,161 +1,343 @@
 <!DOCTYPE html>
 <html lang="vi">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Second-hand EV & Battery Trading Platform</title>
-  <link rel="stylesheet" href="/static/style.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
-</head>
-<body>
-  <header class="header">
-    <div class="header-container">
-      <div class="logo-section">
-        <button class="menu-toggle"><i class="fas fa-bars"></i></button>
-        <img src="/static/images/logo.png" alt="EV Trading" class="logo"/>
-      </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Second-hand EV & Battery Trading Platform</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-container">
+        <div class="logo-section">
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <img src="/static/images/logo.png" alt="EV Trading" class="logo" />
+        </div>
 
-      <div class="user-menu">
-        <a href="/policy" class="user-menu-item">Chính sách</a>
-        <a href="#" class="user-menu-item"><i class="far fa-comment"></i> Chat</a>
-        <a href="#" class="user-menu-item"><i class="far fa-bell"></i> Thông báo</a>
+        <div class="user-menu">
+          <a href="/policy" class="user-menu-item">Chính sách</a>
+          <a href="#" class="user-menu-item"
+            ><i class="far fa-comment"></i> Chat</a
+          >
+          <a href="#" class="user-menu-item"
+            ><i class="far fa-bell"></i> Thông báo</a
+          >
 
-        {% if session.get('user') %}
+          {% if session.get('user') %}
           <div class="user-avatar-wrap">
             <button class="avatar-btn" onclick="toggleUserMenu(event)">
               <span class="avatar-circle">
                 {{ (session['user'].get('username') or 'U')[:1] | upper }}
               </span>
             </button>
-            <div id="userDropdown" class="user-dropdown" style="display:none">
-              <div class="dropdown-name">{{ session['user'].get('username') }}</div>
+            <div id="userDropdown" class="user-dropdown" style="display: none">
+              <div class="dropdown-name">
+                {{ session['user'].get('username') }}
+              </div>
               <a href="#" class="dropdown-item">Hồ sơ</a>
-              <a href="{{ url_for('logout_page') }}" class="dropdown-item">Đăng xuất</a>
+              <a href="{{ url_for('logout_page') }}" class="dropdown-item"
+                >Đăng xuất</a
+              >
             </div>
           </div>
           <a href="/add" class="post-button">Đăng tin</a>
-        {% else %}
-          <a href="{{ url_for('login_page') }}" class="user-menu-item">Đăng nhập</a>
-          <a href="{{ url_for('register_page') }}" class="user-menu-item">Đăng ký</a>
-        {% endif %}
-      </div>
-    </div>
-  </header>
-
-  <section class="search-section">
-    <div class="search-container">
-      <h1 class="search-title">Second-hand EV & Battery Trading Platform</h1>
-      <h2 class="search-subtitle">Nền tảng giao dịch pin và xe điện qua sử dụng</h2>
-      <div class="search-box">
-        <input type="text" class="search-input" placeholder="Tìm kiếm xe điện, pin..."/>
-        <select class="location-dropdown">
-          <option value="">Chọn khu vực</option>
-          <option value="hcm">TP. Hồ Chí Minh</option>
-          <option value="hn">Hà Nội</option>
-          <option value="dn">Đà Nẵng</option>
-        </select>
-        <button class="search-button">Tìm kiếm</button>
-      </div>
-    </div>
-  </section>
-
-  <section class="product-section">
-    <div class="section-header">
-      <h2 class="section-title">Xe điện nổi bật</h2>
-      <a href="#" class="view-all">Xem tất cả</a>
-    </div>
-    <div class="product-grid">
-      <a href="#" class="product-card">
-        <img src="/static/images/v1.jpg" alt="VinFast VF e34" class="product-image"/>
-        <div class="product-info">
-          <h3 class="product-title">VinFast VF e34 2023 - Như mới</h3>
-          <div class="product-price">590.000.000 đ</div>
-          <div class="product-location"><i class="fas fa-map-marker-alt"></i> TP. Hồ Chí Minh</div>
+          {% else %}
+          <a href="{{ url_for('login_page') }}" class="user-menu-item"
+            >Đăng nhập</a
+          >
+          <a href="{{ url_for('register_page') }}" class="user-menu-item"
+            >Đăng ký</a
+          >
+          {% endif %}
         </div>
-      </a>
-      <a href="#" class="product-card">
-        <img src="/static/images/v3.jpg" alt="Tesla Model 3" class="product-image"/>
-        <div class="product-info">
-          <h3 class="product-title">Tesla Model 3 Standard Range Plus 2022</h3>
-          <div class="product-price">1.090.000.000 đ</div>
-          <div class="product-location"><i class="fas fa-map-marker-alt"></i> Hà Nội</div>
+      </div>
+    </header>
+
+    <section class="search-section">
+      <div class="search-container">
+        <h1 class="search-title">Second-hand EV & Battery Trading Platform</h1>
+        <h2 class="search-subtitle">
+          Nền tảng giao dịch pin và xe điện qua sử dụng
+        </h2>
+        <div class="search-box">
+          <input
+            id="qBrand"
+            type="text"
+            class="search-input"
+            placeholder="Hãng (VD: VinFast, Tesla)"
+          />
+          <input
+            id="qModel"
+            type="text"
+            class="search-input"
+            placeholder="Đời / Model"
+          />
+          <input
+            id="qYear"
+            type="number"
+            class="search-input"
+            placeholder="Năm"
+          />
+          <input
+            id="qPrice"
+            type="number"
+            class="search-input"
+            placeholder="Giá tối đa"
+          />
+          <button class="search-button" onclick="doSearch()">Tìm kiếm</button>
         </div>
-      </a>
-    </div>
-  </section>
-
-  <section class="product-section">
-    <div class="section-header">
-      <h2 class="section-title">Pin xe điện mới về</h2>
-      <a href="#" class="view-all">Xem tất cả</a>
-    </div>
-    <div class="product-grid"></div>
-  </section>
-  <div id="authModal" class="modal" style="display:none">
-    <div class="modal-content">
-      <span class="close" onclick="document.getElementById('authModal').style.display='none'">&times;</span>
-      <div class="auth-tabs">
-        <button onclick="showTab('login')">Đăng nhập</button>
-        <button onclick="showTab('register')">Đăng ký</button>
       </div>
-      <div id="loginTab" class="tab-content">
-        <form id="loginForm" method="POST" action="{{ url_for('login_page') }}">
-          <input type="email" name="email" placeholder="Email" required/>
-          <input type="password" name="password" placeholder="Mật khẩu" required/>
-          <button type="submit">Đăng nhập</button>
+    </section>
+
+    <section class="product-section">
+      <div class="section-header">
+        <h2 class="section-title">Xe điện nổi bật</h2>
+        <a href="#" class="view-all">Xem tất cả</a>
+      </div>
+      <div id="vehiclesGrid" class="product-grid"></div>
+    </section>
+
+    <section class="product-section">
+      <div class="section-header">
+        <h2 class="section-title">Pin xe điện mới về</h2>
+        <a href="#" class="view-all">Xem tất cả</a>
+      </div>
+      <div id="batteriesGrid" class="product-grid"></div>
+    </section>
+    <div id="authModal" class="modal" style="display: none">
+      <div class="modal-content">
+        <span
+          class="close"
+          onclick="document.getElementById('authModal').style.display='none'"
+          >&times;</span
+        >
+        <div class="auth-tabs">
+          <button onclick="showTab('login')">Đăng nhập</button>
+          <button onclick="showTab('register')">Đăng ký</button>
+        </div>
+        <div id="loginTab" class="tab-content">
+          <form
+            id="loginForm"
+            method="POST"
+            action="{{ url_for('login_page') }}"
+          >
+            <input type="email" name="email" placeholder="Email" required />
+            <input
+              type="password"
+              name="password"
+              placeholder="Mật khẩu"
+              required
+            />
+            <button type="submit">Đăng nhập</button>
+          </form>
+        </div>
+        <div id="registerTab" class="tab-content" style="display: none">
+          <form
+            id="registerForm"
+            method="POST"
+            action="{{ url_for('register_page') }}"
+          >
+            <input type="email" name="email" placeholder="Email" required />
+            <input
+              type="text"
+              name="phone"
+              placeholder="Số điện thoại"
+              required
+            />
+            <input
+              type="password"
+              name="password"
+              placeholder="Mật khẩu"
+              required
+            />
+            <input
+              type="password"
+              name="confirmPassword"
+              placeholder="Xác nhận mật khẩu"
+              required
+            />
+            <button type="submit">Đăng ký</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div id="profileModal" class="modal" style="display: none">
+      <div class="modal-content">
+        <span
+          class="close"
+          onclick="document.getElementById('profileModal').style.display='none'"
+          >&times;</span
+        >
+        <h2>Hồ sơ cá nhân</h2>
+        <form id="profileForm">
+          <input type="text" name="name" placeholder="Tên" />
+          <input type="date" name="dob" placeholder="Ngày sinh" />
+          <input type="text" name="address" placeholder="Địa chỉ" />
+          <input type="file" name="avatar" accept="image/*" />
+          <button type="submit">Cập nhật hồ sơ</button>
         </form>
-      </div>
-      <div id="registerTab" class="tab-content" style="display:none">
-        <form id="registerForm" method="POST" action="{{ url_for('register_page') }}">
-          <input type="email" name="email" placeholder="Email" required/>
-          <input type="text" name="phone" placeholder="Số điện thoại" required/>
-          <input type="password" name="password" placeholder="Mật khẩu" required/>
-          <input type="password" name="confirmPassword" placeholder="Xác nhận mật khẩu" required/>
-          <button type="submit">Đăng ký</button>
-        </form>
+        <div id="roleInfo"></div>
       </div>
     </div>
-  </div>
 
-  <div id="profileModal" class="modal" style="display:none">
-    <div class="modal-content">
-      <span class="close" onclick="document.getElementById('profileModal').style.display='none'">&times;</span>
-      <h2>Hồ sơ cá nhân</h2>
-      <form id="profileForm">
-        <input type="text" name="name" placeholder="Tên"/>
-        <input type="date" name="dob" placeholder="Ngày sinh"/>
-        <input type="text" name="address" placeholder="Địa chỉ"/>
-        <input type="file" name="avatar" accept="image/*"/>
-        <button type="submit">Cập nhật hồ sơ</button>
-      </form>
-      <div id="roleInfo"></div>
-    </div>
-  </div>
+    <footer class="footer">
+      <p>© 2025 EV Trading Platform. Tất cả quyền được bảo lưu.</p>
+    </footer>
 
-  <footer class="footer">
-    <p>© 2025 EV Trading Platform. Tất cả quyền được bảo lưu.</p>
-  </footer>
+    <script>
+      const fmtMoney = (v) => (v || 0).toLocaleString("vi-VN") + " đ";
+      const carsCompare = new Set();
 
-  <script>
-    function showTab(tab){
-      document.getElementById("loginTab").style.display = (tab === "login") ? "block" : "none";
-      document.getElementById("registerTab").style.display = (tab === "register") ? "block" : "none";
-    }
-    function openAuthModal(){
-      showTab("login");
-      document.getElementById("authModal").style.display = "block";
-    }
-    function toggleUserMenu(e){
-      e.preventDefault();
-      const dd = document.getElementById('userDropdown');
-      dd.style.display = (!dd.style.display || dd.style.display === 'none') ? 'block' : 'none';
-    }
-    document.addEventListener('click', function(ev){
-      const wrap = document.querySelector('.user-avatar-wrap');
-      const dd = document.getElementById('userDropdown');
-      if (!wrap || !dd) return;
-      if (!wrap.contains(ev.target)) dd.style.display = 'none';
-    });
-  </script>
-</body>
+      function showTab(tab) {
+        document.getElementById("loginTab").style.display =
+          tab === "login" ? "block" : "none";
+        document.getElementById("registerTab").style.display =
+          tab === "register" ? "block" : "none";
+      }
+      function openAuthModal() {
+        showTab("login");
+        document.getElementById("authModal").style.display = "block";
+      }
+      function toggleUserMenu(e) {
+        e.preventDefault();
+        const dd = document.getElementById("userDropdown");
+        dd.style.display =
+          !dd.style.display || dd.style.display === "none" ? "block" : "none";
+      }
+      document.addEventListener("click", function (ev) {
+        const wrap = document.querySelector(".user-avatar-wrap");
+        const dd = document.getElementById("userDropdown");
+        if (!wrap || !dd) return;
+        if (!wrap.contains(ev.target)) dd.style.display = "none";
+      });
+
+      async function doSearch() {
+        const brand = document.getElementById("qBrand").value.trim();
+        const model = document.getElementById("qModel").value.trim();
+        const year = document.getElementById("qYear").value.trim();
+        const price = document.getElementById("qPrice").value.trim();
+        // vehicles
+        const vUrl = new URL("/api/search/vehicles", window.location.origin);
+        if (brand) vUrl.searchParams.set("brand", brand);
+        if (model) vUrl.searchParams.set("model", model);
+        if (year) vUrl.searchParams.set("year", year);
+        if (price) vUrl.searchParams.set("price_max", price);
+        const vRes = await fetch(vUrl)
+          .then((r) => r.json())
+          .catch(() => ({ items: [] }));
+        renderVehicles(vRes.items || []);
+        // batteries
+        const bUrl = new URL("/api/search/batteries", window.location.origin);
+        if (brand) bUrl.searchParams.set("brand", brand);
+        const bRes = await fetch(bUrl)
+          .then((r) => r.json())
+          .catch(() => ({ items: [] }));
+        renderBatteries(bRes.items || []);
+      }
+
+      function renderVehicles(items) {
+        const root = document.getElementById("vehiclesGrid");
+        root.innerHTML = "";
+        items.forEach((v) => {
+          const card = document.createElement("div");
+          card.className = "product-card";
+          card.innerHTML = `
+          <img src="/static/images/v1.jpg" alt="${v.brand} ${
+            v.model
+          }" class="product-image"/>
+          <div class="product-info">
+            <h3 class="product-title">${v.brand} ${v.model} ${v.year || ""}</h3>
+            <div class="product-price">${fmtMoney(v.price)}</div>
+            <div class="product-location"><i class="fas fa-battery-full"></i> ${
+              v.battery_capacity_kwh || ""
+            } kWh - ${v.km || 0} km</div>
+            <div class="product-actions">
+              <button onclick="addFav('vehicle', ${
+                v.id
+              })"><i class="far fa-heart"></i> Yêu thích</button>
+              <button onclick="toggleCompare('vehicle', ${
+                v.id
+              })"><i class="fas fa-code-compare"></i> So sánh</button>
+              <button onclick="buyNow('vehicle', ${v.id}, ${
+            v.seller_id || 1
+          }, ${v.price || 0})"><i class="fas fa-bolt"></i> Mua ngay</button>
+            </div>
+          </div>
+        `;
+          root.appendChild(card);
+        });
+      }
+
+      function renderBatteries(items) {
+        const root = document.getElementById("batteriesGrid");
+        root.innerHTML = "";
+        items.forEach((b) => {
+          const card = document.createElement("div");
+          card.className = "product-card";
+          card.innerHTML = `
+          <img src="/static/images/v3.jpg" alt="${b.brand} ${
+            b.capacity_kwh
+          } kWh" class="product-image"/>
+          <div class="product-info">
+            <h3 class="product-title">${b.brand} ${b.year || ""} - ${
+            b.capacity_kwh || ""
+          } kWh</h3>
+            <div class="product-price">${fmtMoney(b.price)}</div>
+            <div class="product-location"><i class="fas fa-heartbeat"></i> ${
+              b.health_percent || ""
+            }% - ${b.cycles || 0} chu kỳ</div>
+            <div class="product-actions">
+              <button onclick="addFav('battery', ${
+                b.id
+              })"><i class="far fa-heart"></i> Yêu thích</button>
+              <button onclick="toggleCompare('battery', ${
+                b.id
+              })"><i class="fas fa-code-compare"></i> So sánh</button>
+              <button onclick="buyNow('battery', ${b.id}, ${
+            b.seller_id || 1
+          }, ${b.price || 0})"><i class="fas fa-bolt"></i> Mua ngay</button>
+            </div>
+          </div>
+        `;
+          root.appendChild(card);
+        });
+      }
+
+      async function addFav(item_type, item_id) {
+        const res = await fetch("/api/favorites", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ item_type, item_id }),
+        });
+        if (res.ok) alert("Đã thêm yêu thích");
+        else alert("Vui lòng đăng nhập để lưu yêu thích");
+      }
+
+      function toggleCompare(type, id) {
+        const key = `${type}:${id}`;
+        if (carsCompare.has(key)) carsCompare.delete(key);
+        else carsCompare.add(key);
+        alert("So sánh: " + Array.from(carsCompare).join(", "));
+      }
+
+      async function buyNow(item_type, item_id, seller_id, price) {
+        const res = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ item_type, item_id, seller_id, price }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) alert("Đã tạo đơn hàng #" + data.id);
+        else alert("Mua ngay thất bại. Vui lòng đăng nhập.");
+      }
+
+      // auto-load on first paint
+      doSearch();
+    </script>
+  </body>
 </html>

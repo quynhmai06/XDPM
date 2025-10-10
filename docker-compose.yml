@@ -24,13 +24,54 @@ services:
     depends_on: [db]
     ports: ["5002:5002"]   
 
+  listings_service:
+    build: ./listings-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+    depends_on: [db]
+    ports: ["5003:5003"]
+
+  favorites_service:
+    build: ./favorites-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+    depends_on: [db]
+    ports: ["5004:5004"]
+
+  orders_service:
+    build: ./orders-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+    depends_on: [db]
+    ports: ["5005:5005"]
+
+  auctions_service:
+    build: ./auctions-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+    depends_on: [db]
+    ports: ["5006:5006"]
+
+  reviews_service:
+    build: ./reviews-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+    depends_on: [db]
+    ports: ["5007:5007"]
+
   web_gateway:
     build: ./gateway
     environment:
       AUTH_URL:  http://auth_service:5001   
       ADMIN_URL: http://admin_service:5002
+      LISTINGS_URL: http://listings_service:5003
+      FAVORITES_URL: http://favorites_service:5004
+      ORDERS_URL: http://orders_service:5005
+      AUCTIONS_URL: http://auctions_service:5006
+      REVIEWS_URL: http://reviews_service:5007
       GATEWAY_SECRET: dev
-    depends_on: [auth_service, admin_service]
+      JWT_SECRET: supersecret
+    depends_on: [auth_service, admin_service, listings_service, favorites_service, orders_service, auctions_service, reviews_service]
     ports: ["8000:8000"]
 
 volumes:

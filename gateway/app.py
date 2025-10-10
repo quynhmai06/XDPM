@@ -3,7 +3,13 @@ import os, requests, jwt
 from flask import jsonify
 
 AUTH_URL = os.getenv("AUTH_URL", "http://127.0.0.1:5001")
-JWT_SECRET = os.getenv("JWT_SECRET", "devsecret")
+ADMIN_URL = os.getenv("ADMIN_URL", "http://127.0.0.1:5002")
+LISTINGS_URL = os.getenv("LISTINGS_URL", "http://127.0.0.1:5003")
+FAVORITES_URL = os.getenv("FAVORITES_URL", "http://127.0.0.1:5004")
+ORDERS_URL = os.getenv("ORDERS_URL", "http://127.0.0.1:5005")
+AUCTIONS_URL = os.getenv("AUCTIONS_URL", "http://127.0.0.1:5006")
+REVIEWS_URL = os.getenv("REVIEWS_URL", "http://127.0.0.1:5007")
+JWT_SECRET = os.getenv("JWT_SECRET", os.getenv("GATEWAY_SECRET", "devsecret"))
 JWT_ALGOS = ["HS256"]
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
@@ -204,3 +210,110 @@ def delete_user(user_id):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)
+
+# ======= API proxy minimal endpoints =======
+@app.get('/api/search/vehicles')
+def api_search_vehicles():
+    try:
+        r = requests.get(f"{LISTINGS_URL}/listings/vehicles", params=request.args, timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "listings_unavailable"}, 503
+
+@app.get('/api/search/batteries')
+def api_search_batteries():
+    try:
+        r = requests.get(f"{LISTINGS_URL}/listings/batteries", params=request.args, timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "listings_unavailable"}, 503
+
+@app.get('/api/favorites')
+def api_favorites_list():
+    user = session.get('user')
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    try:
+        r = requests.get(f"{FAVORITES_URL}/favorites/me", params={"user_id": user['sub']}, timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "favorites_unavailable"}, 503
+
+@app.post('/api/favorites')
+def api_favorites_add():
+    user = session.get('user')
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    d = request.get_json(force=True)
+    d['user_id'] = user['sub']
+    try:
+        r = requests.post(f"{FAVORITES_URL}/favorites", json=d, timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "favorites_unavailable"}, 503
+
+@app.post('/api/orders')
+def api_orders_create():
+    user = session.get('user')
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    d = request.get_json(force=True)
+    d['buyer_id'] = user['sub']
+    try:
+        r = requests.post(f"{ORDERS_URL}/orders", json=d, timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "orders_unavailable"}, 503
+
+@app.get('/api/orders/history')
+def api_orders_history():
+    user = session.get('user')
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    try:
+        r = requests.get(f"{ORDERS_URL}/orders/history", params={"user_id": user['sub'], "role": request.args.get('role','buyer')}, timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "orders_unavailable"}, 503
+
+@app.post('/api/auctions/<int:aid>/bid')
+def api_bid(aid:int):
+    user = session.get('user')
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    d = request.get_json(force=True)
+    d['bidder_id'] = user['sub']
+    try:
+        r = requests.post(f"{AUCTIONS_URL}/auctions/{aid}/bid", json=d, timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "auctions_unavailable"}, 503
+
+@app.post('/api/auctions/<int:aid>/buy-now')
+def api_buy_now(aid:int):
+    try:
+        r = requests.post(f"{AUCTIONS_URL}/auctions/{aid}/buy-now", timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "auctions_unavailable"}, 503
+
+@app.post('/api/reviews')
+def api_reviews_create():
+    user = session.get('user')
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    d = request.get_json(force=True)
+    d['reviewer_id'] = user['sub']
+    try:
+        r = requests.post(f"{REVIEWS_URL}/reviews", json=d, timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "reviews_unavailable"}, 503
+
+@app.get('/api/reviews/user/<int:user_id>')
+def api_reviews_list(user_id:int):
+    try:
+        r = requests.get(f"{REVIEWS_URL}/reviews/user/{user_id}", timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "reviews_unavailable"}, 503
