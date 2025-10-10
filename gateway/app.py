@@ -7,6 +7,8 @@ from werkzeug.utils import secure_filename
 # ==== Config các service ====
 AUTH_URL = os.getenv("AUTH_URL", "http://127.0.0.1:5001")
 LISTING_URL = os.getenv("LISTING_URL", "http://127.0.0.1:5002")
+PRICING_URL = os.getenv("PRICING_URL", "http://127.0.0.1:5003")
+
 
 JWT_SECRET = os.getenv("JWT_SECRET", "devsecret")
 JWT_ALGOS = ["HS256"]
@@ -42,7 +44,15 @@ def save_image(file_storage, prefix="img"):
 
 @app.route("/", endpoint="home")
 def home():
-    return render_template("index.html")
+    try:
+        # Lấy danh sách sản phẩm đã duyệt từ listing-service
+        res = requests.get(f"{LISTING_URL}/listings/?approved=1&sort=created_desc&per_page=12", timeout=5)
+        items = res.json().get("items", []) if res.ok else []
+    except requests.RequestException:
+        items = []
+
+    return render_template("index.html", items=items)
+
 
 # ---------- Auth ----------
 @app.route("/login", methods=["GET", "POST"], endpoint="login_page")
@@ -360,6 +370,27 @@ def delete_user(user_id):
     except requests.RequestException:
         flash("Không kết nối được auth service.", "error")
     return redirect(url_for("admin_page"))
+
+# ---------- AI Price Suggest ----------
+@app.post("/ai/price_suggest")
+def price_suggest():
+    # Lấy dữ liệu từ form multipart (không ảnh)
+    payload = {
+        "product_type": request.form.get("product_type", "car"),
+        "name": request.form.get("name", ""),
+        "brand": request.form.get("brand", ""),
+        "province": request.form.get("province", ""),
+        "year": request.form.get("year", ""),
+        "mileage": request.form.get("mileage", ""),
+        "battery_capacity": request.form.get("battery_capacity", ""),
+        "description": request.form.get("description", ""), 
+    }
+    try:
+        r = requests.post(f"{PRICING_URL}/predict", json=payload, timeout=5)
+        return (r.text, r.status_code, {"Content-Type": "application/json"})
+    except requests.RequestException:
+        return jsonify(error="Không kết nối được pricing-service"), 502
+
 
 if __name__ == "__main__":
     # Bạn đang dùng 8000; đổi 8080 nếu muốn

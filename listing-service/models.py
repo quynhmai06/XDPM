@@ -1,4 +1,3 @@
-# listing-service/models.py
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
@@ -16,7 +15,7 @@ class Product(db.Model):
     year             = db.Column(db.Integer, index=True)
     mileage          = db.Column(db.Integer)
     battery_capacity = db.Column(db.String(50))
-    owner            = db.Column(db.String(80), nullable=False, index=True)  # username
+    owner            = db.Column(db.String(80), nullable=False, index=True)
 
     main_image_url   = db.Column(db.String(255))
     sub_image_urls   = db.Column(db.Text)  # JSON list string
