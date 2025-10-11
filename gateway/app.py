@@ -236,5 +236,9 @@ def admin_logout():
     flash("Đã đăng xuất khỏi Admin!", "success")
     return redirect(url_for("admin_page"))
 
+@app.route("/policy", methods=["GET"], endpoint="policy_page")
+def policy_page():
+    return render_template("policy.html")
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)
