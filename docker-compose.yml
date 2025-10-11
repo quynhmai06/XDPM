@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16
@@ -7,60 +5,42 @@ services:
       POSTGRES_USER: ev
       POSTGRES_PASSWORD: evpass
       POSTGRES_DB: evdb
-    volumes:
-      - dbdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    volumes: [dbdata:/var/lib/postgresql/data]
+    ports: ["5432:5432"]
 
   auth_service:
     build: ./auth-service
     environment:
       DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
       JWT_SECRET: supersecret
-    depends_on:
-      - db
-    ports:
-      - "5001:5001"
+    depends_on: [db]
+    ports: ["5001:5001"]
 
-  # ✅ listing-service (CRUD & duyệt tin)
   listing_service:
     build: ./listing-service
     environment:
       DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
       JWT_SECRET: supersecret
-    depends_on:
-      - db
-    ports:
-      - "5002:5002"
+    depends_on: [db]
+    ports: ["5002:5002"]
 
-  # ✅ pricing-service (AI gợi ý giá)
   pricing_service:
     build: ./pricing-service
     environment:
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      PORT: "5003"
-    depends_on:
-      - db
-    ports:
-      - "5003:5003"
-
+      OPENAI_API_KEY: REDACTED   
+    depends_on: []
+    ports: ["5003:5003"]
 
   web_gateway:
     build: ./gateway
     environment:
-      AUTH_URL:      http://auth_service:5001
-      LISTING_URL:   http://listing_service:5002
-      PRICING_URL:   http://pricing_service:5003
-      JWT_SECRET:    supersecret
+      AUTH_URL: http://auth_service:5001
+      LISTING_URL: http://listing_service:5002
+      PRICING_URL: http://pricing_service:5003
+      JWT_SECRET: supersecret          # <<< QUAN TRỌNG: trùng với auth_service
       GATEWAY_SECRET: dev
-    volumes:
-      - ./gateway/static/uploads:/app/static/uploads
-    depends_on:
-      - auth_service
-      - listing_service
-      - pricing_service
-    ports:
-      - "8000:8000"
+    depends_on: [auth_service, listing_service, pricing_service]
+    ports: ["8000:8000"]
 
 volumes:
   dbdata:

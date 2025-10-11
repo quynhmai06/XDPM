@@ -1,0 +1,42 @@
+Write-Host "=== OpenAI API Quick Test ===" -ForegroundColor Cyan
+
+# 1️⃣ Nhập key nếu chưa có
+if (-not $env:OPENAI_API_KEY) {
+    $env:OPENAI_API_KEY = Read-Host "Nhập API key (bắt đầu bằng sk- hoặc sk-proj-)"
+}
+if (-not $env:OPENAI_ORG) {
+    $env:OPENAI_ORG = Read-Host "Nhập Organization ID (nếu có, ví dụ org-xxxx)"
+}
+if (-not $env:OPENAI_PROJECT) {
+    $env:OPENAI_PROJECT = Read-Host "Nhập Project ID (nếu có, ví dụ proj_xxxx)"
+}
+
+Write-Host "`n👉 Testing connection..." -ForegroundColor Yellow
+
+# 2️⃣ Tạo headers
+$headers = @{
+    "Authorization" = "Bearer $env:OPENAI_API_KEY"
+}
+if ($env:OPENAI_ORG) { $headers["OpenAI-Organization"] = $env:OPENAI_ORG }
+if ($env:OPENAI_PROJECT) { $headers["OpenAI-Project"] = $env:OPENAI_PROJECT }
+
+# 3️⃣ Gọi API
+try {
+    $response = Invoke-WebRequest "https://api.openai.com/v1/models" -Headers $headers -ErrorAction Stop
+    $json = $response.Content | ConvertFrom-Json
+    Write-Host "`n✅ Kết nối thành công!" -ForegroundColor Green
+    Write-Host "Các model khả dụng:" -ForegroundColor Cyan
+    $json.data | Select-Object id | ForEach-Object { $_.id } | Sort-Object | Select-Object -First 10
+}
+catch {
+    Write-Host "`n❌ Lỗi khi gọi API:" -ForegroundColor Red
+    if ($_.Exception.Response -and $_.Exception.Response.ContentLength -gt 0) {
+        $body = New-Object IO.StreamReader($_.Exception.Response.GetResponseStream()).ReadToEnd()
+        Write-Host $body -ForegroundColor Red
+    } else {
+        Write-Host $_.Exception.Message -ForegroundColor Red
+    }
+}
+
+Write-Host "`n--- Kết thúc kiểm tra ---" -ForegroundColor Cyan
+Pause

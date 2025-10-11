@@ -18,7 +18,13 @@ app.secret_key = os.getenv("GATEWAY_SECRET", "dev")
 
 # ==== Helpers JWT / Session ====
 def decode_token(token: str):
-    return jwt.decode(token, JWT_SECRET, algorithms=JWT_ALGOS)
+    # Bỏ kiểm tra 'sub' phải là string (verify_sub=False)
+    return jwt.decode(
+        token,
+        JWT_SECRET,
+        algorithms=JWT_ALGOS,
+        options={"verify_sub": False}
+    )
 
 def is_admin_session() -> bool:
     user = session.get("user")
@@ -122,9 +128,17 @@ def register_page():
             return redirect(url_for("login_page"))
 
         msg = None
-        if r.headers.get("content-type", "").startswith("application/json"):
-            msg = r.json().get("error")
+        if r.headers.get("content-type","").startswith("application/json"):
+            data = r.json()
+            err = (data.get("error") or "").lower()
+            if "exist" in err:
+                msg = "Tên đăng nhập hoặc email đã tồn tại."
+            elif "email" in err:
+                msg = "Email không hợp lệ hoặc đã tồn tại."
+            elif "username" in err:
+                msg = "Tên đăng nhập không hợp lệ hoặc đã tồn tại."
         flash(msg or "Đăng ký thất bại.", "error")
+
 
     return render_template("register.html")
 

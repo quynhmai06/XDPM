@@ -9,7 +9,7 @@ SECRET = os.getenv("JWT_SECRET", "devsecret")  # phải trùng với gateway
 # ===== Helpers =====
 def _make_token(u: User) -> str:
     payload = {
-        "sub": u.id,
+        "sub": str(u.id),  # Ép string để chuẩn RFC, tránh InvalidSubjectError
         "username": u.username,
         "role": u.role,
         "approved": u.approved,
@@ -24,7 +24,8 @@ def _require_admin():
         return None, ({"error": "no_token"}, 401)
     token = auth.split(" ", 1)[1]
     try:
-        payload = jwt.decode(token, SECRET, algorithms=["HS256"])
+        # Chấp nhận cả token cũ (sub=int) lẫn token mới (sub=str)
+        payload = jwt.decode(token, SECRET, algorithms=["HS256"], options={"verify_sub": False})
     except Exception:
         return None, ({"error": "invalid_token"}, 401)
     if payload.get("role") != "admin":
@@ -70,14 +71,13 @@ def login():
         return {"error": "not_approved"}, 403
     return {"access_token": _make_token(u)}
 
-
 @bp.get("/me")
 def me():
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
         return {"error": "no_token"}, 401
     try:
-        payload = jwt.decode(auth.split(" ", 1)[1], SECRET, algorithms=["HS256"])
+        payload = jwt.decode(auth.split(" ", 1)[1], SECRET, algorithms=["HS256"], options={"verify_sub": False})
     except Exception:
         return {"error": "invalid_token"}, 401
     return payload
