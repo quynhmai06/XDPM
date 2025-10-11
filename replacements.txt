@@ -1,0 +1,4 @@
+﻿regex:\bOPENAI_API_KEY\s*=\s*.*$==>OPENAI_API_KEY=REDACTED
+regex:\bsk-proj-[A-Za-z0-9_-]{20,}\b==>REDACTED
+regex:\bsk-[A-Za-z0-9_-]{20,}\b==>REDACTED
+regex:\bproj-[A-Za-z0-9_-]{20,}\b==>REDACTED
