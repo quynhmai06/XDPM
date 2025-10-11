@@ -26,12 +26,14 @@ services:
 
   web_gateway:
     build: ./gateway
+    ports:
+      - "8000:8000"
     environment:
-      AUTH_URL:  http://auth_service:5001   
-      ADMIN_URL: http://admin_service:5002
-      GATEWAY_SECRET: dev
-    depends_on: [auth_service, admin_service]
-    ports: ["8000:8000"]
+      AUTH_URL: http://auth_service:5001
+      JWT_SECRET: devsecret
+      GOOGLE_CLIENT_ID: "xxxxxxxxxxxx.apps.googleusercontent.com"
+      GOOGLE_CLIENT_SECRET: "yyyyyyyyyyyy"
+
 
 volumes:
   dbdata:

@@ -1,3 +1,4 @@
+from authlib.integrations.flask_client import OAuth
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 import os, requests, jwt
 from flask import jsonify
@@ -8,6 +9,9 @@ JWT_ALGOS = ["HS256"]
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.getenv("GATEWAY_SECRET", "dev")
+oauth = OAuth(app)
+BASE = os.getenv("OAUTH_REDIRECT_BASE", "http://localhost:8000")
+
 
 def decode_token(token: str):
     return jwt.decode(token, JWT_SECRET, algorithms=JWT_ALGOS)
@@ -87,7 +91,7 @@ def register_page():
         try:
             r = requests.post(
                 f"{AUTH_URL}/auth/register",
-                json={"username": username, "email": email, "password": password},
+                json={"username": username, "email": email, "password": password, "phone": request.form.get("phone", "")},
                 timeout=5,
             )
         except requests.RequestException:
@@ -235,6 +239,114 @@ def admin_logout():
     session.clear()
     flash("Đã đăng xuất khỏi Admin!", "success")
     return redirect(url_for("admin_page"))
+
+# ---- Google OpenID Connect ----
+oauth.register(
+    name="google",
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+    client_id=os.getenv("GOOGLE_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+    client_kwargs={"scope": "openid email profile"},
+)
+
+# ---- Facebook OAuth2 ----
+oauth.register(
+    name="facebook",
+    api_base_url="https://graph.facebook.com/",
+    access_token_url="https://graph.facebook.com/oauth/access_token",
+    authorize_url="https://www.facebook.com/dialog/oauth",
+    client_id=os.getenv("FACEBOOK_CLIENT_ID"),
+    client_secret=os.getenv("FACEBOOK_CLIENT_SECRET"),
+    client_kwargs={"scope": "public_profile,email"},
+)
+
+# ================= GOOGLE FLOW =================
+@app.get("/login/google")
+def login_google():
+    # TỰ SINH redirect_uri đúng với host/scheme hiện tại -> tránh mismatch
+    redirect_uri = url_for("auth_google_callback", _external=True)
+    return oauth.google.authorize_redirect(redirect_uri)
+
+@app.get("/auth/google/callback")
+def auth_google_callback():
+    # Nếu Google trả lỗi ?error=..., báo ra để debug
+    if request.args.get("error"):
+        flash(f"Google OAuth error: {request.args.get('error_description') or request.args.get('error')}", "error")
+        return redirect(url_for("login_page"))
+    try:
+        token = oauth.google.authorize_access_token()
+        userinfo = oauth.google.parse_id_token(token)
+    except Exception as e:
+        flash(f"Lỗi Google OAuth: {e}", "error")
+        return redirect(url_for("login_page"))
+
+    if not userinfo:
+        flash("Không lấy được thông tin Google.", "error")
+        return redirect(url_for("login_page"))
+
+    payload = {
+        "provider": "google",
+        "sub": userinfo.get("sub"),
+        "email": userinfo.get("email"),
+        "name": userinfo.get("name"),
+        "picture": userinfo.get("picture"),
+        "email_verified": bool(userinfo.get("email_verified")),
+    }
+    return _finish_oauth_login(payload)
+
+# ================= FACEBOOK FLOW =================
+@app.get("/login/facebook")
+def login_facebook():
+    redirect_uri = url_for("auth_facebook_callback", _external=True)
+    return oauth.facebook.authorize_redirect(redirect_uri)
+
+@app.get("/auth/facebook/callback")
+def auth_facebook_callback():
+    if request.args.get("error"):
+        flash(f"Facebook OAuth error: {request.args.get('error_description') or request.args.get('error_message') or request.args.get('error')}", "error")
+        return redirect(url_for("login_page"))
+    try:
+        token = oauth.facebook.authorize_access_token()
+        resp = oauth.facebook.get("me", params={"fields": "id,name,email,picture{url}"}, token=token)
+        d = resp.json()
+    except Exception as e:
+        flash(f"Lỗi Facebook OAuth: {e}", "error")
+        return redirect(url_for("login_page"))
+
+    payload = {
+        "provider": "facebook",
+        "sub": d.get("id"),
+        "email": d.get("email"),
+        "name": d.get("name"),
+        "picture": (((d.get("picture") or {}).get("data") or {}).get("url")),
+        "email_verified": True if d.get("email") else False,
+    }
+    return _finish_oauth_login(payload)
+
+# ====== Hoàn tất đăng nhập MXH: gọi auth-service để lấy JWT và set session ======
+def _finish_oauth_login(profile: dict):
+    try:
+        r = requests.post(f"{AUTH_URL}/api/oauth/login", json=profile, timeout=8)
+        if not r.ok:
+            # cho biết rõ lỗi server trả về (nếu có)
+            try:
+                err = r.json()
+            except Exception:
+                err = r.text
+            flash(f"Đăng nhập MXH thất bại: {err}", "error")
+            return redirect(url_for("login_page"))
+
+        data = r.json()
+        # THỐNG NHẤT KEY SESSION
+        session["access_token"] = data["token"]
+        session["user"] = data["user"]
+        flash("Đăng nhập thành công!", "success")
+        return redirect(url_for("home"))
+
+    except Exception as e:
+        flash(f"Có lỗi khi kết nối máy chủ xác thực: {e}", "error")
+        return redirect(url_for("login_page"))
+
 
 @app.route("/policy", methods=["GET"], endpoint="policy_page")
 def policy_page():

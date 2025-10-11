@@ -13,3 +13,13 @@ class User(db.Model):
     approved = db.Column(db.Boolean, default=False)
     locked = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    phone = db.Column(db.String(20), unique=True)
+
+class OAuthAccount(db.Model):
+    __tablename__ = "oauth_accounts"
+    id = db.Column(db.Integer, primary_key=True)
+    provider = db.Column(db.String(30), nullable=False)   # 'google' | 'facebook'
+    sub = db.Column(db.String(191), nullable=False)       # subject/ID từ provider
+    email = db.Column(db.String(255))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    __table_args__ = (db.UniqueConstraint("provider","sub", name="uq_provider_sub"),)
