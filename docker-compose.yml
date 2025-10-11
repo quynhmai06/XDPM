@@ -27,7 +27,7 @@ services:
   pricing_service:
     build: ./pricing-service
     environment:
-      OPENAI_API_KEY: REDACTED   
+      OPENAI_API_KEY: ..   
     depends_on: []
     ports: ["5003:5003"]
 
