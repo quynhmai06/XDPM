@@ -14,7 +14,7 @@ services:
       DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
       JWT_SECRET: supersecret
     depends_on: [db]
-    ports: ["5001:5001"] 
+    ports: ["5001:5001"]
 
   admin_service:
     build: ./admin-service
@@ -22,15 +22,23 @@ services:
       DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
       JWT_SECRET: supersecret
     depends_on: [db]
-    ports: ["5002:5002"]   
+    ports: ["5002:5002"]
+
+  payment_service:
+    build: ./payment-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+    depends_on: [db]
+    ports: ["5003:5003"]
 
   web_gateway:
     build: ./gateway
     environment:
-      AUTH_URL:  http://auth_service:5001   
-      ADMIN_URL: http://admin_service:5002
+      AUTH_URL:     http://auth_service:5001
+      ADMIN_URL:    http://admin_service:5002
+      PAYMENT_URL:  http://payment_service:5003   # <-- thêm dòng này
       GATEWAY_SECRET: dev
-    depends_on: [auth_service, admin_service]
+    depends_on: [auth_service, admin_service, payment_service]
     ports: ["8000:8000"]
 
 volumes:
