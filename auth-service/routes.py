@@ -82,7 +82,6 @@ def me():
         return {"error": "invalid_token"}, 401
     return payload
 
-# ===== Admin APIs (JWT role=admin) =====
 @bp.get("/admin/users")
 def admin_list_users():
     _, err = _require_admin()
@@ -94,7 +93,7 @@ def admin_list_users():
         "username": u.username,
         "email": u.email,
         "role": u.role,
-        "is_admin": (u.role == "admin"),  # khớp với admin.html của gateway
+        "is_admin": (u.role == "admin"), 
         "approved": u.approved,
         "locked": u.locked,
         "created_at": u.created_at.isoformat(),
