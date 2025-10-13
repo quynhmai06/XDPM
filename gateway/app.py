@@ -22,9 +22,210 @@ def is_admin_session() -> bool:
     user = session.get("user")
     return bool(user and user.get("role") == "admin")
 
+def get_current_user():
+    # Prefer session (browser flows)
+    user = session.get("user")
+    if user:
+        return user
+    # Fallback to Authorization header (API/script flows)
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        token = auth.split(" ", 1)[1]
+        try:
+            return decode_token(token)
+        except Exception:
+            return None
+    return None
+
+# ===== Cart helpers =====
+def _get_cart():
+    cart = session.get('cart')
+    if cart is None:
+        cart = []
+        session['cart'] = cart
+    return cart
+
+def _save_cart(cart):
+    session['cart'] = cart
+
+def _cart_find(cart, item_type, item_id):
+    for it in cart:
+        if it.get('item_type') == item_type and it.get('item_id') == item_id:
+            return it
+    return None
+
 @app.route("/", endpoint="home")
-def home():
+def home_page():
     return render_template("index.html")
+
+@app.route("/compare", methods=["GET"], endpoint="compare_page")
+def compare_page():
+    return render_template("compare.html")
+
+@app.route("/favorites", methods=["GET"], endpoint="favorites_page")
+def favorites_page():
+    user = get_current_user()
+    if not user:
+        session["next_after_login"] = url_for("favorites_page")
+        return redirect(url_for("login_page"))
+    # Fetch enriched favorites via our own API (ensures same logic)
+    headers = {"Authorization": f"Bearer {session.get('access_token')}"} if session.get('access_token') else {}
+    try:
+        r = requests.get(f"http://localhost:8000/api/favorites", headers=headers, timeout=5)
+        favs = r.json().get('data', []) if r.ok else []
+    except Exception:
+        favs = []
+    return render_template("favorites.html", favs=favs, user=user)
+
+# ===== Cart & Checkout pages =====
+@app.post('/cart/add')
+def cart_add():
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    d = request.get_json(force=True)
+    item_type = d.get('item_type')
+    item_id = d.get('item_id')
+    seller_id = d.get('seller_id')
+    price = d.get('price', 0)
+    qty = max(int(d.get('qty', 1)), 1)
+    if not item_type or not item_id:
+        return {"error": "missing_fields"}, 400
+    cart = _get_cart()
+    existing = _cart_find(cart, item_type, item_id)
+    if existing:
+        existing['qty'] = existing.get('qty', 1) + qty
+        existing['price'] = price or existing.get('price', 0)
+        existing['seller_id'] = seller_id or existing.get('seller_id')
+    else:
+        cart.append({
+            'item_type': item_type,
+            'item_id': item_id,
+            'seller_id': seller_id,
+            'price': price,
+            'qty': qty
+        })
+    _save_cart(cart)
+    return {"ok": True, "count": sum(i.get('qty',1) for i in cart)}
+
+@app.post('/cart/update')
+def cart_update():
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    d = request.get_json(force=True)
+    item_type = d.get('item_type')
+    item_id = d.get('item_id')
+    qty = max(int(d.get('qty', 1)), 0)
+    cart = _get_cart()
+    it = _cart_find(cart, item_type, item_id)
+    if not it:
+        return {"error": "not_found"}, 404
+    if qty == 0:
+        cart.remove(it)
+    else:
+        it['qty'] = qty
+    _save_cart(cart)
+    return {"ok": True}
+
+@app.post('/cart/remove')
+def cart_remove():
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    d = request.get_json(force=True)
+    item_type = d.get('item_type')
+    item_id = d.get('item_id')
+    cart = _get_cart()
+    it = _cart_find(cart, item_type, item_id)
+    if not it:
+        return {"error": "not_found"}, 404
+    cart.remove(it)
+    _save_cart(cart)
+    return {"ok": True}
+
+def _enrich_item(it):
+    item = None
+    try:
+        if it.get('item_type') == 'vehicle':
+            ir = requests.get(f"{LISTINGS_URL}/listings/vehicles/{it.get('item_id')}", timeout=5)
+            if ir.ok:
+                item = ir.json()
+        elif it.get('item_type') == 'battery':
+            ir = requests.get(f"{LISTINGS_URL}/listings/batteries/{it.get('item_id')}", timeout=5)
+            if ir.ok:
+                item = ir.json()
+    except requests.RequestException:
+        item = None
+    return item
+
+@app.get('/cart')
+def cart_page():
+    user = get_current_user()
+    if not user:
+        session['next_after_login'] = url_for('cart_page')
+        return redirect(url_for('login_page'))
+    cart = _get_cart()
+    enriched = []
+    subtotal = 0
+    for it in cart:
+        info = _enrich_item(it)
+        price = it.get('price') or (info.get('price') if info else 0)
+        qty = it.get('qty', 1)
+        line = {**it, 'item': info, 'price': price, 'line_total': price * qty}
+        subtotal += line['line_total']
+        enriched.append(line)
+    return render_template('cart.html', items=enriched, subtotal=subtotal)
+
+@app.get('/checkout')
+def checkout_page():
+    user = get_current_user()
+    if not user:
+        session['next_after_login'] = url_for('checkout_page')
+        return redirect(url_for('login_page'))
+    cart = _get_cart()
+    if not cart:
+        flash('Giỏ hàng trống.', 'error')
+        return redirect(url_for('home'))
+    enriched = []
+    subtotal = 0
+    for it in cart:
+        info = _enrich_item(it)
+        price = it.get('price') or (info.get('price') if info else 0)
+        qty = it.get('qty', 1)
+        line = {**it, 'item': info, 'price': price, 'line_total': price * qty}
+        subtotal += line['line_total']
+        enriched.append(line)
+    shipping = 0
+    total = subtotal + shipping
+    return render_template('checkout.html', items=enriched, subtotal=subtotal, shipping=shipping, total=total)
+
+@app.post('/checkout/place')
+def checkout_place():
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    cart = _get_cart()
+    if not cart:
+        return {"error": "empty_cart"}, 400
+    created = []
+    for it in cart:
+        payload = {
+            'buyer_id': user['sub'],
+            'seller_id': it.get('seller_id'),
+            'item_type': it.get('item_type'),
+            'item_id': it.get('item_id'),
+            'price': it.get('price') or 0
+        }
+        try:
+            r = requests.post(f"{ORDERS_URL}/orders", json=payload, timeout=5)
+            if r.ok:
+                created.append(r.json().get('id'))
+        except requests.RequestException:
+            pass
+    # Clear cart after placing orders
+    _save_cart([])
+    return {"ok": True, "order_ids": created}
 
 @app.route("/login", methods=["GET", "POST"], endpoint="login_page")
 def login_page():
@@ -220,6 +421,14 @@ def api_search_vehicles():
     except requests.RequestException:
         return {"error": "listings_unavailable"}, 503
 
+@app.get('/api/listings/vehicles/<int:id>')
+def api_get_vehicle(id):
+    try:
+        r = requests.get(f"{LISTINGS_URL}/listings/vehicles/{id}", timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "listings_unavailable"}, 503
+
 @app.get('/api/search/batteries')
 def api_search_batteries():
     try:
@@ -228,20 +437,49 @@ def api_search_batteries():
     except requests.RequestException:
         return {"error": "listings_unavailable"}, 503
 
+@app.get('/api/listings/batteries/<int:id>')
+def api_get_battery(id):
+    try:
+        r = requests.get(f"{LISTINGS_URL}/listings/batteries/{id}", timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "listings_unavailable"}, 503
+
 @app.get('/api/favorites')
 def api_favorites_list():
-    user = session.get('user')
+    user = get_current_user()
     if not user:
         return {"error": "unauthenticated"}, 401
     try:
         r = requests.get(f"{FAVORITES_URL}/favorites/me", params={"user_id": user['sub']}, timeout=5)
-        return (r.json(), r.status_code)
+        if not r.ok:
+            return (r.json() if r.headers.get('content-type','').startswith('application/json') else {"error":"favorites_error"}, r.status_code)
+        data = r.json().get('data', [])
+        enriched = []
+        for f in data:
+            item = None
+            try:
+                if f.get('item_type') == 'vehicle':
+                    ir = requests.get(f"{LISTINGS_URL}/listings/vehicles/{f.get('item_id')}", timeout=5)
+                    if ir.ok:
+                        item = ir.json()
+                elif f.get('item_type') == 'battery':
+                    ir = requests.get(f"{LISTINGS_URL}/listings/batteries/{f.get('item_id')}", timeout=5)
+                    if ir.ok:
+                        item = ir.json()
+            except requests.RequestException:
+                item = None
+            enriched.append({
+                **f,
+                "item": item
+            })
+        return ({"data": enriched}, 200)
     except requests.RequestException:
         return {"error": "favorites_unavailable"}, 503
 
 @app.post('/api/favorites')
 def api_favorites_add():
-    user = session.get('user')
+    user = get_current_user()
     if not user:
         return {"error": "unauthenticated"}, 401
     d = request.get_json(force=True)
@@ -252,9 +490,20 @@ def api_favorites_add():
     except requests.RequestException:
         return {"error": "favorites_unavailable"}, 503
 
+@app.delete('/api/favorites/<int:fav_id>')
+def api_favorites_delete(fav_id:int):
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    try:
+        r = requests.delete(f"{FAVORITES_URL}/favorites/{fav_id}", timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "favorites_unavailable"}, 503
+
 @app.post('/api/orders')
 def api_orders_create():
-    user = session.get('user')
+    user = get_current_user()
     if not user:
         return {"error": "unauthenticated"}, 401
     d = request.get_json(force=True)
@@ -267,7 +516,7 @@ def api_orders_create():
 
 @app.get('/api/orders/history')
 def api_orders_history():
-    user = session.get('user')
+    user = get_current_user()
     if not user:
         return {"error": "unauthenticated"}, 401
     try:
@@ -278,7 +527,7 @@ def api_orders_history():
 
 @app.post('/api/auctions/<int:aid>/bid')
 def api_bid(aid:int):
-    user = session.get('user')
+    user = get_current_user()
     if not user:
         return {"error": "unauthenticated"}, 401
     d = request.get_json(force=True)
@@ -299,7 +548,7 @@ def api_buy_now(aid:int):
 
 @app.post('/api/reviews')
 def api_reviews_create():
-    user = session.get('user')
+    user = get_current_user()
     if not user:
         return {"error": "unauthenticated"}, 401
     d = request.get_json(force=True)

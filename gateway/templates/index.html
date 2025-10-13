@@ -9,6 +9,137 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
     />
+    <style>
+      /* Action buttons styling */
+      .product-actions {
+        display: flex;
+        gap: 6px;
+        margin-top: 10px;
+        align-items: center;
+      }
+
+      .action-btn {
+        padding: 6px 10px;
+        border: none;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 400;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+      }
+
+      .action-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+      }
+
+      .action-btn:active {
+        transform: translateY(0);
+      }
+
+      /* Heart button - larger with icon only */
+      .btn-favorite {
+        background: white;
+        border: 1.5px solid #e0e0e0;
+        padding: 8px;
+        border-radius: 8px;
+        min-width: 36px;
+        height: 36px;
+        position: relative;
+      }
+
+      .btn-favorite i {
+        font-size: 16px;
+        color: #666;
+        transition: all 0.2s ease;
+      }
+
+      .btn-favorite:hover {
+        border-color: #ff4757;
+        background: #fff5f6;
+      }
+
+      .btn-favorite:hover i {
+        color: #ff4757;
+        transform: scale(1.1);
+      }
+
+      .btn-favorite.active i {
+        color: #ff4757;
+      }
+
+      /* Compare and Buy buttons - smaller */
+      .btn-compare,
+      .btn-buy {
+        flex: 1;
+        font-size: 11px;
+      }
+
+      .btn-compare {
+        background: #ffa726;
+        color: white;
+      }
+
+      .btn-compare:hover {
+        background: #fb8c00;
+      }
+
+      .btn-buy {
+        background: #ff6f00;
+        color: white;
+        font-weight: 500;
+      }
+
+      .btn-buy:hover {
+        background: #e65100;
+      }
+
+      .action-btn i {
+        font-size: 10px;
+      }
+
+      .btn-favorite i {
+        font-size: 16px !important;
+      }
+
+      @media (max-width: 768px) {
+        .product-actions {
+          flex-wrap: wrap;
+        }
+        .btn-favorite {
+          flex-shrink: 0;
+        }
+      }
+
+      /* Home button styling */
+      .logo-home-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: linear-gradient(135deg, #ff6f00 0%, #ffa726 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(255, 111, 0, 0.2);
+      }
+
+      .logo-home-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(255, 111, 0, 0.3);
+      }
+
+      .logo-home-btn i {
+        font-size: 18px;
+      }
+    </style>
   </head>
   <body>
     <header class="header">
@@ -20,6 +151,10 @@
 
         <div class="user-menu">
           <a href="/policy" class="user-menu-item">Chính sách</a>
+          <a href="/favorites" class="user-menu-item">Yêu thích</a>
+          <a href="/compare" class="user-menu-item">So sánh</a>
+          <a href="/cart" class="user-menu-item">Giỏ hàng</a>
+          <a href="/checkout" class="user-menu-item">Thanh toán</a>
           <a href="#" class="user-menu-item"
             ><i class="far fa-comment"></i> Chat</a
           >
@@ -257,15 +392,17 @@
               v.battery_capacity_kwh || ""
             } kWh - ${v.km || 0} km</div>
             <div class="product-actions">
-              <button onclick="addFav('vehicle', ${
+              <button class="action-btn btn-favorite" onclick="addFav('vehicle', ${
                 v.id
-              })"><i class="far fa-heart"></i> Yêu thích</button>
-              <button onclick="toggleCompare('vehicle', ${
+              })" title="Yêu thích"><i class="far fa-heart"></i></button>
+              <button class="action-btn btn-compare" onclick="toggleCompare('vehicle', ${
                 v.id
               })"><i class="fas fa-code-compare"></i> So sánh</button>
-              <button onclick="buyNow('vehicle', ${v.id}, ${
-            v.seller_id || 1
-          }, ${v.price || 0})"><i class="fas fa-bolt"></i> Mua ngay</button>
+              <button class="action-btn btn-buy" onclick="buyNow('vehicle', ${
+                v.id
+              }, ${v.seller_id || 1}, ${
+            v.price || 0
+          })"><i class="fas fa-shopping-cart"></i> Mua ngay</button>
             </div>
           </div>
         `;
@@ -292,15 +429,17 @@
               b.health_percent || ""
             }% - ${b.cycles || 0} chu kỳ</div>
             <div class="product-actions">
-              <button onclick="addFav('battery', ${
+              <button class="action-btn btn-favorite" onclick="addFav('battery', ${
                 b.id
-              })"><i class="far fa-heart"></i> Yêu thích</button>
-              <button onclick="toggleCompare('battery', ${
+              })" title="Yêu thích"><i class="far fa-heart"></i></button>
+              <button class="action-btn btn-compare" onclick="toggleCompare('battery', ${
                 b.id
               })"><i class="fas fa-code-compare"></i> So sánh</button>
-              <button onclick="buyNow('battery', ${b.id}, ${
-            b.seller_id || 1
-          }, ${b.price || 0})"><i class="fas fa-bolt"></i> Mua ngay</button>
+              <button class="action-btn btn-buy" onclick="buyNow('battery', ${
+                b.id
+              }, ${b.seller_id || 1}, ${
+            b.price || 0
+          })"><i class="fas fa-shopping-cart"></i> Mua ngay</button>
             </div>
           </div>
         `;
@@ -319,21 +458,67 @@
       }
 
       function toggleCompare(type, id) {
-        const key = `${type}:${id}`;
-        if (carsCompare.has(key)) carsCompare.delete(key);
-        else carsCompare.add(key);
-        alert("So sánh: " + Array.from(carsCompare).join(", "));
+        // Load from localStorage
+        let compareItems = [];
+        try {
+          const stored = localStorage.getItem("compareItems");
+          compareItems = stored ? JSON.parse(stored) : [];
+        } catch (e) {}
+
+        // Check if already exists
+        const exists = compareItems.find(
+          (item) => item.type === type && item.id === id
+        );
+
+        if (exists) {
+          // Remove
+          compareItems = compareItems.filter(
+            (item) => !(item.type === type && item.id === id)
+          );
+          alert("Đã xóa khỏi danh sách so sánh");
+        } else {
+          // Add
+          if (compareItems.length >= 5) {
+            alert("Tối đa 5 sản phẩm để so sánh");
+            return;
+          }
+          compareItems.push({ type, id });
+          alert("Đã thêm vào danh sách so sánh");
+        }
+
+        // Save to localStorage
+        localStorage.setItem("compareItems", JSON.stringify(compareItems));
+
+        // Show option to go to compare page
+        if (compareItems.length > 0) {
+          if (
+            confirm(
+              `Bạn có ${compareItems.length} sản phẩm trong danh sách so sánh. Đi đến trang so sánh?`
+            )
+          ) {
+            window.location.href = "/compare";
+          }
+        }
       }
 
       async function buyNow(item_type, item_id, seller_id, price) {
-        const res = await fetch("/api/orders", {
+        // Add to session cart then go to cart page
+        const add = await fetch("/cart/add", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ item_type, item_id, seller_id, price }),
+          body: JSON.stringify({
+            item_type,
+            item_id,
+            seller_id,
+            price,
+            qty: 1,
+          }),
         });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok) alert("Đã tạo đơn hàng #" + data.id);
-        else alert("Mua ngay thất bại. Vui lòng đăng nhập.");
+        if (add.ok) {
+          window.location.href = "/cart";
+        } else {
+          alert("Vui lòng đăng nhập để mua ngay.");
+        }
       }
 
       // auto-load on first paint

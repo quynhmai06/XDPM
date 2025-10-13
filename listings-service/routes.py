@@ -97,6 +97,18 @@ def search_batteries():
     return _paginate(q.order_by(Battery.created_at.desc()), _battery_json)
 
 
+@bp.get("/vehicles/<int:vid>")
+def get_vehicle(vid: int):
+    v = Vehicle.query.get_or_404(vid)
+    return _vehicle_json(v)
+
+
+@bp.get("/batteries/<int:bid>")
+def get_battery(bid: int):
+    b = Battery.query.get_or_404(bid)
+    return _battery_json(b)
+
+
 @bp.post("/vehicles")
 def create_vehicle():
     d = request.get_json(force=True)

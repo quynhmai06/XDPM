@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Yêu thích - EV Trading</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      /* Favorites page styling */
+      .favorites-header {
+        background: #f5f5f5;
+        padding: 30px 20px;
+        text-align: center;
+        color: #333;
+        margin-bottom: 30px;
+        border-bottom: 2px solid #e0e0e0;
+      }
+
+      .favorites-header h2 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 500;
+        color: #555;
+      }
+
+      .favorites-count {
+        margin-top: 8px;
+        font-size: 14px;
+        color: #888;
+      }
+
+      .logo-home-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: linear-gradient(135deg, #ff6f00 0%, #ffa726 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(255, 111, 0, 0.2);
+      }
+
+      .logo-home-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(255, 111, 0, 0.3);
+      }
+
+      .logo-home-btn i {
+        font-size: 18px;
+      }
+
+      .fav-product-card {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        position: relative;
+      }
+
+      .fav-product-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+      }
+
+      .fav-badge {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        background: #ff4757;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        z-index: 1;
+        box-shadow: 0 2px 4px rgba(255, 71, 87, 0.3);
+      }
+
+      .fav-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .btn-remove-fav {
+        flex: 1;
+        padding: 10px;
+        background: linear-gradient(135deg, #ff4757 0%, #ff6b81 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        box-shadow: 0 2px 4px rgba(255, 71, 87, 0.2);
+      }
+
+      .btn-remove-fav:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(255, 71, 87, 0.3);
+      }
+
+      .btn-view-detail {
+        flex: 1;
+        padding: 10px;
+        background: linear-gradient(135deg, #ffa726 0%, #ff6f00 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        text-decoration: none;
+        box-shadow: 0 2px 4px rgba(255, 111, 0, 0.2);
+      }
+
+      .btn-view-detail:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(255, 111, 0, 0.3);
+      }
+
+      .empty-favorites {
+        text-align: center;
+        padding: 60px 20px;
+      }
+
+      .empty-favorites i {
+        font-size: 80px;
+        color: #e0e0e0;
+        margin-bottom: 20px;
+      }
+
+      .empty-favorites h3 {
+        font-size: 24px;
+        color: #666;
+        margin-bottom: 10px;
+      }
+
+      .empty-favorites p {
+        color: #999;
+        margin-bottom: 30px;
+      }
+
+      .btn-browse {
+        display: inline-block;
+        padding: 12px 32px;
+        background: linear-gradient(135deg, #ff6f00 0%, #ffa726 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(255, 111, 0, 0.2);
+      }
+
+      .btn-browse:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(255, 111, 0, 0.3);
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-container">
+        <div class="logo-section">
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <img src="/static/images/logo.png" alt="EV Trading" class="logo" />
+        </div>
+        <div class="user-menu">
+          <a href="/favorites" class="user-menu-item">Yêu thích</a>
+          <a href="/compare" class="user-menu-item">So sánh</a>
+          <a href="/cart" class="user-menu-item">Giỏ hàng</a>
+          <a href="/admin" class="user-menu-item">Admin</a>
+          {% if session.get('user') %}
+          <a href="{{ url_for('logout_page') }}" class="user-menu-item"
+            >Đăng xuất</a
+          >
+          {% else %}
+          <a href="{{ url_for('login_page') }}" class="user-menu-item"
+            >Đăng nhập</a
+          >
+          {% endif %}
+        </div>
+      </div>
+    </header>
+
+    <div class="favorites-header">
+      <h2><i class="fas fa-heart"></i> Danh sách yêu thích</h2>
+      <p class="favorites-count">{{ favs | length }} sản phẩm đã lưu</p>
+    </div>
+
+    {% if favs | length == 0 %}
+    <div class="empty-favorites">
+      <i class="far fa-heart"></i>
+      <h3>Chưa có sản phẩm yêu thích</h3>
+      <p>Hãy khám phá và lưu những sản phẩm bạn quan tâm</p>
+      <a href="/" class="btn-browse">Khám phá ngay</a>
+    </div>
+    {% else %}
+    <section class="product-section">
+      <div class="product-grid">
+        {% for f in favs %} {% set it = f.get('item') %}
+        <div class="fav-product-card">
+          <span class="fav-badge">
+            <i class="fas fa-heart"></i> Yêu thích
+          </span>
+          <img src="/static/images/v1.jpg" alt="fav" class="product-image" />
+          <div class="product-info">
+            {% if f.item_type == 'vehicle' and it %}
+            <h3 class="product-title">
+              {{ it.brand }} {{ it.model }} {{ it.year or '' }}
+            </h3>
+            <div class="product-price">
+              {{ (it.price or 0) | int | string }} đ
+            </div>
+            <div class="product-location">
+              <i class="fas fa-battery-full"></i> {{ it.battery_capacity_kwh or
+              '' }} kWh - {{ it.km or 0 }} km
+            </div>
+            {% elif f.item_type == 'battery' and it %}
+            <h3 class="product-title">
+              {{ it.brand }} {{ it.year or '' }} - {{ it.capacity_kwh or '' }}
+              kWh
+            </h3>
+            <div class="product-price">
+              {{ (it.price or 0) | int | string }} đ
+            </div>
+            <div class="product-location">
+              <i class="fas fa-heartbeat"></i> {{ it.health_percent or '' }}% -
+              {{ it.cycles or 0 }} chu kỳ
+            </div>
+            {% else %}
+            <h3 class="product-title">Mục đã bị gỡ hoặc không khả dụng</h3>
+            {% endif %}
+            <div class="fav-actions">
+              <button class="btn-remove-fav" onclick="removeFav({{ f.id }})">
+                <i class="fas fa-trash-alt"></i> Xóa
+              </button>
+              <a href="/" class="btn-view-detail">
+                <i class="fas fa-eye"></i> Xem
+              </a>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    <script>
+      async function removeFav(id) {
+        const res = await fetch(`/api/favorites/${id}`, { method: "DELETE" });
+        if (res.ok) location.reload();
+        else alert("Không xóa được.");
+      }
+    </script>
+  </body>
+</html>

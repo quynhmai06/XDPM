@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thanh toán - EV Trading</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      .checkout-container {
+        max-width: 1200px;
+        margin: 40px auto;
+        padding: 0 20px;
+        display: grid;
+        grid-template-columns: 1fr 400px;
+        gap: 30px;
+      }
+      @media (max-width: 968px) {
+        .checkout-container {
+          grid-template-columns: 1fr;
+        }
+      }
+      .checkout-main {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+      .checkout-section {
+        background: #fff;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+      .section-title {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #1a1a1a;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .order-item {
+        display: flex;
+        gap: 16px;
+        padding: 16px 0;
+        border-bottom: 1px solid #f0f0f0;
+      }
+      .order-item:last-child {
+        border-bottom: none;
+      }
+      .order-item-img {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 8px;
+        flex-shrink: 0;
+      }
+      .order-item-info {
+        flex: 1;
+      }
+      .order-item-name {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 6px;
+      }
+      .order-item-meta {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 8px;
+      }
+      .order-item-price {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 14px;
+      }
+      .order-item-qty {
+        color: #666;
+      }
+      .order-item-total {
+        font-weight: 600;
+        color: #ff6b35;
+      }
+      .payment-option {
+        display: flex;
+        align-items: center;
+        padding: 16px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .payment-option:hover {
+        border-color: #ff6b35;
+        background: #fff8f5;
+      }
+      .payment-option.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .payment-option input[type="radio"] {
+        margin-right: 12px;
+        width: 20px;
+        height: 20px;
+      }
+      .payment-option-icon {
+        font-size: 24px;
+        margin-right: 12px;
+        width: 40px;
+        text-align: center;
+      }
+      .payment-option-info {
+        flex: 1;
+      }
+      .payment-option-title {
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+      .payment-option-desc {
+        font-size: 13px;
+        color: #666;
+      }
+      .order-summary {
+        background: #fff;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        height: fit-content;
+        position: sticky;
+        top: 20px;
+      }
+      .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        font-size: 15px;
+      }
+      .summary-row.highlight {
+        color: #4caf50;
+        font-weight: 600;
+      }
+      .summary-divider {
+        height: 1px;
+        background: #e0e0e0;
+        margin: 16px 0;
+      }
+      .summary-total {
+        display: flex;
+        justify-content: space-between;
+        padding: 16px 0;
+        font-size: 22px;
+        font-weight: 700;
+        color: #1a1a1a;
+      }
+      .summary-total-amount {
+        color: #ff6b35;
+      }
+      .place-order-btn {
+        width: 100%;
+        padding: 18px;
+        background: linear-gradient(135deg, #ff6b35 0%, #ff8c61 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 17px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 20px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+      .place-order-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(255, 107, 53, 0.4);
+      }
+      .secure-badge {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 16px;
+        color: #4caf50;
+        font-size: 13px;
+      }
+      .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #666;
+        text-decoration: none;
+        margin-bottom: 20px;
+        transition: color 0.2s;
+      }
+      .back-link:hover {
+        color: #ff6b35;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-container">
+        <div class="logo-section"><a href="/" class="logo">Trang chủ</a></div>
+        <div class="user-menu">
+          <a href="/cart" class="user-menu-item"
+            ><i class="fas fa-shopping-cart"></i> Giỏ hàng</a
+          >
+        </div>
+      </div>
+    </header>
+
+    <div class="checkout-container">
+      <div class="checkout-main">
+        <a href="/cart" class="back-link">
+          <i class="fas fa-arrow-left"></i> Quay lại giỏ hàng
+        </a>
+
+        <div class="checkout-section">
+          <h3 class="section-title">
+            <i class="fas fa-clipboard-list"></i> Xác nhận đơn hàng
+          </h3>
+          {% for line in items %} {% set it = line.item %}
+          <div class="order-item">
+            <img
+              src="/static/images/v1.jpg"
+              alt="order"
+              class="order-item-img"
+            />
+            <div class="order-item-info">
+              {% if line.item_type == 'vehicle' and it %}
+              <div class="order-item-name">
+                {{ it.brand }} {{ it.model }} {{ it.year or '' }}
+              </div>
+              <div class="order-item-meta">
+                <i class="fas fa-battery-full"></i> {{ it.battery_capacity_kwh
+                or '' }} kWh • <i class="fas fa-road"></i> {{ it.km or 0 }} km
+              </div>
+              {% elif line.item_type == 'battery' and it %}
+              <div class="order-item-name">
+                {{ it.brand }} {{ it.year or '' }} - {{ it.capacity_kwh or '' }}
+                kWh
+              </div>
+              <div class="order-item-meta">
+                <i class="fas fa-heartbeat"></i> {{ it.health_percent or '' }}%
+                • <i class="fas fa-sync"></i> {{ it.cycles or 0 }} chu kỳ
+              </div>
+              {% else %}
+              <div class="order-item-name">Mục không khả dụng</div>
+              {% endif %}
+              <div class="order-item-price">
+                <span class="order-item-qty">Số lượng: {{ line.qty }}</span>
+                <span class="order-item-total"
+                  >{{ (line.line_total or 0) | int | string }} đ</span
+                >
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="checkout-section">
+          <h3 class="section-title">
+            <i class="fas fa-credit-card"></i> Phương thức thanh toán
+          </h3>
+          <label class="payment-option">
+            <input type="radio" name="pm" value="cod" checked />
+            <div class="payment-option-icon">
+              <i class="fas fa-money-bill-wave" style="color: #4caf50"></i>
+            </div>
+            <div class="payment-option-info">
+              <div class="payment-option-title">
+                Thanh toán khi nhận hàng (COD)
+              </div>
+              <div class="payment-option-desc">
+                Thanh toán bằng tiền mặt khi nhận hàng
+              </div>
+            </div>
+          </label>
+          <label class="payment-option disabled">
+            <input type="radio" name="pm" value="card" disabled />
+            <div class="payment-option-icon">
+              <i class="fas fa-credit-card" style="color: #2196f3"></i>
+            </div>
+            <div class="payment-option-info">
+              <div class="payment-option-title">Thẻ tín dụng / Ghi nợ</div>
+              <div class="payment-option-desc">
+                Đang phát triển - sắp ra mắt
+              </div>
+            </div>
+          </label>
+          <label class="payment-option disabled">
+            <input type="radio" name="pm" value="wallet" disabled />
+            <div class="payment-option-icon">
+              <i class="fas fa-wallet" style="color: #ff9800"></i>
+            </div>
+            <div class="payment-option-info">
+              <div class="payment-option-title">Ví điện tử</div>
+              <div class="payment-option-desc">
+                MoMo, ZaloPay, VNPay - sắp ra mắt
+              </div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="order-summary">
+        <h3 class="section-title">Tóm tắt đơn hàng</h3>
+        <div class="summary-row">
+          <span>Tạm tính ({{ items|length }} sản phẩm)</span>
+          <span>{{ (subtotal or 0) | int | string }} đ</span>
+        </div>
+        <div class="summary-row highlight">
+          <span><i class="fas fa-shipping-fast"></i> Phí vận chuyển</span>
+          <span>Miễn phí</span>
+        </div>
+        <div class="summary-divider"></div>
+        <div class="summary-total">
+          <span>Tổng thanh toán</span>
+          <span class="summary-total-amount"
+            >{{ (total or 0) | int | string }} đ</span
+          >
+        </div>
+        <button class="place-order-btn" onclick="placeOrder()">
+          <i class="fas fa-check-circle"></i>
+          Đặt hàng ngay
+        </button>
+        <div class="secure-badge">
+          <i class="fas fa-lock"></i>
+          <span>Thanh toán an toàn & bảo mật</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      async function placeOrder() {
+        const btn = document.querySelector(".place-order-btn");
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+
+        const res = await fetch("/checkout/place", { method: "POST" });
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok) {
+          btn.innerHTML =
+            '<i class="fas fa-check-circle"></i> Đặt hàng thành công!';
+          btn.style.background = "#4caf50";
+          setTimeout(() => {
+            alert(
+              "Đặt hàng thành công! Mã đơn: " +
+                (data.order_ids || []).join(", ")
+            );
+            window.location.href = "/";
+          }, 500);
+        } else {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-check-circle"></i> Đặt hàng ngay';
+          alert("Đặt hàng thất bại: " + (data.error || "unknown"));
+        }
+      }
+    </script>
+  </body>
+</html>
