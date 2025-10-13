@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Giỏ hàng - EV Trading</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+  <style>
+    .wrap{max-width:1000px;margin:0 auto;padding:16px}
+    .title{margin:8px 0 16px}
+    table{width:100%;border-collapse:collapse;border-spacing:0}
+    th,td{padding:12px 10px;border-bottom:1px solid #eee;vertical-align:middle}
+    th{font-weight:600;text-align:left;background:#fafafa}
+    .right{text-align:right}
+    .muted{color:#6b7280}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+    .btn{padding:10px 14px;border-radius:10px;border:1px solid #d1d5db;background:#fff;cursor:pointer}
+    .btn-primary{background:#111827;color:#fff;border:none}
+    .btn-danger{border-color:#ef4444;color:#ef4444}
+    .thumb{width:70px;height:70px;object-fit:cover;border-radius:8px}
+    .totals{margin-top:14px;display:flex;justify-content:flex-end}
+    .totals .box{min-width:320px;border:1px solid #eee;border-radius:12px;padding:12px}
+    .totals .row{display:flex;justify-content:space-between;margin:6px 0}
+    @media (prefers-color-scheme: dark){
+      th{background:#0f172a;border-color:#1f2937}
+      td{border-color:#1f2937}
+      .btn{border-color:#374151}
+      .totals .box{border-color:#1f2937}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a href="{{ url_for('home') }}"><i class="fas fa-arrow-left"></i> Tiếp tục xem sản phẩm</a>
+    <h1 class="title">Giỏ hàng</h1>
+
+    {% if items %}
+      <table aria-label="Danh sách sản phẩm trong giỏ">
+        <thead>
+          <tr>
+            <th>Sản phẩm</th>
+            <th class="right">Đơn giá (đ)</th>
+            <th class="right">Số lượng</th>
+            <th class="right">Thành tiền (đ)</th>
+            <th class="right">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in items %}
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:12px">
+                <img class="thumb" src="{{ it.img }}" alt="{{ it.title }}">
+                <div>
+                  <div><a href="{{ url_for('product_detail', pid=it.id) }}"><b>{{ it.title }}</b></a></div>
+                  <div class="muted"><i class="fas fa-map-marker-alt"></i> {{ it.location }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="right">{{ "{:,.0f}".format(it.price).replace(",", ".") }}</td>
+            <td class="right">{{ it.qty }}</td>
+            <td class="right">{{ "{:,.0f}".format(it.line_total).replace(",", ".") }}</td>
+            <td class="right">
+              <form method="post" action="{{ url_for('cart_remove', pid=it.id) }}" style="display:inline">
+                <button class="btn btn-danger" type="submit" title="Xóa"><i class="fas fa-trash-alt"></i> Xóa</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="totals">
+        <div class="box">
+          <div class="row">
+            <span>Tạm tính</span>
+            <strong>{{ "{:,.0f}".format(total).replace(",", ".") }} đ</strong>
+          </div>
+          <div class="row muted" style="font-size:13px">
+            <span>Phí nền tảng (demo)</span>
+            <span>0 đ</span>
+          </div>
+          <hr style="border:none;border-top:1px solid #eee;margin:10px 0">
+          <div class="row" style="font-size:18px">
+            <span>Tổng cộng</span>
+            <strong>{{ "{:,.0f}".format(total).replace(",", ".") }} đ</strong>
+          </div>
+          <div class="actions">
+            <form method="post" action="{{ url_for('cart_clear') }}">
+              <button class="btn" type="submit"><i class="fas fa-times-circle"></i> Xóa giỏ hàng</button>
+            </form>
+            <form method="post" action="{{ url_for('cart_checkout') }}">
+              <input type="hidden" name="method" value="e-wallet">
+              <input type="hidden" name="provider" value="DemoPay">
+              <button class="btn btn-primary" type="submit">
+                <i class="fas fa-credit-card"></i> Thanh toán giỏ hàng
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <p>Giỏ hàng trống. <a href="{{ url_for('home') }}">Tiếp tục xem sản phẩm</a>.</p>
+    {% endif %}
+  </div>
+</body>
+</html>

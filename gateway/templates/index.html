@@ -19,6 +19,7 @@
         <a href="/policy" class="user-menu-item">Chính sách</a>
         <a href="#" class="user-menu-item"><i class="far fa-comment"></i> Chat</a>
         <a href="#" class="user-menu-item"><i class="far fa-bell"></i> Thông báo</a>
+        <a href="/cart" class="user-menu-item"><i class="fas fa-shopping-cart"></i> Giỏ hàng</a>
 
         {% if session.get('user') %}
           <div class="user-avatar-wrap">
@@ -65,22 +66,37 @@
       <a href="#" class="view-all">Xem tất cả</a>
     </div>
     <div class="product-grid">
-      <a href="#" class="product-card">
-        <img src="/static/images/v1.jpg" alt="VinFast VF e34" class="product-image"/>
+      <!-- Sản phẩm #1 -->
+      <div class="product-card" data-id="1" data-price="590000000" data-seller="302">
+        <a href="/product/1">
+          <img src="/static/images/v1.jpg" alt="VinFast VF e34" class="product-image"/>
+        </a>
         <div class="product-info">
-          <h3 class="product-title">VinFast VF e34 2023 - Như mới</h3>
+          <h3 class="product-title"><a href="/product/1">VinFast VF e34 2023 - Như mới</a></h3>
           <div class="product-price">590.000.000 đ</div>
           <div class="product-location"><i class="fas fa-map-marker-alt"></i> TP. Hồ Chí Minh</div>
         </div>
-      </a>
-      <a href="#" class="product-card">
-        <img src="/static/images/v3.jpg" alt="Tesla Model 3" class="product-image"/>
+        <div class="product-actions">
+          <a href="/product/1" class="button outline">Xem sản phẩm</a>
+          <button class="button outline" onclick="addToCart(1)">Thêm giỏ</button>
+        </div>
+      </div>
+
+      <!-- Sản phẩm #2 -->
+      <div class="product-card" data-id="2" data-price="1090000000" data-seller="888">
+        <a href="/product/2">
+          <img src="/static/images/v3.jpg" alt="Tesla Model 3" class="product-image"/>
+        </a>
         <div class="product-info">
-          <h3 class="product-title">Tesla Model 3 Standard Range Plus 2022</h3>
+          <h3 class="product-title"><a href="/product/2">Tesla Model 3 Standard Range Plus 2022</a></h3>
           <div class="product-price">1.090.000.000 đ</div>
           <div class="product-location"><i class="fas fa-map-marker-alt"></i> Hà Nội</div>
         </div>
-      </a>
+        <div class="product-actions">
+          <a href="/product/2" class="button outline">Xem sản phẩm</a>
+          <button class="button outline" onclick="addToCart(2)">Thêm giỏ</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -92,7 +108,7 @@
     <div class="product-grid"></div>
   </section>
 
-  <!-- ====== PAYMENT & DIGITAL CONTRACT DEMO ====== -->
+  <!-- ====== PAYMENT & DIGITAL CONTRACT DEMO (giữ nguyên) ====== -->
   <section class="product-section">
     <div class="section-header">
       <h2 class="section-title">Giao dịch & Thanh toán</h2>
@@ -100,26 +116,13 @@
     </div>
 
     <div class="product-grid" style="grid-template-columns: 1fr 1fr;">
-      <!-- Create Payment -->
       <div class="product-card" style="padding:16px">
         <h3 class="product-title">Tạo thanh toán</h3>
         <form id="payForm" class="form-grid">
-          <div class="form-row">
-            <label>Order ID</label>
-            <input name="order_id" value="1001"/>
-          </div>
-          <div class="form-row">
-            <label>Số tiền (VND)</label>
-            <input name="amount" value="150000000"/>
-          </div>
-          <div class="form-row">
-            <label>Buyer ID</label>
-            <input name="buyer_id" value="501"/>
-          </div>
-          <div class="form-row">
-            <label>Seller ID</label>
-            <input name="seller_id" value="302"/>
-          </div>
+          <div class="form-row"><label>Order ID</label><input name="order_id" value="1001"/></div>
+          <div class="form-row"><label>Số tiền (VND)</label><input name="amount" value="150000000"/></div>
+          <div class="form-row"><label>Buyer ID</label><input name="buyer_id" value="501"/></div>
+          <div class="form-row"><label>Seller ID</label><input name="seller_id" value="302"/></div>
           <div class="form-row">
             <label>Phương thức</label>
             <select name="method">
@@ -127,10 +130,7 @@
               <option value="banking">Banking</option>
             </select>
           </div>
-          <div class="form-row">
-            <label>Provider</label>
-            <input name="provider" value="DemoPay"/>
-          </div>
+          <div class="form-row"><label>Provider</label><input name="provider" value="DemoPay"/></div>
           <button class="post-button" type="submit">Tạo thanh toán</button>
         </form>
         <div id="payResult" class="small mt-2"></div>
@@ -142,105 +142,28 @@
         </div>
       </div>
 
-      <!-- Digital Contract -->
       <div class="product-card" style="padding:16px">
         <h3 class="product-title">Hợp đồng mua bán số hóa</h3>
         <form id="contractForm" class="form-grid">
-          <div class="form-row">
-            <label>Payment ID</label>
-            <input name="payment_id" placeholder="ID từ bước tạo thanh toán"/>
-          </div>
-          <div class="form-row">
-            <label>Tiêu đề</label>
-            <input name="title" value="Hợp đồng mua bán xe điện cũ"/>
-          </div>
-          <div class="form-row">
-            <label>Nội dung</label>
-            <textarea name="content" rows="6">Bên A (Người bán) cam kết tình trạng pin theo mô tả; Bên B (Người mua) thanh toán đủ số tiền...</textarea>
-          </div>
+          <div class="form-row"><label>Payment ID</label><input name="payment_id" placeholder="ID từ bước tạo thanh toán"/></div>
+          <div class="form-row"><label>Tiêu đề</label><input name="title" value="Hợp đồng mua bán xe điện cũ"/></div>
+          <div class="form-row"><label>Nội dung</label><textarea name="content" rows="6">Bên A (Người bán) cam kết tình trạng pin theo mô tả; Bên B (Người mua) thanh toán đủ số tiền...</textarea></div>
           <button class="post-button" type="submit">Tạo hợp đồng</button>
         </form>
-
         <hr style="margin:12px 0;border:none;border-top:1px solid #eee">
-
         <form id="signForm" class="form-grid">
-          <div class="form-row">
-            <label>Contract ID</label>
-            <input name="contract_id" placeholder="ID hợp đồng vừa tạo"/>
-          </div>
-          <div class="form-row">
-            <label>Người ký</label>
-            <input name="signer_name" value="Nguyễn Văn B"/>
-          </div>
+          <div class="form-row"><label>Contract ID</label><input name="contract_id" placeholder="ID hợp đồng vừa tạo"/></div>
+          <div class="form-row"><label>Người ký</label><input name="signer_name" value="Nguyễn Văn B"/></div>
           <button class="button outline" type="submit">Ký điện tử</button>
         </form>
-
         <div id="contractResult" class="small mt-2"></div>
       </div>
     </div>
   </section>
-  <!-- ====== /PAYMENT ====== -->
 
-  <!-- AUTH MODAL (khớp backend) -->
-  <div id="authModal" class="modal" style="display:none">
-    <div class="modal-content">
-      <span class="close" onclick="document.getElementById('authModal').style.display='none'">&times;</span>
-      <div class="auth-tabs">
-        <button onclick="showTab('login')">Đăng nhập</button>
-        <button onclick="showTab('register')">Đăng ký</button>
-      </div>
-
-      <!-- LOGIN: backend yêu cầu username/password -->
-      <div id="loginTab" class="tab-content">
-        <form id="loginForm" method="POST" action="{{ url_for('login_page') }}">
-          <input type="text" name="username" placeholder="Tên đăng nhập" required/>
-          <input type="password" name="password" placeholder="Mật khẩu" required/>
-          <button type="submit">Đăng nhập</button>
-        </form>
-      </div>
-
-      <!-- REGISTER: backend yêu cầu username,email,password,confirm_password -->
-      <div id="registerTab" class="tab-content" style="display:none">
-        <form id="registerForm" method="POST" action="{{ url_for('register_page') }}">
-          <input type="text" name="username" placeholder="Tên đăng nhập" required/>
-          <input type="email" name="email" placeholder="Email" required/>
-          <input type="password" name="password" placeholder="Mật khẩu" required/>
-          <input type="password" name="confirm_password" placeholder="Xác nhận mật khẩu" required/>
-          <button type="submit">Đăng ký</button>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <div id="profileModal" class="modal" style="display:none">
-    <div class="modal-content">
-      <span class="close" onclick="document.getElementById('profileModal').style.display='none'">&times;</span>
-      <h2>Hồ sơ cá nhân</h2>
-      <form id="profileForm">
-        <input type="text" name="name" placeholder="Tên"/>
-        <input type="date" name="dob" placeholder="Ngày sinh"/>
-        <input type="text" name="address" placeholder="Địa chỉ"/>
-        <input type="file" name="avatar" accept="image/*"/>
-        <button type="submit">Cập nhật hồ sơ</button>
-      </form>
-      <div id="roleInfo"></div>
-    </div>
-  </div>
-
-  <footer class="footer">
-    <p>© 2025 EV Trading Platform. Tất cả quyền được bảo lưu.</p>
-  </footer>
+  <footer class="footer"><p>© 2025 EV Trading Platform. Tất cả quyền được bảo lưu.</p></footer>
 
   <script>
-    // ====== helpers ======
-    function showTab(tab){
-      document.getElementById("loginTab").style.display = (tab === "login") ? "block" : "none";
-      document.getElementById("registerTab").style.display = (tab === "register") ? "block" : "none";
-    }
-    function openAuthModal(){
-      showTab("login");
-      document.getElementById("authModal").style.display = "block";
-    }
     function toggleUserMenu(e){
       e.preventDefault();
       const dd = document.getElementById('userDropdown');
@@ -254,26 +177,29 @@
     });
 
     async function postJSON(url, data) {
-      const r = await fetch(url, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify(data)
-      });
-      let body;
-      try { body = await r.json(); } catch { body = {message: await r.text()}; }
+      const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+      let body; try { body = await r.json(); } catch { body = {message: await r.text()}; }
       return {ok:r.ok, data:body};
     }
 
-    // ====== Payment flow ======
+    async function addToCart(productId){
+      const form = new FormData();
+      form.append('qty', '1');
+      try{
+        const res = await fetch(`/cart/add/${productId}`, { method:'POST', body: form });
+        if(res.redirected){ window.location = res.url; return; }
+        alert('Đã thêm vào giỏ. Vào Giỏ hàng để thanh toán.');
+      }catch(e){ alert('Lỗi kết nối khi thêm giỏ'); }
+    }
+
     document.getElementById('payForm').addEventListener('submit', async (e)=>{
       e.preventDefault();
       const fd = new FormData(e.target);
       const payload = Object.fromEntries(fd.entries());
-      payload.order_id  = Number(payload.order_id);
-      payload.buyer_id  = Number(payload.buyer_id);
+      payload.order_id = Number(payload.order_id);
+      payload.buyer_id = Number(payload.buyer_id);
       payload.seller_id = Number(payload.seller_id);
-      payload.amount    = Number(payload.amount);
-
+      payload.amount = Number(payload.amount);
       const res = await postJSON('/api/payments/create', payload);
       const box = document.getElementById('payResult');
       if(res.ok){
@@ -294,17 +220,14 @@
       document.getElementById('simResult').textContent = r.ok ? `Đã thanh toán: ${t.status}` : 'Lỗi simulate';
     });
 
-    // ====== Contract flow ======
     document.getElementById('contractForm').addEventListener('submit', async (e)=>{
       e.preventDefault();
       const fd = new FormData(e.target);
       const payload = Object.fromEntries(fd.entries());
       payload.payment_id = Number(payload.payment_id);
-
       const res = await postJSON('/api/contracts/create', payload);
       const box = document.getElementById('contractResult');
-      box.innerHTML = res.ok ? `✅ Tạo contract_id=<b>${res.data.contract_id}</b>` :
-        '❌ ' + (res.data.error||'Lỗi tạo hợp đồng');
+      box.innerHTML = res.ok ? `✅ Tạo contract_id=<b>${res.data.contract_id}</b>` : '❌ ' + (res.data.error||'Lỗi tạo hợp đồng');
     });
 
     document.getElementById('signForm').addEventListener('submit', async (e)=>{
@@ -312,7 +235,6 @@
       const fd = new FormData(e.target);
       const payload = Object.fromEntries(fd.entries());
       payload.contract_id = Number(payload.contract_id);
-
       const res = await postJSON('/api/contracts/sign', payload);
       const box = document.getElementById('contractResult');
       if(res.ok){
@@ -324,5 +246,10 @@
       }
     });
   </script>
+
+  <style>
+    .product-actions{display:flex;gap:8px;padding:10px 14px 14px}
+    .button.outline{border:1px solid #ccc;background:#fff;padding:8px 12px;border-radius:8px;cursor:pointer}
+  </style>
 </body>
 </html>

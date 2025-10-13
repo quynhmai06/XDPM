@@ -36,10 +36,12 @@ services:
     environment:
       AUTH_URL:     http://auth_service:5001
       ADMIN_URL:    http://admin_service:5002
-      PAYMENT_URL:  http://payment_service:5003   # <-- thêm dòng này
+      PAYMENT_URL:  http://payment_service:5003
       GATEWAY_SECRET: dev
     depends_on: [auth_service, admin_service, payment_service]
     ports: ["8000:8000"]
+    volumes:
+      - ./gateway:/app        # <— mount mã nguồn để template cập nhật ngay
 
 volumes:
   dbdata:

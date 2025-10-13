@@ -1,14 +1,58 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
-import os, requests, jwt
+import os, requests, jwt, uuid
+from decimal import Decimal
 
 # ==== Upstream services ====
 AUTH_URL     = os.getenv("AUTH_URL", "http://auth_service:5001")
-PAYMENT_URL  = os.getenv("PAYMENT_URL", "http://payment_service:5003")  # <--- thêm
+PAYMENT_URL  = os.getenv("PAYMENT_URL", "http://payment_service:5003")
 JWT_SECRET   = os.getenv("JWT_SECRET", "devsecret")
 JWT_ALGOS    = ["HS256"]
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.getenv("GATEWAY_SECRET", "dev")
+
+# ==== Catalog demo (đã bổ sung mô tả & thông tin người bán) ====
+CATALOG = {
+    1: {
+        "id": 1,
+        "title": "VinFast VF e34 2023 - Như mới",
+        "price": 590_000_000,
+        "seller_id": 302,
+        "img": "/static/images/v1.jpg",
+        "location": "TP. Hồ Chí Minh",
+        "description": (
+            "Xe VinFast VF e34 màu trắng, odo 8.000 km, pin còn 95% dung lượng.\n"
+            "Bảo dưỡng chính hãng, không tai nạn, bao test tại hãng.\n"
+            "Trang bị ADAS cơ bản, nội thất nỉ giữ gìn, 2 chìa khoá."
+        ),
+        "seller_info": {
+            "name": "Nguyễn Văn A",
+            "phone": "0901 234 567",
+            "email": "nguyenvana@example.com"
+        }
+    },
+    2: {
+        "id": 2,
+        "title": "Tesla Model 3 Standard Range Plus 2022",
+        "price": 1_090_000_000,
+        "seller_id": 888,
+        "img": "/static/images/v3.jpg",
+        "location": "Hà Nội",
+        "description": (
+            "Tesla Model 3 SR+ nhập Mỹ, odo 15.000 km, pin ~98%.\n"
+            "Tình trạng xe đẹp, không va chạm; Autopilot kích hoạt cơ bản.\n"
+            "Hỗ trợ sang tên toàn quốc, có thể kiểm tra tại gara bên mua chỉ định."
+        ),
+        "seller_info": {
+            "name": "Trần Thị B",
+            "phone": "0912 888 333",
+            "email": "tranthib@example.com"
+        }
+    },
+}
+def get_product(pid: int):
+    # TODO: gọi listings-service để lấy dữ liệu thật
+    return CATALOG.get(int(pid))
 
 # ===== Helpers =====
 def decode_token(token: str):
@@ -19,20 +63,35 @@ def is_admin_session() -> bool:
     return bool(user and user.get("role") == "admin")
 
 def _proxy_json(method: str, url: str, payload=None):
-    """Proxy helper cho JSON requests (giữ nguyên status code & headers cơ bản)."""
+    """Proxy helper cho JSON requests."""
     try:
         r = requests.request(method, url, json=payload, timeout=8)
-        # Trả body JSON nếu có, không thì trả text
-        content_type = r.headers.get("content-type", "")
-        if content_type.startswith("application/json"):
+        if r.headers.get("content-type", "").startswith("application/json"):
             return (r.json(), r.status_code)
         return ({"message": r.text}, r.status_code)
     except requests.RequestException as e:
         return ({"error": f"upstream error: {type(e).__name__}"}, 502)
 
+# ---- Cart helpers (lưu trong session) ----
+def _cart():
+    return session.setdefault("cart", {})  # {product_id(str): qty(int)}
+
+def cart_items():
+    cart = _cart()
+    items, total = [], 0
+    for pid_str, qty in cart.items():
+        p = get_product(int(pid_str))
+        if not p:
+            continue
+        line_total = p["price"] * qty
+        items.append({**p, "qty": qty, "line_total": line_total})
+        total += line_total
+    return items, total
+
 # ===== UI =====
 @app.route("/", endpoint="home")
 def home():
+    # Trang chủ tĩnh; nút trên card nên là "Xem sản phẩm" -> /product/<id>
     return render_template("index.html")
 
 # ===== Auth & Admin =====
@@ -206,6 +265,89 @@ def gw_contract_sign():
 def gw_contract_view(cid):
     data, code = _proxy_json("GET", f"{PAYMENT_URL}/payment/contract/view/{cid}")
     return jsonify(data), code
+
+# ===== Product detail / Cart =====
+@app.get("/product/<int:pid>")
+def product_detail(pid):
+    p = get_product(pid)
+    if not p:
+        flash("Sản phẩm không tồn tại.", "error")
+        return redirect(url_for("home"))
+    return render_template("product.html", p=p)
+
+# (Tuỳ chọn: vẫn giữ buy_now nếu sau này muốn bật lại nút “Mua ngay”)
+@app.post("/buy/<int:pid>")
+def buy_now(pid):
+    p = get_product(pid)
+    if not p:
+        return jsonify({"error": "not found"}), 404
+    payload = {
+        "order_id": int(str(uuid.uuid4().int)[-9:]),
+        "buyer_id": session.get("user", {}).get("id", 0),
+        "seller_id": p["seller_id"],
+        "amount": p["price"],
+        "method": request.form.get("method", "e-wallet"),
+        "provider": request.form.get("provider", "DemoPay"),
+    }
+    try:
+        r = requests.post(f"{PAYMENT_URL}/payment/create", json=payload, timeout=8)
+        if r.ok:
+            flash(f"Tạo thanh toán thành công (payment_id={r.json().get('payment_id')}).", "success")
+        else:
+            flash("Tạo thanh toán thất bại.", "error")
+    except requests.RequestException:
+        flash("Không kết nối được payment-service.", "error")
+    return redirect(url_for("product_detail", pid=pid))
+
+@app.post("/cart/add/<int:pid>")
+def cart_add(pid):
+    if not get_product(pid):
+        return jsonify({"error": "not found"}), 404
+    cart = _cart()
+    cart[str(pid)] = cart.get(str(pid), 0) + int(request.form.get("qty", 1))
+    session.modified = True
+    return redirect(url_for("cart_view"))
+
+@app.post("/cart/remove/<int:pid>")
+def cart_remove(pid):
+    _cart().pop(str(pid), None)
+    session.modified = True
+    return redirect(url_for("cart_view"))
+
+@app.post("/cart/clear")
+def cart_clear():
+    session["cart"] = {}
+    return redirect(url_for("cart_view"))
+
+@app.get("/cart")
+def cart_view():
+    items, total = cart_items()
+    return render_template("cart.html", items=items, total=total)
+
+@app.post("/cart/checkout")
+def cart_checkout():
+    items, total = cart_items()
+    if total <= 0:
+        flash("Giỏ hàng trống.", "error")
+        return redirect(url_for("cart_view"))
+    payload = {
+        "order_id": int(str(uuid.uuid4().int)[-9:]),
+        "buyer_id": session.get("user", {}).get("id", 0),
+        "seller_id": 0,  # escrow/platform; thực tế tách theo seller
+        "amount": total,
+        "method": request.form.get("method", "e-wallet"),
+        "provider": request.form.get("provider", "DemoPay"),
+    }
+    try:
+        r = requests.post(f"{PAYMENT_URL}/payment/create", json=payload, timeout=8)
+        if r.ok:
+            session["cart"] = {}
+            flash(f"Tạo thanh toán giỏ hàng thành công (payment_id={r.json().get('payment_id')}).", "success")
+        else:
+            flash("Tạo thanh toán giỏ hàng thất bại.", "error")
+    except requests.RequestException:
+        flash("Không kết nối được payment-service.", "error")
+    return redirect(url_for("cart_view"))
 
 # ===== Dev mode =====
 if __name__ == "__main__":

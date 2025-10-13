@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ p.title }} - EV Trading</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+  <style>
+    .container{max-width:1100px;margin:0 auto;padding:16px}
+    .back{color:#2563eb;text-decoration:none}
+    .detail-wrap{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;margin-top:16px}
+    .detail-left{flex:1 1 420px}
+    .detail-right{flex:1 1 420px}
+    .detail-img{width:100%;max-width:560px;border-radius:12px;object-fit:cover}
+    .price{font-size:22px;font-weight:700;margin:8px 0}
+    .meta{color:#555;margin-bottom:8px}
+    .card{background:#fff;border:1px solid #eee;border-radius:12px;padding:16px}
+    .btn{padding:10px 14px;border-radius:10px;border:none;cursor:pointer}
+    .btn-primary{background:#111827;color:#fff}
+    .btn-outline{background:#fff;border:1px solid #d1d5db}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    textarea{width:100%}
+    @media (prefers-color-scheme: dark){
+      .card{background:#0f172a;border-color:#1f2937}
+      .meta{color:#a3a3a3}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="back" href="{{ url_for('home') }}">&larr; Quay lại trang chủ</a>
+
+    <div class="detail-wrap">
+      <div class="detail-left">
+        <img class="detail-img" src="{{ p.img }}" alt="{{ p.title }}">
+      </div>
+
+      <div class="detail-right">
+        <h1>{{ p.title }}</h1>
+        <div class="price">{{ "{:,.0f}".format(p.price).replace(",", ".") }} đ</div>
+        <div class="meta"><i class="fas fa-map-marker-alt"></i> {{ p.location }}</div>
+
+        <div class="card" style="margin-top:12px">
+          <h3 style="margin-top:0">Mô tả chi tiết</h3>
+          <p style="white-space:pre-line;margin-bottom:0">{{ p.description }}</p>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3 style="margin-top:0">Thông tin người bán</h3>
+          <p><b>Tên:</b> {{ p.seller_info.name }}</p>
+          <p><b>Điện thoại:</b> <a href="tel:{{ p.seller_info.phone }}">{{ p.seller_info.phone }}</a></p>
+          <p><b>Email:</b> <a href="mailto:{{ p.seller_info.email }}">{{ p.seller_info.email }}</a></p>
+        </div>
+
+        <div class="actions" style="margin-top:12px">
+          <form method="post" action="{{ url_for('cart_add', pid=p.id) }}">
+            <input type="number" name="qty" value="1" min="1" style="width:90px;padding:8px;border-radius:8px;border:1px solid #d1d5db">
+            <button class="btn btn-outline" type="submit"><i class="fas fa-cart-plus"></i> Thêm vào giỏ</button>
+          </form>
+          <a class="btn btn-primary" href="{{ url_for('cart_view') }}"><i class="fas fa-shopping-cart"></i> Xem giỏ hàng</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
