@@ -4,6 +4,7 @@ import os, requests, jwt
 from flask import jsonify
 
 AUTH_URL = os.getenv("AUTH_URL", "http://127.0.0.1:5001")
+ADMIN_URL = os.getenv("ADMIN_URL", "http://127.0.0.1:5003")
 JWT_SECRET = os.getenv("JWT_SECRET", "devsecret")
 JWT_ALGOS = ["HS256"]
 
@@ -42,7 +43,7 @@ def login_page():
 
         try:
             r = requests.post(
-                f"{AUTH_URL}/auth/login",
+                f"{AUTH_URL}/auth/login", 
                 json={"username": username, "password": password},
                 timeout=5,
             )
@@ -54,7 +55,6 @@ def login_page():
             token = r.json().get("access_token")
             payload = decode_token(token)
             session["access_token"] = token
-            # session['user'] chỉ dùng cho hiển thị UI
             session["user"] = {"username": payload.get("username"), "role": payload.get("role")}
 
             next_url = request.args.get("next") or session.pop("next_after_login", None)
@@ -62,7 +62,6 @@ def login_page():
                 return redirect(next_url or url_for("admin_page"))
             return redirect(next_url or url_for("home"))
 
-        # Hiển thị thông báo theo mã lỗi từ auth_service
         msg = "Đăng nhập thất bại."
         if r.headers.get("content-type", "").startswith("application/json"):
             err = (r.json() or {}).get("error")
@@ -90,7 +89,7 @@ def register_page():
 
         try:
             r = requests.post(
-                f"{AUTH_URL}/auth/register",
+                f"{AUTH_URL}/auth/register", 
                 json={"username": username, "email": email, "password": password, "phone": request.form.get("phone", "")},
                 timeout=5,
             )
@@ -122,13 +121,14 @@ def admin_page():
     if is_admin_session():
         try:
             headers = {"Authorization": f"Bearer {session['access_token']}"}
-            r = requests.get(f"{AUTH_URL}/auth/admin/users", headers=headers, timeout=5)
+            r = requests.get(f"{ADMIN_URL}/admin/users", headers=headers, timeout=5)
             if r.ok and r.headers.get("content-type", "").startswith("application/json"):
-                users = r.json().get("data", [])
+                data = r.json().get("data", [])
+                users = [u for u in data if not (u.get("is_admin") or str(u.get("role", "")).lower() == "admin")]
             else:
                 flash("Không lấy được danh sách người dùng.", "error")
         except requests.RequestException:
-            flash("Không kết nối được auth service.", "error")
+            flash("Không kết nối được admin service.", "error")  
 
     return render_template(
         "admin.html",
@@ -149,7 +149,7 @@ def admin_login():
 
     try:
         r = requests.post(
-            f"{AUTH_URL}/auth/login",
+            f"{AUTH_URL}/auth/login",  
             json={"username": username, "password": password},
             timeout=5,
         )
@@ -158,7 +158,6 @@ def admin_login():
         return redirect(url_for("admin_page"))
 
     if not r.ok:
-        # đọc thông báo lỗi cụ thể
         msg = "Đăng nhập thất bại."
         if r.headers.get("content-type", "").startswith("application/json"):
             err = (r.json() or {}).get("error")
@@ -199,20 +198,19 @@ def approve_user(user_id):
     try:
         headers = {"Authorization": f"Bearer {session['access_token']}", "Content-Type": "application/json"}
         r = requests.patch(
-            f"{AUTH_URL}/auth/users/{user_id}/status",
+            f"{ADMIN_URL}/admin/users/{user_id}/status",
             json={"status": "approved"},
             headers=headers,
             timeout=5,
         )
         flash("Đã duyệt tài khoản." if r.ok else "Duyệt thất bại.", "success" if r.ok else "error")
     except requests.RequestException:
-        flash("Không kết nối được auth service.", "error")
+        flash("Không kết nối được admin service.", "error") 
     return redirect(url_for("admin_page"))
 
 @app.route("/admin/delete_user/<int:user_id>", methods=["POST","GET"])
 def delete_user(user_id):
     if not is_admin_session():
-        # lưu lại nơi cần quay về sau khi login
         session["next_after_login"] = url_for("admin_page")
         return redirect(url_for("login_page"))
 
@@ -222,7 +220,7 @@ def delete_user(user_id):
             "Content-Type": "application/json",
         }
         r = requests.patch(
-            f"{AUTH_URL}/auth/users/{user_id}/status",
+            f"{ADMIN_URL}/admin/users/{user_id}/status",
             json={"status": "locked"},
             headers=headers,
             timeout=5,
@@ -230,7 +228,7 @@ def delete_user(user_id):
         flash("Đã khóa tài khoản." if r.ok else "Khóa tài khoản thất bại.",
               "success" if r.ok else "error")
     except requests.RequestException:
-        flash("Không kết nối được auth service.", "error")
+        flash("Không kết nối được admin service.", "error")
 
     return redirect(url_for("admin_page"))
 
@@ -239,114 +237,6 @@ def admin_logout():
     session.clear()
     flash("Đã đăng xuất khỏi Admin!", "success")
     return redirect(url_for("admin_page"))
-
-# ---- Google OpenID Connect ----
-oauth.register(
-    name="google",
-    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-    client_id=os.getenv("GOOGLE_CLIENT_ID"),
-    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
-    client_kwargs={"scope": "openid email profile"},
-)
-
-# ---- Facebook OAuth2 ----
-oauth.register(
-    name="facebook",
-    api_base_url="https://graph.facebook.com/",
-    access_token_url="https://graph.facebook.com/oauth/access_token",
-    authorize_url="https://www.facebook.com/dialog/oauth",
-    client_id=os.getenv("FACEBOOK_CLIENT_ID"),
-    client_secret=os.getenv("FACEBOOK_CLIENT_SECRET"),
-    client_kwargs={"scope": "public_profile,email"},
-)
-
-# ================= GOOGLE FLOW =================
-@app.get("/login/google")
-def login_google():
-    # TỰ SINH redirect_uri đúng với host/scheme hiện tại -> tránh mismatch
-    redirect_uri = url_for("auth_google_callback", _external=True)
-    return oauth.google.authorize_redirect(redirect_uri)
-
-@app.get("/auth/google/callback")
-def auth_google_callback():
-    # Nếu Google trả lỗi ?error=..., báo ra để debug
-    if request.args.get("error"):
-        flash(f"Google OAuth error: {request.args.get('error_description') or request.args.get('error')}", "error")
-        return redirect(url_for("login_page"))
-    try:
-        token = oauth.google.authorize_access_token()
-        userinfo = oauth.google.parse_id_token(token)
-    except Exception as e:
-        flash(f"Lỗi Google OAuth: {e}", "error")
-        return redirect(url_for("login_page"))
-
-    if not userinfo:
-        flash("Không lấy được thông tin Google.", "error")
-        return redirect(url_for("login_page"))
-
-    payload = {
-        "provider": "google",
-        "sub": userinfo.get("sub"),
-        "email": userinfo.get("email"),
-        "name": userinfo.get("name"),
-        "picture": userinfo.get("picture"),
-        "email_verified": bool(userinfo.get("email_verified")),
-    }
-    return _finish_oauth_login(payload)
-
-# ================= FACEBOOK FLOW =================
-@app.get("/login/facebook")
-def login_facebook():
-    redirect_uri = url_for("auth_facebook_callback", _external=True)
-    return oauth.facebook.authorize_redirect(redirect_uri)
-
-@app.get("/auth/facebook/callback")
-def auth_facebook_callback():
-    if request.args.get("error"):
-        flash(f"Facebook OAuth error: {request.args.get('error_description') or request.args.get('error_message') or request.args.get('error')}", "error")
-        return redirect(url_for("login_page"))
-    try:
-        token = oauth.facebook.authorize_access_token()
-        resp = oauth.facebook.get("me", params={"fields": "id,name,email,picture{url}"}, token=token)
-        d = resp.json()
-    except Exception as e:
-        flash(f"Lỗi Facebook OAuth: {e}", "error")
-        return redirect(url_for("login_page"))
-
-    payload = {
-        "provider": "facebook",
-        "sub": d.get("id"),
-        "email": d.get("email"),
-        "name": d.get("name"),
-        "picture": (((d.get("picture") or {}).get("data") or {}).get("url")),
-        "email_verified": True if d.get("email") else False,
-    }
-    return _finish_oauth_login(payload)
-
-# ====== Hoàn tất đăng nhập MXH: gọi auth-service để lấy JWT và set session ======
-def _finish_oauth_login(profile: dict):
-    try:
-        r = requests.post(f"{AUTH_URL}/api/oauth/login", json=profile, timeout=8)
-        if not r.ok:
-            # cho biết rõ lỗi server trả về (nếu có)
-            try:
-                err = r.json()
-            except Exception:
-                err = r.text
-            flash(f"Đăng nhập MXH thất bại: {err}", "error")
-            return redirect(url_for("login_page"))
-
-        data = r.json()
-        # THỐNG NHẤT KEY SESSION
-        session["access_token"] = data["token"]
-        session["user"] = data["user"]
-        flash("Đăng nhập thành công!", "success")
-        return redirect(url_for("home"))
-
-    except Exception as e:
-        flash(f"Có lỗi khi kết nối máy chủ xác thực: {e}", "error")
-        return redirect(url_for("login_page"))
-
 
 @app.route("/policy", methods=["GET"], endpoint="policy_page")
 def policy_page():
