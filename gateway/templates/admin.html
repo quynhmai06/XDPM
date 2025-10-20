@@ -1,273 +1,402 @@
 <!DOCTYPE html>
 <html lang="vi">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Admin • EV & Battery Platform</title>
-  <link rel="stylesheet" href="/static/style.css"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
-</head>
-<body>
-  <header class="header">
-    <div class="header-container">
-      <div class="logo-section">
-        <button class="menu-toggle"><i class="fas fa-bars"></i></button>
-        <img src="/static/images/logo.png" alt="EV Trading" class="logo"/>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin • EV & Battery Platform</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-container">
+        <div class="logo-section">
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <img src="/static/images/logo.png" alt="EV Trading" class="logo" />
+        </div>
+        <div class="user-menu">
+          {% if session.get('user') and session['user'].get('role') == 'admin'
+          %}
+          <a href="{{ url_for('logout_page') }}" class="user-menu-item"
+            >Đăng xuất</a
+          >
+          {% else %}
+          <a href="#" class="user-menu-item" onclick="openAdminLogin(event)"
+            >Đăng nhập</a
+          >
+          {% endif %}
+        </div>
       </div>
-      <div class="user-menu">
-        {% if session.get('user') and session['user'].get('role') == 'admin' %}
-          <a href="{{ url_for('logout_page') }}" class="user-menu-item">Đăng xuất</a>
-        {% else %}
-          <a href="#" class="user-menu-item" onclick="openAdminLogin(event)">Đăng nhập</a>
+    </header>
+
+    <main class="container admin-container">
+      <div class="admin-heading">
+        <div>
+          <h1 class="page-title">Bảng điều khiển Admin</h1>
+          <p class="page-subtitle">
+            Quản trị nền tảng giao dịch EV & Pin đã qua sử dụng
+          </p>
+        </div>
+        {% if not (session.get('user') and session['user'].get('role') ==
+        'admin') %}
+        <div class="flash-message flash-error" style="margin-top: 10px">
+          Bạn chưa đăng nhập tài khoản Admin. Vui lòng đăng nhập để xem dữ liệu
+          quản trị.
+        </div>
         {% endif %}
+        <div class="stats-row">
+          <div class="stat-card">
+            <span class="stat-label">Thành viên</span>
+            <span class="stat-value"
+              >{{ users|length if users is defined else 0 }}</span
+            >
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Tin chờ duyệt</span>
+            <span class="stat-value">
+              {% if products is defined %} {{ products | selectattr('approved',
+              'equalto', False) | list | length }} {% else %}0{% endif %}
+            </span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Giao dịch</span>
+            <span class="stat-value"
+              >{{ transactions|length if transactions is defined else 0 }}</span
+            >
+          </div>
+        </div>
       </div>
-    </div>
-  </header>
 
-  <main class="container admin-container">
-    <div class="admin-heading">
-      <div>
-        <h1 class="page-title">Bảng điều khiển Admin</h1>
-        <p class="page-subtitle">Quản trị nền tảng giao dịch EV & Pin đã qua sử dụng</p>
-      </div>
-      <div class="stats-row">
-        <div class="stat-card">
-          <span class="stat-label">Thành viên</span>
-          <span class="stat-value">{{ users|length if users is defined else 0 }}</span>
+      <div class="admin-toolbar">
+        <div class="tabs">
+          <a class="tab active"><i class="fa-solid fa-gauge"></i> Tổng quan</a>
+          <a class="tab"><i class="fa-solid fa-users"></i> Thành viên</a>
+          <a class="tab"><i class="fa-solid fa-car"></i> Bài đăng</a>
+          <a class="tab"><i class="fa-solid fa-receipt"></i> Giao dịch</a>
         </div>
-        <div class="stat-card">
-          <span class="stat-label">Tin chờ duyệt</span>
-          <span class="stat-value">
-            {% if products is defined %}
-              {{ products | selectattr('approved', 'equalto', False) | list | length }}
-            {% else %}0{% endif %}
-          </span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">Giao dịch</span>
-          <span class="stat-value">{{ transactions|length if transactions is defined else 0 }}</span>
+        <div class="toolbar-actions">
+          <div class="searchbar">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input placeholder="Tìm kiếm…" />
+          </div>
+          <select class="select">
+            <option value="">Tất cả trạng thái</option>
+            <option value="pending">Chờ duyệt</option>
+            <option value="approved">Đã duyệt</option>
+          </select>
+          <button class="btn btn-primary">
+            <i class="fa-solid fa-arrow-rotate-right"></i> Làm mới
+          </button>
         </div>
       </div>
-    </div>
 
-    <div class="admin-toolbar">
-      <div class="tabs">
-        <a class="tab active"><i class="fa-solid fa-gauge"></i> Tổng quan</a>
-        <a class="tab"><i class="fa-solid fa-users"></i> Thành viên</a>
-        <a class="tab"><i class="fa-solid fa-car"></i> Bài đăng</a>
-        <a class="tab"><i class="fa-solid fa-receipt"></i> Giao dịch</a>
-      </div>
-      <div class="toolbar-actions">
-        <div class="searchbar">
-          <i class="fa-solid fa-magnifying-glass"></i>
-          <input placeholder="Tìm kiếm…"/>
+      <section class="admin-card">
+        <div class="section-head">
+          <h2 class="section-title">
+            <i class="fa-solid fa-users"></i> Quản lý thành viên
+          </h2>
+          <div class="section-actions">
+            <button class="btn btn-outline">
+              <i class="fa-solid fa-filter"></i> Lọc
+            </button>
+          </div>
         </div>
-        <select class="select">
-          <option value="">Tất cả trạng thái</option>
-          <option value="pending">Chờ duyệt</option>
-          <option value="approved">Đã duyệt</option>
-        </select>
-        <button class="btn btn-primary"><i class="fa-solid fa-arrow-rotate-right"></i> Làm mới</button>
-      </div>
-    </div>
-
-    <section class="admin-card">
-      <div class="section-head">
-        <h2 class="section-title"><i class="fa-solid fa-users"></i> Quản lý thành viên</h2>
-        <div class="section-actions">
-          <button class="btn btn-outline"><i class="fa-solid fa-filter"></i> Lọc</button>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Tên đăng nhập</th>
-              <th>Email</th>
-              <th>Quyền</th>
-              <th>Trạng thái</th> 
-              <th class="th-actions">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% if users is defined and users|length %}
-              {% for user in users %}
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tên đăng nhập</th>
+                <th>Email</th>
+                <th>Quyền</th>
+                <th>Trạng thái</th>
+                <th class="th-actions">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if users is defined and users|length %} {% for user in users %}
               <tr>
                 <td>{{ user.id }}</td>
                 <td class="td-strong">{{ user.username }}</td>
                 <td>{{ user.email }}</td>
                 <td>
-                  <span class="chip {{ 'chip-success' if user.is_admin else 'chip-muted' }}">
+                  <span
+                    class="chip {{ 'chip-success' if user.is_admin else 'chip-muted' }}"
+                  >
                     {{ 'Admin' if user.is_admin else 'Member' }}
                   </span>
                 </td>
                 <td>
                   {% if user.approved %}
-                    <span class="chip chip-success">Đã duyệt</span>
+                  <span class="chip chip-success">Đã duyệt</span>
                   {% else %}
-                    <span class="chip chip-warning">Chờ duyệt</span>
-                    <form action="{{ url_for('approve_user', user_id=user.id) }}" method="post" style="display:inline">
-                      <button class="btn btn-ghost success" type="submit">
-                        <i class="fa-regular fa-circle-check"></i> Duyệt
-                      </button>
-                    </form>
+                  <span class="chip chip-warning">Chờ duyệt</span>
+                  <form
+                    action="{{ url_for('approve_user', user_id=user.id) }}"
+                    method="post"
+                    style="display: inline"
+                  >
+                    <button class="btn btn-ghost success" type="submit">
+                      <i class="fa-regular fa-circle-check"></i> Duyệt
+                    </button>
+                  </form>
                   {% endif %}
                 </td>
                 <td class="td-actions">
-                  <a class="btn btn-ghost danger" 
+                  <a
+                    class="btn btn-ghost danger"
                     href="{{ url_for('delete_user', user_id=user.id) }}"
-                    onclick="return confirm('Bạn có chắc chắn muốn xóa tài khoản này?')">
+                    onclick="return confirm('Bạn có chắc chắn muốn xóa tài khoản này?')"
+                  >
                     <i class="fa-regular fa-trash-can"></i> Xóa
                   </a>
                 </td>
               </tr>
-              {% endfor %}
-            {% else %}
-              <tr><td colspan="6" class="td-empty">Chưa có dữ liệu</td></tr>
-            {% endif %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="admin-card">
-      <div class="section-head">
-        <h2 class="section-title"><i class="fa-solid fa-car"></i> Duyệt bài đăng</h2>
-        <div class="section-actions">
-          <button class="btn btn-outline"><i class="fa-solid fa-filter"></i> Lọc</button>
+              {% endfor %} {% else %}
+              <tr>
+                <td colspan="6" class="td-empty">Chưa có dữ liệu</td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
         </div>
-      </div>
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Tên sản phẩm</th>
-              <th>Chủ sở hữu</th>
-              <th>Giá</th>
-              <th>Trạng thái</th>
-              <th class="th-actions">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% if products is defined and products|length %}
-              {% for p in products %}
+      </section>
+
+      <section class="admin-card">
+        <div class="section-head">
+          <h2 class="section-title">
+            <i class="fa-solid fa-car"></i> Duyệt bài đăng
+          </h2>
+          <div class="section-actions">
+            <button class="btn btn-outline">
+              <i class="fa-solid fa-filter"></i> Lọc
+            </button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tên sản phẩm</th>
+                <th>Chủ sở hữu</th>
+                <th>Giá</th>
+                <th>Trạng thái</th>
+                <th class="th-actions">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if products is defined and products|length %} {% for p in
+              products %}
               <tr>
                 <td>{{ p.id }}</td>
                 <td class="td-strong">{{ p.name }}</td>
-                <td>{{ p.owner.username if p.owner is mapping else p.owner }}</td>
+                <td>
+                  {{ p.owner.username if p.owner is mapping else p.owner }}
+                </td>
                 <td>{{ "{:,.0f}".format(p.price) }} đ</td>
                 <td>
-                  <span class="chip {{ 'chip-success' if p.approved else 'chip-warning' }}">
+                  <span
+                    class="chip {{ 'chip-success' if p.approved else 'chip-warning' }}"
+                  >
                     {{ 'Đã duyệt' if p.approved else 'Chờ duyệt' }}
                   </span>
                 </td>
                 <td class="td-actions">
                   {% if not p.approved %}
-                  <a class="btn btn-ghost success" href="/admin/approve/{{ p.id }}"><i class="fa-regular fa-circle-check"></i> Duyệt</a>
+                  <a
+                    class="btn btn-ghost success"
+                    href="/admin/approve/{{ p.id }}"
+                    ><i class="fa-regular fa-circle-check"></i> Duyệt</a
+                  >
                   {% endif %}
-                  <a class="btn btn-ghost danger" href="/admin/delete/{{ p.id }}"><i class="fa-regular fa-trash-can"></i> Xóa</a>
+                  <a
+                    class="btn btn-ghost danger"
+                    href="/admin/delete/{{ p.id }}"
+                    ><i class="fa-regular fa-trash-can"></i> Xóa</a
+                  >
                 </td>
               </tr>
-              {% endfor %}
-            {% else %}
-              <tr><td colspan="6" class="td-empty">Chưa có dữ liệu</td></tr>
-            {% endif %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="admin-card">
-      <div class="section-head">
-        <h2 class="section-title"><i class="fa-solid fa-receipt"></i> Báo cáo giao dịch</h2>
-        <div class="section-actions">
-          <button class="btn btn-outline"><i class="fa-solid fa-filter"></i> Lọc</button>
+              {% endfor %} {% else %}
+              <tr>
+                <td colspan="6" class="td-empty">Chưa có dữ liệu</td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
         </div>
-      </div>
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Sản phẩm</th>
-              <th>Người mua</th>
-              <th>Ngày giao dịch</th>
-              <th>Trạng thái</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% if transactions is defined and transactions|length %}
-              {% for t in transactions %}
+      </section>
+
+      <section class="admin-card">
+        <div class="section-head">
+          <h2 class="section-title">
+            <i class="fa-solid fa-receipt"></i> Báo cáo giao dịch
+          </h2>
+          <div class="section-actions">
+            <button class="btn btn-outline">
+              <i class="fa-solid fa-filter"></i> Lọc
+            </button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Sản phẩm</th>
+                <th>Người mua</th>
+                <th>Ngày giao dịch</th>
+                <th>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if transactions is defined and transactions|length %} {% for t
+              in transactions %}
               <tr>
                 <td>{{ t.id }}</td>
-                <td class="td-strong">{{ t.product.name if t.product is mapping else t.product }}</td>
-                <td>{{ t.buyer.username if t.buyer is mapping else t.buyer }}</td>
-                <td>{{ t.date if t.date is string else t.date.strftime('%d/%m/%Y') }}</td>
+                <td class="td-strong">
+                  {{ t.product.name if t.product is mapping else t.product }}
+                </td>
                 <td>
-                  <span class="chip {{ 'chip-success' if t.status in ['Hoàn tất','Completed'] else 'chip-muted' }}">
+                  {{ t.buyer.username if t.buyer is mapping else t.buyer }}
+                </td>
+                <td>
+                  {{ t.date if t.date is string else t.date.strftime('%d/%m/%Y')
+                  }}
+                </td>
+                <td>
+                  <span
+                    class="chip {{ 'chip-success' if t.status in ['Hoàn tất','Completed'] else 'chip-muted' }}"
+                  >
                     {{ t.status }}
                   </span>
                 </td>
               </tr>
-              {% endfor %}
-            {% else %}
-              <tr><td colspan="5" class="td-empty">Chưa có dữ liệu</td></tr>
-            {% endif %}
-          </tbody>
-        </table>
+              {% endfor %} {% else %}
+              <tr>
+                <td colspan="5" class="td-empty">Chưa có dữ liệu</td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <div id="adminLoginModal" class="modal" style="display: none">
+      <div class="modal-content" style="max-width: 420px; margin: auto">
+        <span class="close" onclick="closeAdminLogin()">&times;</span>
+        <h2 style="margin-top: 0">Đăng nhập Quản trị</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %} {% if
+        messages %}
+        <div class="flash-messages" style="margin: 10px 0">
+          {% for category, message in messages %}
+          <div class="flash-message flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+        {% endif %} {% endwith %}
+
+        <form method="POST" action="{{ url_for('admin_login') }}">
+          <input
+            type="text"
+            name="username"
+            placeholder="Tên đăng nhập"
+            required
+            style="
+              width: 100%;
+              padding: 10px;
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              margin: 8px 0;
+            "
+          />
+          <input
+            type="password"
+            name="password"
+            placeholder="Mật khẩu"
+            required
+            style="
+              width: 100%;
+              padding: 10px;
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              margin: 8px 0;
+            "
+          />
+          <button
+            type="submit"
+            style="
+              width: 100%;
+              padding: 10px;
+              border-radius: 10px;
+              border: 1px solid #2563eb;
+              background: #2563eb;
+              color: #fff;
+              cursor: pointer;
+            "
+          >
+            <i class="fa-solid fa-right-to-bracket"></i> Đăng nhập
+          </button>
+        </form>
       </div>
-    </section>
-  </main>
-  <div id="adminLoginModal" class="modal" style="display:none;">
-    <div class="modal-content" style="max-width:420px;margin:auto;">
-      <span class="close" onclick="closeAdminLogin()">&times;</span>
-      <h2 style="margin-top:0;">Đăng nhập Quản trị</h2>
-
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          <div class="flash-messages" style="margin:10px 0;">
-            {% for category, message in messages %}
-              <div class="flash-message flash-{{ category }}">{{ message }}</div>
-            {% endfor %}
-          </div>
-        {% endif %}
-      {% endwith %}
-
-      <form method="POST" action="{{ url_for('admin_login') }}">
-        <input type="text" name="username" placeholder="Tên đăng nhập" required
-              style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:10px;margin:8px 0;">
-        <input type="password" name="password" placeholder="Mật khẩu" required
-              style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:10px;margin:8px 0;">
-        <button type="submit"
-                style="width:100%;padding:10px;border-radius:10px;border:1px solid #2563eb;background:#2563eb;color:#fff;cursor:pointer">
-          <i class="fa-solid fa-right-to-bracket"></i> Đăng nhập
-        </button>
-      </form>
     </div>
-  </div>
 
-  <script>
-    function openAdminLogin(e){ if(e) e.preventDefault(); document.getElementById('adminLoginModal').style.display='block'; }
-    function closeAdminLogin(){ document.getElementById('adminLoginModal').style.display='none'; }
-    window.addEventListener('click', function(ev){
-      const m = document.getElementById('adminLoginModal');
-      if (ev.target === m) m.style.display = 'none';
-    });
-  </script>
-  <style>
-    .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1000;display:none}
-    .modal-content{background:#fff;border-radius:14px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.15)}
-    .close{float:right;font-size:24px;cursor:pointer}
-    .flash-message{padding:10px;border-radius:10px;margin-bottom:8px}
-    .flash-success{background:#ecfdf5;color:#166534;border:1px solid #bbf7d0}
-    .flash-error{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
-  </style>
+    <script>
+      function openAdminLogin(e){ if(e) e.preventDefault(); document.getElementById('adminLoginModal').style.display='block'; }
+      function closeAdminLogin(){ document.getElementById('adminLoginModal').style.display='none'; }
+      window.addEventListener('click', function(ev){
+        const m = document.getElementById('adminLoginModal');
+        if (ev.target === m) m.style.display = 'none';
+      });
+      // Auto open login modal if not logged in as admin
+      {% if not (session.get('user') and session['user'].get('role') == 'admin') %}
+      document.addEventListener('DOMContentLoaded', function(){
+        openAdminLogin();
+      });
+      {% endif %}
+    </script>
+    <style>
+      .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.35);
+        z-index: 1000;
+        display: none;
+      }
+      .modal-content {
+        background: #fff;
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      }
+      .close {
+        float: right;
+        font-size: 24px;
+        cursor: pointer;
+      }
+      .flash-message {
+        padding: 10px;
+        border-radius: 10px;
+        margin-bottom: 8px;
+      }
+      .flash-success {
+        background: #ecfdf5;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+      }
+      .flash-error {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+      }
+    </style>
 
-  <footer class="footer">
-    <p>© 2025 EV Trading Platform. Tất cả quyền được bảo lưu.</p>
-  </footer>
-</body>
+    <footer class="footer">
+      <p>© 2025 EV Trading Platform. Tất cả quyền được bảo lưu.</p>
+    </footer>
+  </body>
 </html>

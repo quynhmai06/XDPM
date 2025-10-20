@@ -151,8 +151,8 @@
 
         <div class="user-menu">
           <a href="/policy" class="user-menu-item">Chính sách</a>
+          <a href="/auctions" class="user-menu-item">Đấu giá</a>
           <a href="/favorites" class="user-menu-item">Yêu thích</a>
-          <a href="/compare" class="user-menu-item">So sánh</a>
           <a href="/cart" class="user-menu-item">Giỏ hàng</a>
           <a href="/checkout" class="user-menu-item">Thanh toán</a>
           <a href="#" class="user-menu-item"
@@ -234,6 +234,15 @@
         <a href="#" class="view-all">Xem tất cả</a>
       </div>
       <div id="vehiclesGrid" class="product-grid"></div>
+    </section>
+
+    <!-- Active Auctions Section -->
+    <section class="product-section" id="auctionsSection" style="display: none">
+      <div class="section-header">
+        <h2 class="section-title">Phiên đấu giá đang diễn ra</h2>
+        <span id="auctionsCount" class="view-all"></span>
+      </div>
+      <div id="auctionsGrid" class="product-grid"></div>
     </section>
 
     <section class="product-section">
@@ -326,7 +335,8 @@
 
     <script>
       const fmtMoney = (v) => (v || 0).toLocaleString("vi-VN") + " đ";
-      const carsCompare = new Set();
+      let auctionsMap = {}; // key: `${type}:${id}` => auction info
+      let activeAuctions = []; // raw list for dedicated section
 
       function showTab(tab) {
         document.getElementById("loginTab").style.display =
@@ -356,6 +366,21 @@
         const model = document.getElementById("qModel").value.trim();
         const year = document.getElementById("qYear").value.trim();
         const price = document.getElementById("qPrice").value.trim();
+        // load active auctions first
+        auctionsMap = {};
+        activeAuctions = [];
+        try {
+          const ar = await fetch("/api/auctions/active");
+          if (ar.ok) {
+            const aj = await ar.json();
+            activeAuctions = aj.data || [];
+            activeAuctions.forEach((a) => {
+              auctionsMap[`${a.item_type}:${a.item_id}`] = a;
+            });
+          }
+        } catch (e) {}
+        // render dedicated auctions section (independent of search results)
+        renderActiveAuctions(activeAuctions);
         // vehicles
         const vUrl = new URL("/api/search/vehicles", window.location.origin);
         if (brand) vUrl.searchParams.set("brand", brand);
@@ -375,12 +400,107 @@
         renderBatteries(bRes.items || []);
       }
 
+      async function renderActiveAuctions(list) {
+        const section = document.getElementById("auctionsSection");
+        const grid = document.getElementById("auctionsGrid");
+        const count = document.getElementById("auctionsCount");
+        section.style.display = "block";
+        grid.innerHTML = "";
+        if (!list || list.length === 0) {
+          if (count) count.textContent = "";
+          const empty = document.createElement("div");
+          empty.style.cssText =
+            "padding:16px;color:#777;text-align:center;width:100%";
+          empty.innerHTML = "Chưa có phiên đấu giá nào. Hãy quay lại sau!";
+          grid.appendChild(empty);
+          return;
+        }
+        if (count) count.textContent = `${list.length} phiên`;
+        // fetch item details for nicer cards
+        const enriched = await Promise.all(
+          list.map(async (a) => {
+            let info = null;
+            try {
+              const url =
+                a.item_type === "vehicle"
+                  ? `/api/listings/vehicles/${a.item_id}`
+                  : `/api/listings/batteries/${a.item_id}`;
+              const r = await fetch(url);
+              if (r.ok) info = await r.json();
+            } catch (e) {}
+            return { a, info };
+          })
+        );
+
+        enriched.forEach(({ a, info }) => {
+          const ends = a ? new Date(a.ends_at) : null;
+          const now = new Date();
+          const remaining =
+            a && ends ? Math.max(0, Math.floor((ends - now) / 1000)) : 0;
+          const remStr = a
+            ? new Date(remaining * 1000).toISOString().substring(11, 19)
+            : "";
+          const card = document.createElement("div");
+          card.className = "product-card";
+          const title =
+            a.item_type === "vehicle"
+              ? info
+                ? `${info.brand || ""} ${info.model || ""} ${info.year || ""}`
+                : `Xe #${a.item_id}`
+              : info
+              ? `${info.brand || ""} ${info.year || ""} - ${
+                  info.capacity_kwh || ""
+                } kWh`
+              : `Pin #${a.item_id}`;
+          const priceText =
+            a.highest_bid != null ? a.highest_bid : a.starting_price;
+          const img =
+            a.item_type === "vehicle"
+              ? "/static/images/v1.jpg"
+              : "/static/images/v3.jpg";
+          card.innerHTML = `
+            <img src="${img}" alt="auction" class="product-image" style="cursor:pointer" onclick="window.location.href='/auctions/${
+            a.id
+          }'"/>
+            <div class="product-info">
+              <h3 class="product-title" style="cursor:pointer" onclick="window.location.href='/auctions/${
+                a.id
+              }'">${title}</h3>
+              <div class="product-price">Giá hiện tại: ${fmtMoney(
+                priceText
+              )}</div>
+              <div class="product-location"><i class="far fa-clock"></i> Còn lại: ${remStr}</div>
+              <div class="product-actions">
+                <button class="action-btn" onclick="event.stopPropagation();placeBid(${
+                  a.id
+                })"><i class='fas fa-gavel'></i> Đấu giá</button>
+                ${
+                  a.buy_now_price
+                    ? `<button class="action-btn btn-buy" onclick="event.stopPropagation();buyNowAuction(${a.id})"><i class='fas fa-bolt'></i> Mua ngay</button>`
+                    : ""
+                }
+              </div>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+      }
+
       function renderVehicles(items) {
         const root = document.getElementById("vehiclesGrid");
         root.innerHTML = "";
         items.forEach((v) => {
           const card = document.createElement("div");
           card.className = "product-card";
+          const akey = `vehicle:${v.id}`;
+          const a = auctionsMap[akey];
+          const ends = a ? new Date(a.ends_at) : null;
+          const now = new Date();
+          const remaining =
+            a && ends ? Math.max(0, Math.floor((ends - now) / 1000)) : 0;
+          const remStr = a
+            ? new Date(remaining * 1000).toISOString().substring(11, 19)
+            : "";
           card.innerHTML = `
           <img src="/static/images/v1.jpg" alt="${v.brand} ${
             v.model
@@ -391,13 +511,34 @@
             <div class="product-location"><i class="fas fa-battery-full"></i> ${
               v.battery_capacity_kwh || ""
             } kWh - ${v.km || 0} km</div>
+            ${
+              a
+                ? `<div class="product-auction" style="display:flex;justify-content:space-between;align-items:center;background:#fff3e0;border:1px dashed #ffb74d;border-radius:8px;padding:6px 8px;margin-top:8px;font-size:12px;">
+                    <div style="display:flex;gap:12px;align-items:center;">
+                      <span><i class='far fa-clock'></i> ${remStr}</span>
+                      <span><i class='fas fa-trophy'></i> ${
+                        a.highest_bid != null
+                          ? fmtMoney(a.highest_bid)
+                          : fmtMoney(a.starting_price)
+                      }</span>
+                    </div>
+                    <div style="display:flex;gap:6px;">
+                      <button class="action-btn" onclick="placeBid(${
+                        a.id
+                      })"><i class='fas fa-gavel'></i> Đấu giá</button>
+                      ${
+                        a.buy_now_price
+                          ? `<button class="action-btn btn-buy" onclick="buyNowAuction(${a.id})"><i class='fas fa-bolt'></i> Mua ngay</button>`
+                          : ""
+                      }
+                    </div>
+                   </div>`
+                : ""
+            }
             <div class="product-actions">
               <button class="action-btn btn-favorite" onclick="addFav('vehicle', ${
                 v.id
               })" title="Yêu thích"><i class="far fa-heart"></i></button>
-              <button class="action-btn btn-compare" onclick="toggleCompare('vehicle', ${
-                v.id
-              })"><i class="fas fa-code-compare"></i> So sánh</button>
               <button class="action-btn btn-buy" onclick="buyNow('vehicle', ${
                 v.id
               }, ${v.seller_id || 1}, ${
@@ -416,6 +557,15 @@
         items.forEach((b) => {
           const card = document.createElement("div");
           card.className = "product-card";
+          const akey = `battery:${b.id}`;
+          const a = auctionsMap[akey];
+          const ends = a ? new Date(a.ends_at) : null;
+          const now = new Date();
+          const remaining =
+            a && ends ? Math.max(0, Math.floor((ends - now) / 1000)) : 0;
+          const remStr = a
+            ? new Date(remaining * 1000).toISOString().substring(11, 19)
+            : "";
           card.innerHTML = `
           <img src="/static/images/v3.jpg" alt="${b.brand} ${
             b.capacity_kwh
@@ -428,13 +578,34 @@
             <div class="product-location"><i class="fas fa-heartbeat"></i> ${
               b.health_percent || ""
             }% - ${b.cycles || 0} chu kỳ</div>
+            ${
+              a
+                ? `<div class="product-auction" style="display:flex;justify-content:space-between;align-items:center;background:#fff3e0;border:1px dashed #ffb74d;border-radius:8px;padding:6px 8px;margin-top:8px;font-size:12px;">
+                    <div style="display:flex;gap:12px;align-items:center;">
+                      <span><i class='far fa-clock'></i> ${remStr}</span>
+                      <span><i class='fas fa-trophy'></i> ${
+                        a.highest_bid != null
+                          ? fmtMoney(a.highest_bid)
+                          : fmtMoney(a.starting_price)
+                      }</span>
+                    </div>
+                    <div style="display:flex;gap:6px;">
+                      <button class="action-btn" onclick="placeBid(${
+                        a.id
+                      })"><i class='fas fa-gavel'></i> Đấu giá</button>
+                      ${
+                        a.buy_now_price
+                          ? `<button class="action-btn btn-buy" onclick="buyNowAuction(${a.id})"><i class='fas fa-bolt'></i> Mua ngay</button>`
+                          : ""
+                      }
+                    </div>
+                   </div>`
+                : ""
+            }
             <div class="product-actions">
               <button class="action-btn btn-favorite" onclick="addFav('battery', ${
                 b.id
               })" title="Yêu thích"><i class="far fa-heart"></i></button>
-              <button class="action-btn btn-compare" onclick="toggleCompare('battery', ${
-                b.id
-              })"><i class="fas fa-code-compare"></i> So sánh</button>
               <button class="action-btn btn-buy" onclick="buyNow('battery', ${
                 b.id
               }, ${b.seller_id || 1}, ${
@@ -457,49 +628,7 @@
         else alert("Vui lòng đăng nhập để lưu yêu thích");
       }
 
-      function toggleCompare(type, id) {
-        // Load from localStorage
-        let compareItems = [];
-        try {
-          const stored = localStorage.getItem("compareItems");
-          compareItems = stored ? JSON.parse(stored) : [];
-        } catch (e) {}
-
-        // Check if already exists
-        const exists = compareItems.find(
-          (item) => item.type === type && item.id === id
-        );
-
-        if (exists) {
-          // Remove
-          compareItems = compareItems.filter(
-            (item) => !(item.type === type && item.id === id)
-          );
-          alert("Đã xóa khỏi danh sách so sánh");
-        } else {
-          // Add
-          if (compareItems.length >= 5) {
-            alert("Tối đa 5 sản phẩm để so sánh");
-            return;
-          }
-          compareItems.push({ type, id });
-          alert("Đã thêm vào danh sách so sánh");
-        }
-
-        // Save to localStorage
-        localStorage.setItem("compareItems", JSON.stringify(compareItems));
-
-        // Show option to go to compare page
-        if (compareItems.length > 0) {
-          if (
-            confirm(
-              `Bạn có ${compareItems.length} sản phẩm trong danh sách so sánh. Đi đến trang so sánh?`
-            )
-          ) {
-            window.location.href = "/compare";
-          }
-        }
-      }
+      // Compare feature đã chuyển sang trang Yêu thích
 
       async function buyNow(item_type, item_id, seller_id, price) {
         // Add to session cart then go to cart page
@@ -518,6 +647,73 @@
           window.location.href = "/cart";
         } else {
           alert("Vui lòng đăng nhập để mua ngay.");
+        }
+      }
+
+      async function placeBid(aid) {
+        const val = prompt("Nhập giá bạn muốn đặt (đơn vị: đ)");
+        if (!val) return;
+        const amount = parseInt(val.replace(/\D/g, ""), 10) || 0;
+        if (amount <= 0) return alert("Giá không hợp lệ");
+        const res = await fetch(`/api/auctions/${aid}/bid`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          alert("Đã đặt giá thành công!");
+          doSearch();
+        } else if (data && data.error === "low_bid") {
+          alert("Giá quá thấp. Tối thiểu: " + fmtMoney(data.min || 0));
+        } else if (res.status === 401) {
+          alert("Vui lòng đăng nhập để đấu giá.");
+          window.location.href = "/login";
+        } else {
+          alert("Không thể đặt giá lúc này.");
+        }
+      }
+
+      async function buyNowAuction(aid) {
+        if (!confirm("Xác nhận Mua ngay và kết thúc phiên đấu giá?")) return;
+        const res = await fetch(`/api/auctions/${aid}/buy-now`, {
+          method: "POST",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          const price = (data && (data.final_price ?? data.buy_now_price)) || 0;
+          if (data && data.item_type && data.item_id) {
+            const add = await fetch("/cart/add", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                item_type: data.item_type,
+                item_id: data.item_id,
+                seller_id: data.seller_id,
+                price,
+                qty: 1,
+              }),
+            });
+            if (add.ok) {
+              alert(
+                "Phiên đấu giá đã kết thúc. Sản phẩm đã được đưa vào giỏ hàng."
+              );
+              window.location.href = "/cart";
+              return;
+            }
+            if (add.status === 401) {
+              alert("Vui lòng đăng nhập để hoàn tất Mua ngay.");
+              window.location.href = "/login";
+              return;
+            }
+          }
+          alert("Phiên đấu giá đã kết thúc.");
+          doSearch();
+        } else if (res.status === 401) {
+          alert("Vui lòng đăng nhập để Mua ngay.");
+          window.location.href = "/login";
+        } else {
+          alert("Không thể Mua ngay lúc này.");
         }
       }
 

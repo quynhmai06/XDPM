@@ -1,6 +1,7 @@
 from flask import Blueprint, request
 from datetime import datetime
 from models import db, Auction, Bid
+from sqlalchemy import func
 
 bp = Blueprint("auctions", __name__, url_prefix="/auctions")
 
@@ -52,20 +53,79 @@ def buy_now(auction_id: int):
     a = Auction.query.get_or_404(auction_id)
     if a.status != "open" or not a.buy_now_price:
         return {"error": "not_available"}, 400
+    # Close auction immediately; the caller (gateway) will record the order
     a.status = "closed"
     db.session.commit()
-    return {"ok": True, "price": a.buy_now_price}
+    return {
+        "ok": True,
+        "final_price": a.buy_now_price,
+        "item_type": a.item_type,
+        "item_id": a.item_id,
+        "seller_id": a.seller_id,
+        "auction_id": a.id,
+    }
 
 
 @bp.get("/active")
 def list_active():
     now = datetime.utcnow()
-    auctions = Auction.query.filter(Auction.status == "open", Auction.ends_at > now).order_by(Auction.ends_at.asc()).all()
-    return {"data": [{
+    auctions = (
+        Auction.query
+        .filter(Auction.status == "open", Auction.ends_at > now)
+        .order_by(Auction.ends_at.asc())
+        .all()
+    )
+    data = []
+    for a in auctions:
+        highest = db.session.query(func.max(Bid.amount)).filter(Bid.auction_id == a.id).scalar()
+        data.append({
+            "id": a.id,
+            "item_type": a.item_type,
+            "item_id": a.item_id,
+            "starting_price": a.starting_price,
+            "highest_bid": int(highest) if highest is not None else None,
+            "buy_now_price": a.buy_now_price,
+            "ends_at": a.ends_at.isoformat(),
+        })
+    return {"data": data}
+
+
+@bp.get("/<int:auction_id>")
+def get_auction_detail(auction_id: int):
+    a = Auction.query.get_or_404(auction_id)
+    bid_count = Bid.query.filter_by(auction_id=auction_id).count()
+    highest = db.session.query(func.max(Bid.amount)).filter(Bid.auction_id == auction_id).scalar()
+    return {
         "id": a.id,
         "item_type": a.item_type,
         "item_id": a.item_id,
+        "seller_id": a.seller_id,
         "starting_price": a.starting_price,
         "buy_now_price": a.buy_now_price,
+        "highest_bid": int(highest) if highest is not None else None,
         "ends_at": a.ends_at.isoformat(),
-    } for a in auctions]}
+        "status": a.status,
+        "created_at": a.created_at.isoformat(),
+        "bid_count": bid_count,
+    }
+
+
+@bp.get("/<int:auction_id>/bids")
+def get_auction_bids(auction_id: int):
+    # Verify auction exists
+    Auction.query.get_or_404(auction_id)
+    bids = (
+        Bid.query
+        .filter_by(auction_id=auction_id)
+        .order_by(Bid.created_at.desc())
+        .all()
+    )
+    data = []
+    for b in bids:
+        data.append({
+            "id": b.id,
+            "bidder_id": b.bidder_id,
+            "amount": b.amount,
+            "created_at": b.created_at.isoformat(),
+        })
+    return {"data": data}

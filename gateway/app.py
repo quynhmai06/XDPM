@@ -62,6 +62,54 @@ def home_page():
 def compare_page():
     return render_template("compare.html")
 
+@app.get('/auctions')
+def auctions_page():
+    return render_template('auctions.html')
+
+@app.get('/auctions/<int:aid>')
+def auction_detail_page(aid:int):
+    return render_template('auction_detail.html')
+
+@app.post('/auctions/create')
+def auctions_create():
+    user = get_current_user()
+    if not user:
+        session['next_after_login'] = url_for('auctions_page')
+        return redirect(url_for('login_page'))
+    # read form and post to auctions service
+    item_type = request.form.get('item_type')
+    item_id = request.form.get('item_id', type=int)
+    starting_price = request.form.get('starting_price', type=int)
+    buy_now_price = request.form.get('buy_now_price', type=int)
+    ends_at_local = request.form.get('ends_at_local')  # YYYY-MM-DDTHH:mm
+    ends_at = None
+    try:
+        # convert to UTC ISO string without timezone assumption (browser local time)
+        # simple passthrough if client sends ISO full
+        from datetime import datetime, timezone
+        if ends_at_local and 'T' in ends_at_local:
+            dt = datetime.fromisoformat(ends_at_local)
+            ends_at = dt.astimezone(timezone.utc).isoformat()
+    except Exception:
+        ends_at = ends_at_local
+    payload = {
+        'item_type': item_type,
+        'item_id': item_id,
+        'seller_id': user.get('sub'),
+        'starting_price': starting_price,
+        'buy_now_price': buy_now_price,
+        'ends_at': ends_at or ends_at_local
+    }
+    try:
+        r = requests.post(f"{AUCTIONS_URL}/auctions", json=payload, timeout=5)
+        if r.status_code in (200,201):
+            flash('Tạo phiên đấu giá thành công!', 'success')
+        else:
+            flash('Tạo phiên đấu giá thất bại.', 'error')
+    except requests.RequestException:
+        flash('Không kết nối được auctions service.', 'error')
+    return redirect(url_for('auctions_page'))
+
 @app.route("/favorites", methods=["GET"], endpoint="favorites_page")
 def favorites_page():
     user = get_current_user()
@@ -538,13 +586,64 @@ def api_bid(aid:int):
     except requests.RequestException:
         return {"error": "auctions_unavailable"}, 503
 
-@app.post('/api/auctions/<int:aid>/buy-now')
-def api_buy_now(aid:int):
+@app.get('/api/auctions/active')
+def api_auctions_active():
     try:
-        r = requests.post(f"{AUCTIONS_URL}/auctions/{aid}/buy-now", timeout=5)
+        r = requests.get(f"{AUCTIONS_URL}/auctions/active", timeout=5)
         return (r.json(), r.status_code)
     except requests.RequestException:
         return {"error": "auctions_unavailable"}, 503
+
+@app.get('/api/auctions/<int:aid>')
+def api_auction_detail(aid:int):
+    try:
+        r = requests.get(f"{AUCTIONS_URL}/auctions/{aid}", timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "auctions_unavailable"}, 503
+
+@app.get('/api/auctions/<int:aid>/bids')
+def api_auction_bids(aid:int):
+    try:
+        r = requests.get(f"{AUCTIONS_URL}/auctions/{aid}/bids", timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "auctions_unavailable"}, 503
+
+@app.post('/api/auctions/<int:aid>/buy-now')
+def api_buy_now(aid:int):
+    # Require logged-in user; on success, close auction and create order
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    try:
+        ar = requests.post(f"{AUCTIONS_URL}/auctions/{aid}/buy-now", timeout=5)
+    except requests.RequestException:
+        return {"error": "auctions_unavailable"}, 503
+    if not ar.ok:
+        # bubble up auctions error
+        try:
+            return (ar.json(), ar.status_code)
+        except Exception:
+            return ({"error": "auction_buy_now_failed"}, ar.status_code)
+    if ar.headers.get('content-type', '').startswith('application/json'):
+        try:
+            data = ar.json()
+        except ValueError:
+            data = {}
+    else:
+        data = {}
+    response = {
+        "ok": True,
+        "auction_closed": True,
+        "auction_id": data.get("auction_id", aid),
+        "item_type": data.get("item_type"),
+        "item_id": data.get("item_id"),
+        "seller_id": data.get("seller_id"),
+        "final_price": data.get("final_price"),
+        "buy_now_price": data.get("buy_now_price")
+    }
+    return (response, 200)
 
 @app.post('/api/reviews')
 def api_reviews_create():

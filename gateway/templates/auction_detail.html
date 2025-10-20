@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chi tiết đấu giá - EV Trading</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background: #f9f9f9;
+      }
+      .detail-container {
+        max-width: 1200px;
+        margin: 24px auto;
+        padding: 0 16px;
+        display: grid;
+        grid-template-columns: 1fr 420px;
+        gap: 24px;
+      }
+      @media (max-width: 968px) {
+        .detail-container {
+          grid-template-columns: 1fr;
+        }
+      }
+      .product-gallery {
+        background: #fff;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+      .main-image {
+        width: 100%;
+        height: 360px;
+        object-fit: cover;
+        border-radius: 8px;
+        margin-bottom: 12px;
+      }
+      .thumbnail-row {
+        display: flex;
+        gap: 8px;
+      }
+      .thumbnail {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 6px;
+        cursor: pointer;
+        border: 2px solid transparent;
+      }
+      .thumbnail:hover,
+      .thumbnail.active {
+        border-color: #ff6f00;
+      }
+      .product-info {
+        background: #fff;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        margin-top: 16px;
+      }
+      .product-title {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0 0 8px;
+      }
+      .product-meta {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 12px;
+        font-size: 14px;
+        color: #666;
+      }
+      .product-desc {
+        font-size: 14px;
+        line-height: 1.6;
+        color: #555;
+        margin-top: 12px;
+      }
+      .auction-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .auction-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+      .auction-card h3 {
+        margin: 0 0 12px;
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .auction-card h3 i {
+        color: #ff6f00;
+      }
+      .auction-summary {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font-size: 14px;
+      }
+      .summary-row {
+        display: flex;
+        justify-content: space-between;
+      }
+      .summary-row strong {
+        color: #ff6f00;
+        font-size: 16px;
+      }
+      .bid-form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .bid-form input {
+        padding: 10px;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+      }
+      .bid-form button {
+        padding: 12px;
+        background: #ff6f00;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .bid-form button:hover {
+        background: #e65100;
+      }
+      .bid-form .btn-buy-now {
+        background: #4caf50;
+      }
+      .bid-form .btn-buy-now:hover {
+        background: #388e3c;
+      }
+      .bid-history {
+        max-height: 240px;
+        overflow-y: auto;
+      }
+      .bid-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 13px;
+      }
+      .bid-item:last-child {
+        border-bottom: none;
+      }
+      .bid-item .bid-amount {
+        font-weight: 600;
+        color: #ff6f00;
+      }
+      .stats-row {
+        display: flex;
+        gap: 16px;
+      }
+      .stat-box {
+        flex: 1;
+        text-align: center;
+        padding: 12px;
+        background: #f5f5f5;
+        border-radius: 8px;
+      }
+      .stat-box .value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #333;
+      }
+      .stat-box .label {
+        font-size: 12px;
+        color: #777;
+        margin-top: 4px;
+      }
+      .status-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .status-badge.open {
+        background: #e8f5e9;
+        color: #2e7d32;
+      }
+      .status-badge.closed {
+        background: #ffebee;
+        color: #c62828;
+      }
+      .breadcrumb {
+        font-size: 13px;
+        color: #888;
+        margin-bottom: 16px;
+      }
+      .breadcrumb a {
+        color: #ff6f00;
+        text-decoration: none;
+      }
+      .breadcrumb a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-container">
+        <div class="logo-section">
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <img src="/static/images/logo.png" alt="EV Trading" class="logo" />
+        </div>
+        <div class="user-menu">
+          <a href="/" class="user-menu-item">Trang chủ</a>
+          <a href="/auctions" class="user-menu-item">Đấu giá</a>
+          <a href="/favorites" class="user-menu-item">Yêu thích</a>
+          {% if session.get('user') %}
+          <a href="{{ url_for('logout_page') }}" class="user-menu-item"
+            >Đăng xuất</a
+          >
+          {% else %}
+          <a href="{{ url_for('login_page') }}" class="user-menu-item"
+            >Đăng nhập</a
+          >
+          {% endif %}
+        </div>
+      </div>
+    </header>
+
+    <div style="max-width: 1200px; margin: 0 auto; padding: 16px">
+      <div class="breadcrumb">
+        <a href="/">Trang chủ</a> › <a href="/auctions">Phiên đấu giá</a> ›
+        <span id="breadTitle">Chi tiết</span>
+      </div>
+    </div>
+
+    <div class="detail-container">
+      <div>
+        <div class="product-gallery">
+          <img
+            id="mainImg"
+            src="/static/images/v1.jpg"
+            alt="Product"
+            class="main-image"
+          />
+          <div class="thumbnail-row">
+            <img
+              src="/static/images/v1.jpg"
+              class="thumbnail active"
+              onclick="changePic(this)"
+            />
+            <img
+              src="/static/images/v1.jpg"
+              class="thumbnail"
+              onclick="changePic(this)"
+            />
+            <img
+              src="/static/images/v1.jpg"
+              class="thumbnail"
+              onclick="changePic(this)"
+            />
+            <img
+              src="/static/images/v1.jpg"
+              class="thumbnail"
+              onclick="changePic(this)"
+            />
+          </div>
+          <div
+            style="
+              text-align: center;
+              margin-top: 12px;
+              color: #777;
+              font-size: 13px;
+            "
+          >
+            <i class="fas fa-camera"></i> Xem tất cả ảnh
+          </div>
+        </div>
+        <div class="product-info">
+          <h2 class="product-title" id="productTitle">Đang tải...</h2>
+          <div class="product-meta">
+            <span
+              ><i class="fas fa-calendar"></i> <span id="productYear"></span
+            ></span>
+            <span
+              ><i class="fas fa-road"></i> <span id="productKm"></span
+            ></span>
+          </div>
+          <h3 style="font-size: 15px; margin-top: 16px">Thông tin xe cơ bản</h3>
+          <div class="product-desc" id="productDesc"></div>
+        </div>
+      </div>
+
+      <div class="auction-sidebar">
+        <div class="auction-card">
+          <h3>
+            <span>Tổng kết phiên #<span id="auctionId"></span></span>
+            <span class="status-badge" id="auctionStatus">open</span>
+          </h3>
+          <div class="auction-summary">
+            <div class="summary-row">
+              <span>Bắt đầu phiên:</span><span id="auctionStart"></span>
+            </div>
+            <div class="summary-row">
+              <span>Kết thúc phiên:</span><span id="auctionEnd"></span>
+            </div>
+            <div class="summary-row">
+              <span>Số người xem:</span><span id="viewCount">51</span>
+            </div>
+            <div class="summary-row">
+              <span>Số người đặt giá:</span><span id="bidderCount">0</span>
+            </div>
+            <div
+              class="summary-row"
+              style="
+                margin-top: 8px;
+                padding-top: 8px;
+                border-top: 1px solid #e0e0e0;
+              "
+            >
+              <span>Giá dao động:</span
+              ><strong id="priceStatus">Chưa có người đặt giá</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="auction-card">
+          <h3><i class="fas fa-trophy"></i> Kênh đấu giá</h3>
+          <div class="bid-form">
+            <input
+              type="number"
+              id="bidInput"
+              placeholder="Nhập bình luận..."
+              min="0"
+            />
+            <small style="color: #888">Chưa có bình luận nào</small>
+            <button onclick="placeBid()">
+              <i class="fas fa-gavel"></i> Đấu giá
+            </button>
+            <button
+              class="btn-buy-now"
+              id="buyNowBtn"
+              onclick="buyNow()"
+              style="display: none"
+            >
+              <i class="fas fa-bolt"></i> Mua ngay
+            </button>
+          </div>
+          <div
+            style="
+              margin-top: 12px;
+              padding: 12px;
+              background: #fffbea;
+              border-radius: 6px;
+              font-size: 13px;
+              color: #666;
+            "
+          >
+            <i class="fas fa-info-circle" style="color: #ff9800"></i> Số người
+            đã theo dõi và chờ xem: <strong id="watchCount">1</strong>
+          </div>
+        </div>
+
+        <div class="auction-card">
+          <h3><i class="fas fa-list"></i> Lịch sử đấu giá</h3>
+          <div class="bid-history" id="bidHistory">
+            <div style="text-align: center; color: #999; padding: 20px">
+              Chưa có lượt đấu giá
+            </div>
+          </div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-box">
+            <div class="value" id="viewerCount">0</div>
+            <div class="label">Số người đã xem hồ sơ này</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const auctionId = parseInt(
+        new URLSearchParams(window.location.search).get("id")
+      );
+      const fmtMoney = (v) => (v || 0).toLocaleString("vi-VN") + " đ";
+      const fmtDate = (iso) => {
+        if (!iso) return "";
+        const d = new Date(iso);
+        return d.toLocaleString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      };
+
+      function changePic(el) {
+        document.getElementById("mainImg").src = el.src;
+        document
+          .querySelectorAll(".thumbnail")
+          .forEach((t) => t.classList.remove("active"));
+        el.classList.add("active");
+      }
+
+      async function loadAuction() {
+        if (!auctionId) return;
+        try {
+          // fetch auction detail
+          const ar = await fetch(`/api/auctions/${auctionId}`);
+          if (!ar.ok) return alert("Không tải được phiên đấu giá");
+          const auction = await ar.json();
+          document.getElementById("auctionId").textContent = auction.id;
+          document.getElementById("auctionStart").textContent = fmtDate(
+            auction.created_at
+          );
+          document.getElementById("auctionEnd").textContent = fmtDate(
+            auction.ends_at
+          );
+          document.getElementById("auctionStatus").textContent =
+            auction.status === "open" ? "Đang mở" : "Đã đóng";
+          document.getElementById(
+            "auctionStatus"
+          ).className = `status-badge ${auction.status}`;
+          document.getElementById("bidderCount").textContent =
+            auction.bid_count || 0;
+          if (auction.highest_bid) {
+            document.getElementById("priceStatus").textContent = fmtMoney(
+              auction.highest_bid
+            );
+          }
+          if (auction.buy_now_price && auction.status === "open") {
+            document.getElementById("buyNowBtn").style.display = "block";
+          }
+          // fetch item detail
+          const itemUrl =
+            auction.item_type === "vehicle"
+              ? `/api/listings/vehicles/${auction.item_id}`
+              : `/api/listings/batteries/${auction.item_id}`;
+          const ir = await fetch(itemUrl);
+          if (ir.ok) {
+            const item = await ir.json();
+            if (auction.item_type === "vehicle") {
+              document.getElementById(
+                "productTitle"
+              ).textContent = `${item.brand} ${item.model} ${item.year}`;
+              document.getElementById(
+                "productYear"
+              ).textContent = `Đời xe: ${item.year}`;
+              document.getElementById("productKm").textContent = `Odo: ${(
+                item.km || 0
+              ).toLocaleString()} km`;
+              document.getElementById(
+                "productDesc"
+              ).textContent = `Điều kiện: ${
+                item.condition || "N/A"
+              }, Dung lượng pin: ${item.battery_capacity_kwh || ""} kWh`;
+              document.getElementById(
+                "breadTitle"
+              ).textContent = `${item.brand} ${item.model}`;
+            } else {
+              document.getElementById(
+                "productTitle"
+              ).textContent = `${item.brand} ${item.year} - ${item.capacity_kwh} kWh`;
+              document.getElementById(
+                "productYear"
+              ).textContent = `Năm: ${item.year}`;
+              document.getElementById(
+                "productKm"
+              ).textContent = `Chu kỳ: ${item.cycles}`;
+              document.getElementById("productDesc").textContent = `Sức khỏe: ${
+                item.health_percent
+              }%, Giá: ${fmtMoney(item.price)}`;
+              document.getElementById(
+                "breadTitle"
+              ).textContent = `${item.brand} ${item.capacity_kwh} kWh`;
+            }
+          }
+          // fetch bid history
+          const br = await fetch(`/api/auctions/${auctionId}/bids`);
+          if (br.ok) {
+            const bids = await br.json();
+            const hist = document.getElementById("bidHistory");
+            hist.innerHTML = "";
+            if (bids.data && bids.data.length) {
+              bids.data.forEach((b) => {
+                const el = document.createElement("div");
+                el.className = "bid-item";
+                el.innerHTML = `<span>Người mua #${b.bidder_id} - ${fmtDate(
+                  b.created_at
+                )}</span><span class="bid-amount">${fmtMoney(b.amount)}</span>`;
+                hist.appendChild(el);
+              });
+            } else {
+              hist.innerHTML =
+                '<div style="text-align:center;color:#999;padding:20px">Chưa có lượt đấu giá</div>';
+            }
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      async function placeBid() {
+        const val = document.getElementById("bidInput").value.trim();
+        if (!val) return alert("Vui lòng nhập giá");
+        const amount = parseInt(val) || 0;
+        if (amount <= 0) return alert("Giá không hợp lệ");
+        const res = await fetch(`/api/auctions/${auctionId}/bid`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          alert("Đã đặt giá thành công!");
+          location.reload();
+        } else if (data && data.error === "low_bid") {
+          alert("Giá quá thấp. Tối thiểu: " + fmtMoney(data.min || 0));
+        } else if (res.status === 401) {
+          alert("Vui lòng đăng nhập để đấu giá.");
+          window.location.href = "/login";
+        } else {
+          alert("Không thể đặt giá lúc này.");
+        }
+      }
+
+      async function buyNow() {
+        if (!confirm("Xác nhận Mua ngay và kết thúc phiên đấu giá?")) return;
+        const res = await fetch(`/api/auctions/${auctionId}/buy-now`, {
+          method: "POST",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          const price = (data && (data.final_price ?? data.buy_now_price)) || 0;
+          if (data && data.item_type && data.item_id) {
+            const add = await fetch("/cart/add", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                item_type: data.item_type,
+                item_id: data.item_id,
+                seller_id: data.seller_id,
+                price,
+                qty: 1,
+              }),
+            });
+            if (add.ok) {
+              alert(
+                "Phiên đấu giá đã kết thúc. Sản phẩm đã được đưa vào giỏ hàng."
+              );
+              window.location.href = "/cart";
+              return;
+            }
+            if (add.status === 401) {
+              alert("Vui lòng đăng nhập để hoàn tất Mua ngay.");
+              window.location.href = "/login";
+              return;
+            }
+          }
+          alert("Phiên đấu giá đã kết thúc.");
+          location.reload();
+        } else if (res.status === 401) {
+          alert("Vui lòng đăng nhập để Mua ngay.");
+          window.location.href = "/login";
+        } else {
+          alert("Không thể Mua ngay lúc này.");
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", loadAuction);
+    </script>
+  </body>
+</html>
