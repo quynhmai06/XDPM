@@ -1,14 +1,10 @@
+import os
 from flask import Flask, jsonify
 from models import db
 from routes import bp
-import os
-
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-os.makedirs(DATA_DIR, exist_ok=True)
-DB_PATH = os.path.join(DATA_DIR, "auth.db")
 
 app = Flask(__name__)
+
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///auth.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 

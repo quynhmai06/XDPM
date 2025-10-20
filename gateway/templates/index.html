@@ -29,7 +29,7 @@
             </button>
             <div id="userDropdown" class="user-dropdown" style="display:none">
               <div class="dropdown-name">{{ session['user'].get('username') }}</div>
-              <a href="#" class="dropdown-item">Hồ sơ</a>
+              <a href="{{ url_for('profile_page_gateway') }}" class="dropdown-item">Hồ sơ</a>
               <a href="{{ url_for('logout_page') }}" class="dropdown-item">Đăng xuất</a>
             </div>
           </div>
