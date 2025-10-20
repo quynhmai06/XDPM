@@ -1,5 +1,5 @@
 from authlib.integrations.flask_client import OAuth
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 import os, requests, jwt
 from flask import jsonify
 
@@ -26,6 +26,19 @@ def is_admin_session() -> bool:
         return payload.get("role") == "admin"
     except Exception:
         return False
+    
+def login_required(next_endpoint_name="login_page"):
+    def _wrap(f):
+        def inner(*args, **kwargs):
+            token = session.get("access_token")
+            if not token:
+                # lưu lại trang cần quay về
+                session["next_after_login"] = url_for(request.endpoint, **request.view_args)
+                return redirect(url_for(next_endpoint_name))
+            return f(*args, **kwargs)
+        inner.__name__ = f.__name__
+        return inner
+    return _wrap
 
 @app.route("/", endpoint="home")
 def home():
@@ -241,6 +254,146 @@ def admin_logout():
 @app.route("/policy", methods=["GET"], endpoint="policy_page")
 def policy_page():
     return render_template("policy.html")
+
+@app.get("/profile", endpoint="profile_page_gateway")
+def profile_page_gateway():
+    token = session.get("access_token")
+    if not token:
+        session["next_after_login"] = url_for("profile_page_gateway")
+        return redirect(url_for("login_page"))
+
+    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        r = requests.get(f"{AUTH_URL}/auth/profile", headers=headers, timeout=5)
+    except requests.RequestException:
+        flash("Không kết nối được Auth service.", "error")
+        return redirect(url_for("home"))
+
+    if not r.ok or not r.headers.get("content-type","").startswith("application/json"):
+        flash("Không lấy được hồ sơ.", "error")
+        return redirect(url_for("home"))
+
+    data = r.json()
+    u, p = data.get("user", {}) or {}, data.get("profile", {}) or {}
+    user_ctx = {
+        "username": u.get("username") or u.get("email"),
+        "email": u.get("email"),
+        "phone": p.get("phone") or u.get("phone"),
+        "full_name": p.get("full_name"),
+        "address": p.get("address"),
+        "gender": p.get("gender"),
+        "birthdate": p.get("birthdate"),
+        "avatar": p.get("avatar_url"),
+    }
+    return render_template("profile.html", user=user_ctx)
+
+@app.post("/change-password")
+@login_required()
+def change_password_gateway():
+    """Forward form đổi mật khẩu sang auth-service"""
+    token = session.get("access_token")
+    form = {
+        "current_password": request.form.get("current_password", ""),
+        "new_password": request.form.get("new_password", ""),
+    }
+    try:
+        # auth-service patch trước đó nhận token qua query (?token=...)
+        r = requests.post(
+            f"{AUTH_URL}/auth/change-password",
+            params={"token": token},
+            data=form,
+            timeout=5,
+        )
+    except requests.RequestException:
+        flash("Không kết nối được Auth service.", "error")
+        return redirect(url_for("profile_page_gateway"))
+
+    # xử lý kết quả
+    if r.status_code in (200, 302):
+        flash("Đổi mật khẩu thành công.", "success")
+    else:
+        # nếu auth-service trả JSON có flash, lấy message; không thì báo lỗi chung
+        msg = "Đổi mật khẩu thất bại."
+        if r.headers.get("content-type", "").startswith("application/json"):
+            j = (r.json() or {})
+            msg = j.get("message") or j.get("error") or msg
+        flash(msg, "error")
+
+    return redirect(url_for("profile_page_gateway"))
+
+# --- EDIT PROFILE (HTML) ---
+@app.get("/profile/edit", endpoint="edit_profile_page")
+@login_required()
+def edit_profile_page():
+    token = session.get("access_token")
+    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        r = requests.get(f"{AUTH_URL}/auth/profile", headers=headers, timeout=5)
+    except requests.RequestException:
+        flash("Không kết nối được Auth service.", "error")
+        return redirect(url_for("profile_page_gateway"))
+
+    if not r.ok or not r.headers.get("content-type","").startswith("application/json"):
+        flash("Không lấy được hồ sơ.", "error")
+        return redirect(url_for("profile_page_gateway"))
+
+    data = r.json()
+    u = data.get("user", {}) or {}
+    p = data.get("profile", {}) or {}
+
+    user_ctx = {
+        "username": u.get("username") or u.get("email"),
+        "email": u.get("email"),
+        "phone": p.get("phone") or u.get("phone"),
+        "full_name": p.get("full_name"),
+        "address": p.get("address"),
+        "gender": p.get("gender"),
+        "birthdate": p.get("birthdate"),
+        "avatar": p.get("avatar_url"),
+    }
+    return render_template("profile_edit.html", user=user_ctx)
+
+# --- SAVE PROFILE (submit form) ---
+@app.post("/profile/edit", endpoint="save_profile")
+@login_required()
+def save_profile():
+    token = session.get("access_token")
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+    # Lấy field từ form (chỉ gửi field mà auth-service đang chấp nhận)
+    payload = {
+        "full_name": (request.form.get("full_name") or "").strip(),
+        "address":   (request.form.get("address") or "").strip(),
+        "phone":     (request.form.get("phone") or "").strip(),       # NEW (User.phone)
+        "gender":    (request.form.get("gender") or "").strip() or None,  # NEW
+        "birthdate": (request.form.get("birthdate") or "").strip() or None, # NEW (YYYY-MM-DD)
+    }
+# avatar_url như bạn đã làm
+
+
+    # Xử lý avatar đơn giản: hiện tại ta chỉ lưu URL trong profile.avatar_url
+    # Nếu bạn upload file thật, cần thêm route upload riêng (static/uploads).
+    avatar_file = request.files.get("avatar")
+    if avatar_file and avatar_file.filename:
+        # ví dụ tạm thời: KHÔNG lưu file, chỉ demo đặt tên trong static (tuỳ bạn triển khai upload)
+        payload["avatar_url"] = f"images/{avatar_file.filename}"
+
+    try:
+        r = requests.put(f"{AUTH_URL}/auth/profile", headers=headers, json=payload, timeout=5)
+    except requests.RequestException:
+        flash("Không kết nối được Auth service.", "error")
+        return redirect(url_for("edit_profile_page"))
+
+    if r.ok:
+        flash("Lưu hồ sơ thành công.", "success")
+        return redirect(url_for("profile_page_gateway"))
+    else:
+        msg = "Lưu hồ sơ thất bại."
+        if r.headers.get("content-type","").startswith("application/json"):
+            msg = (r.json() or {}).get("error") or msg
+        flash(msg, "error")
+        return redirect(url_for("edit_profile_page"))
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)
