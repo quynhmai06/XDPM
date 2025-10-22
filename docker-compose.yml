@@ -59,6 +59,13 @@ services:
     depends_on: [db]
     ports: ["5007:5007"]
 
+  transactions_service:
+    build: ./transactions-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+    depends_on: [db]
+    ports: ["5008:5008"]
+
   web_gateway:
     build: ./gateway
     environment:
@@ -69,9 +76,10 @@ services:
       ORDERS_URL: http://orders_service:5005
       AUCTIONS_URL: http://auctions_service:5006
       REVIEWS_URL: http://reviews_service:5007
+      TRANSACTIONS_URL: http://transactions_service:5008
       GATEWAY_SECRET: dev
       JWT_SECRET: supersecret
-    depends_on: [auth_service, admin_service, listings_service, favorites_service, orders_service, auctions_service, reviews_service]
+    depends_on: [auth_service, admin_service, listings_service, favorites_service, orders_service, auctions_service, reviews_service, transactions_service]
     ports: ["8000:8000"]
 
 volumes:

@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lịch sử giao dịch - EV Trading</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      body {
+        background: #f5f7fa;
+        font-family: Arial, sans-serif;
+        margin: 0;
+      }
+
+      .transactions-container {
+        max-width: 1400px;
+        margin: 24px auto;
+        padding: 0 20px;
+      }
+
+      .page-header {
+        background: linear-gradient(135deg, #ffba00 0%, #ff8800 100%);
+        color: white;
+        padding: 40px 32px;
+        border-radius: 16px;
+        margin-bottom: 32px;
+        box-shadow: 0 8px 24px rgba(255, 186, 0, 0.3);
+      }
+      .page-header h1 {
+        margin: 0 0 8px 0;
+        font-size: 32px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .page-header p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 16px;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 24px;
+        border-bottom: 2px solid #e0e0e0;
+        overflow-x: auto;
+      }
+
+      .tab-btn {
+        padding: 14px 24px;
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 600;
+        color: #666;
+        transition: all 0.3s;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .tab-btn:hover {
+        color: #ffba00;
+      }
+      .tab-btn.active {
+        color: #ffba00;
+        border-bottom-color: #ffba00;
+      }
+      .tab-btn i {
+        font-size: 16px;
+      }
+
+      .filters-bar {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 180px;
+      }
+
+      .filter-group label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #666;
+      }
+
+      .filter-group select,
+      .filter-group input {
+        padding: 10px 12px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+
+      .filter-btn {
+        padding: 10px 20px;
+        background: #ffba00;
+        color: #222;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        margin-top: auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .filter-btn:hover {
+        background: #ff8800;
+      }
+
+      .transactions-table {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      thead {
+        background: #f8f9fa;
+        border-bottom: 2px solid #e0e0e0;
+      }
+
+      th {
+        padding: 16px;
+        text-align: left;
+        font-size: 13px;
+        font-weight: 700;
+        color: #555;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      tbody tr {
+        border-bottom: 1px solid #f0f0f0;
+        transition: background 0.2s;
+        cursor: pointer;
+      }
+
+      tbody tr:hover {
+        background: #f8f9fa;
+      }
+
+      td {
+        padding: 16px;
+        font-size: 14px;
+        color: #333;
+      }
+
+      .transaction-code {
+        font-family: "Courier New", monospace;
+        font-weight: 700;
+        color: #ffba00;
+        font-size: 13px;
+      }
+
+      .transaction-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .item-image {
+        width: 50px;
+        height: 50px;
+        border-radius: 8px;
+        object-fit: cover;
+      }
+
+      .item-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .item-name {
+        font-weight: 600;
+        color: #333;
+      }
+
+      .item-type {
+        font-size: 12px;
+        color: #999;
+      }
+
+      .amount {
+        font-weight: 700;
+        font-size: 16px;
+      }
+
+      .amount.positive {
+        color: #10b981;
+      }
+      .amount.negative {
+        color: #ef4444;
+      }
+
+      .status-badge {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 16px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .status-pending {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .status-processing {
+        background: #dbeafe;
+        color: #1e40af;
+      }
+      .status-completed {
+        background: #d1fae5;
+        color: #065f46;
+      }
+      .status-refunded {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .status-cancelled {
+        background: #e5e7eb;
+        color: #374151;
+      }
+      .status-failed {
+        background: #fecaca;
+        color: #7f1d1d;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        color: #999;
+      }
+
+      .empty-state i {
+        font-size: 64px;
+        color: #e0e0e0;
+        margin-bottom: 16px;
+      }
+
+      .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 24px;
+        padding: 20px;
+      }
+
+      .pagination button {
+        padding: 8px 16px;
+        border: 1px solid #e0e0e0;
+        background: white;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .pagination button:hover {
+        background: #f0f0f0;
+      }
+      .pagination button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .pagination button.active {
+        background: #ffba00;
+        color: #222;
+        border-color: #ffba00;
+      }
+
+      /* Modal chi tiết */
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .modal.show {
+        display: flex;
+      }
+
+      .modal-content {
+        background: white;
+        border-radius: 16px;
+        max-width: 800px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      }
+
+      .modal-header {
+        padding: 24px;
+        border-bottom: 2px solid #f0f0f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .modal-header h2 {
+        margin: 0;
+        font-size: 24px;
+        color: #333;
+      }
+
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 28px;
+        color: #999;
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+      }
+
+      .modal-close:hover {
+        background: #f0f0f0;
+      }
+
+      .modal-body {
+        padding: 24px;
+      }
+
+      .detail-section {
+        margin-bottom: 24px;
+      }
+
+      .detail-section h3 {
+        margin: 0 0 16px 0;
+        font-size: 16px;
+        color: #ffba00;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .detail-row {
+        display: flex;
+        padding: 12px 0;
+        border-bottom: 1px solid #f0f0f0;
+      }
+
+      .detail-label {
+        width: 180px;
+        font-weight: 600;
+        color: #666;
+        font-size: 14px;
+      }
+
+      .detail-value {
+        flex: 1;
+        color: #333;
+        font-size: 14px;
+      }
+
+      .timeline {
+        position: relative;
+        padding-left: 40px;
+      }
+
+      .timeline::before {
+        content: "";
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e0e0e0;
+      }
+
+      .timeline-item {
+        position: relative;
+        margin-bottom: 24px;
+      }
+
+      .timeline-item::before {
+        content: "";
+        position: absolute;
+        left: -29px;
+        top: 0;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #ffba00;
+        border: 3px solid white;
+        box-shadow: 0 0 0 2px #ffba00;
+      }
+
+      .timeline-time {
+        font-size: 12px;
+        color: #999;
+        margin-bottom: 4px;
+      }
+
+      .timeline-content {
+        background: #f8f9fa;
+        padding: 12px;
+        border-radius: 8px;
+      }
+
+      .timeline-event {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 4px;
+      }
+
+      .timeline-desc {
+        font-size: 13px;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-container">
+        <div class="logo-section">
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <img src="/static/images/logo.png" alt="EV Trading" class="logo" />
+        </div>
+        <div class="user-menu">
+          <a href="/" class="user-menu-item">Trang chủ</a>
+          <a href="/favorites" class="user-menu-item">Yêu thích</a>
+          <a href="/reviews" class="user-menu-item">Đánh giá</a>
+          <a href="/transactions" class="user-menu-item">Giao dịch</a>
+          <a href="/cart" class="user-menu-item">Giỏ hàng</a>
+          {% if session.get('user') %}
+          <a href="{{ url_for('logout_page') }}" class="user-menu-item"
+            >Đăng xuất</a
+          >
+          {% else %}
+          <a href="{{ url_for('login_page') }}" class="user-menu-item"
+            >Đăng nhập</a
+          >
+          {% endif %}
+        </div>
+      </div>
+    </header>
+
+    <div class="transactions-container">
+      <div class="page-header">
+        <h1><i class="fas fa-history"></i> Lịch sử giao dịch</h1>
+        <p>Quản lý tất cả giao dịch mua bán, ví điện tử của bạn</p>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('purchase')">
+          <i class="fas fa-shopping-cart"></i> Mua hàng
+        </button>
+        <button class="tab-btn" onclick="switchTab('sale')">
+          <i class="fas fa-dollar-sign"></i> Bán hàng
+        </button>
+        <button class="tab-btn" onclick="switchTab('wallet')">
+          <i class="fas fa-wallet"></i> Ví điện tử
+        </button>
+      </div>
+
+      <div class="filters-bar">
+        <div class="filter-group">
+          <label>Trạng thái</label>
+          <select id="filterStatus">
+            <option value="">Tất cả</option>
+            <option value="pending">Đang xử lý</option>
+            <option value="processing">Đang giao hàng</option>
+            <option value="completed">Hoàn tất</option>
+            <option value="refunded">Hoàn tiền</option>
+            <option value="cancelled">Đã hủy</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Từ ngày</label>
+          <input type="date" id="filterFromDate" />
+        </div>
+
+        <div class="filter-group">
+          <label>Đến ngày</label>
+          <input type="date" id="filterToDate" />
+        </div>
+
+        <div class="filter-group" style="flex: 1">
+          <label>Tìm kiếm</label>
+          <input
+            type="text"
+            id="filterKeyword"
+            placeholder="Mã GD, tên sản phẩm..."
+          />
+        </div>
+
+        <button class="filter-btn" onclick="applyFilters()">
+          <i class="fas fa-filter"></i> Lọc
+        </button>
+      </div>
+
+      <div id="transactionsContent"></div>
+
+      <div id="pagination" class="pagination"></div>
+    </div>
+
+    <!-- Modal chi tiết -->
+    <div id="detailModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Chi tiết giao dịch</h2>
+          <button class="modal-close" onclick="closeDetailModal()">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+      </div>
+    </div>
+
+    <script>
+      const userId = {{ user.get('sub') if user else 'null' }};
+      let currentTab = 'purchase';
+      let currentPage = 1;
+      let currentFilters = {};
+
+      function switchTab(tab) {
+        currentTab = tab;
+        currentPage = 1;
+
+        // Update tab buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.closest('.tab-btn').classList.add('active');
+
+        loadTransactions();
+      }
+
+      function applyFilters() {
+        currentPage = 1;
+        currentFilters = {
+          status: document.getElementById('filterStatus').value,
+          from_date: document.getElementById('filterFromDate').value ? document.getElementById('filterFromDate').value + 'T00:00:00' : '',
+          to_date: document.getElementById('filterToDate').value ? document.getElementById('filterToDate').value + 'T23:59:59' : '',
+          keyword: document.getElementById('filterKeyword').value
+        };
+        loadTransactions();
+      }
+
+      async function loadTransactions() {
+        const content = document.getElementById('transactionsContent');
+        content.innerHTML = '<p style="text-align:center;padding:40px">Đang tải...</p>';
+
+        try {
+          let url, params;
+
+          if (currentTab === 'wallet') {
+            url = `/api/transactions/wallet/${userId}`;
+            params = new URLSearchParams({
+              page: currentPage,
+              per_page: 20,
+              ...currentFilters
+            });
+          } else {
+            url = `/api/transactions/user/${userId}`;
+            params = new URLSearchParams({
+              tab: currentTab,
+              page: currentPage,
+              per_page: 20,
+              ...currentFilters
+            });
+          }
+
+          const res = await fetch(`${url}?${params}`);
+          const data = await res.json();
+
+          if (currentTab === 'wallet') {
+            renderWalletTransactions(data.data);
+          } else {
+            renderTransactions(data.data);
+          }
+
+          renderPagination(data.pagination);
+        } catch (e) {
+          content.innerHTML = '<p style="color:red;text-align:center">Không thể tải giao dịch</p>';
+        }
+      }
+
+      function renderTransactions(transactions) {
+        const content = document.getElementById('transactionsContent');
+
+        if (!transactions || transactions.length === 0) {
+          content.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-receipt"></i>
+              <h3>Chưa có giao dịch nào</h3>
+              <p>Các giao dịch của bạn sẽ hiển thị ở đây</p>
+            </div>
+          `;
+          return;
+        }
+
+        let html = `
+          <div class="transactions-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Mã giao dịch</th>
+                  <th>Sản phẩm</th>
+                  <th>Đối tác</th>
+                  <th>Số tiền</th>
+                  <th>Trạng thái</th>
+                  <th>Ngày giờ</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+
+        transactions.forEach(t => {
+          const statusClass = `status-${t.status}`;
+          const statusText = getStatusText(t.status);
+          const amountClass = currentTab === 'purchase' ? 'negative' : 'positive';
+          const amountSign = currentTab === 'purchase' ? '-' : '+';
+
+          html += `
+            <tr onclick="viewTransactionDetail(${t.id})">
+              <td><span class="transaction-code">${t.transaction_code}</span></td>
+              <td>
+                ${t.item ? `
+                  <div class="transaction-item">
+                    <img src="${t.item.image || '/static/images/v1.jpg'}" alt="${t.item.name}" class="item-image" />
+                    <div class="item-info">
+                      <div class="item-name">${t.item.name}</div>
+                      <div class="item-type">${t.item.type === 'vehicle' ? 'Xe điện' : 'Pin'}</div>
+                    </div>
+                  </div>
+                ` : '<span style="color:#999">N/A</span>'}
+              </td>
+              <td>User #${currentTab === 'purchase' ? t.partner_id : t.user_id}</td>
+              <td><span class="amount ${amountClass}">${amountSign}${formatMoney(t.net_amount)}</span></td>
+              <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+              <td>${formatDateTime(t.created_at)}</td>
+            </tr>
+          `;
+        });
+
+        html += `
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        content.innerHTML = html;
+      }
+
+      function renderWalletTransactions(transactions) {
+        const content = document.getElementById('transactionsContent');
+
+        if (!transactions || transactions.length === 0) {
+          content.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-wallet"></i>
+              <h3>Chưa có giao dịch ví</h3>
+              <p>Lịch sử nạp tiền, rút tiền sẽ hiển thị ở đây</p>
+            </div>
+          `;
+          return;
+        }
+
+        let html = `
+          <div class="transactions-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Loại giao dịch</th>
+                  <th>Số dư trước</th>
+                  <th>Biến động</th>
+                  <th>Số dư sau</th>
+                  <th>Mô tả</th>
+                  <th>Ngày giờ</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+
+        transactions.forEach(t => {
+          const isPositive = t.amount > 0;
+          const amountClass = isPositive ? 'positive' : 'negative';
+          const amountSign = isPositive ? '+' : '';
+
+          html += `
+            <tr>
+              <td><strong>${getWalletTypeText(t.transaction_type)}</strong></td>
+              <td>${formatMoney(t.balance_before)}</td>
+              <td><span class="amount ${amountClass}">${amountSign}${formatMoney(t.amount)}</span></td>
+              <td>${formatMoney(t.balance_after)}</td>
+              <td>${t.description || ''}</td>
+              <td>${formatDateTime(t.created_at)}</td>
+            </tr>
+          `;
+        });
+
+        html += `
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        content.innerHTML = html;
+      }
+
+      function renderPagination(pagination) {
+        const pag = document.getElementById('pagination');
+        if (!pagination || pagination.pages <= 1) {
+          pag.innerHTML = '';
+          return;
+        }
+
+        let html = '';
+
+        // Previous
+        html += `<button ${currentPage === 1 ? 'disabled' : ''} onclick="goToPage(${currentPage - 1})">‹ Trước</button>`;
+
+        // Pages
+        for (let i = 1; i <= pagination.pages; i++) {
+          if (i === 1 || i === pagination.pages || Math.abs(i - currentPage) <= 2) {
+            html += `<button class="${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+          } else if (i === currentPage - 3 || i === currentPage + 3) {
+            html += `<span>...</span>`;
+          }
+        }
+
+        // Next
+        html += `<button ${currentPage === pagination.pages ? 'disabled' : ''} onclick="goToPage(${currentPage + 1})">Sau ›</button>`;
+
+        pag.innerHTML = html;
+      }
+
+      function goToPage(page) {
+        currentPage = page;
+        loadTransactions();
+      }
+
+      async function viewTransactionDetail(transactionId) {
+        const modal = document.getElementById('detailModal');
+        const modalBody = document.getElementById('modalBody');
+
+        modalBody.innerHTML = '<p style="text-align:center;padding:40px">Đang tải...</p>';
+        modal.classList.add('show');
+
+        try {
+          const res = await fetch(`/api/transactions/${transactionId}`);
+          const data = await res.json();
+
+          let html = `
+            <div class="detail-section">
+              <h3><i class="fas fa-info-circle"></i> Thông tin giao dịch</h3>
+              <div class="detail-row">
+                <div class="detail-label">Mã giao dịch:</div>
+                <div class="detail-value"><strong>${data.transaction_code}</strong></div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Loại giao dịch:</div>
+                <div class="detail-value">${getTransactionTypeText(data.transaction_type)}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Số tiền:</div>
+                <div class="detail-value"><strong style="font-size:18px">${formatMoney(data.amount)}</strong></div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Phí:</div>
+                <div class="detail-value">${formatMoney(data.fee)}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Số tiền thực nhận:</div>
+                <div class="detail-value"><strong style="color:#10b981">${formatMoney(data.net_amount)}</strong></div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Phương thức:</div>
+                <div class="detail-value">${data.payment_method || 'N/A'}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Trạng thái:</div>
+                <div class="detail-value"><span class="status-badge status-${data.status}">${getStatusText(data.status)}</span></div>
+              </div>
+          `;
+
+          if (data.item) {
+            html += `
+              </div>
+              <div class="detail-section">
+                <h3><i class="fas fa-car"></i> Thông tin sản phẩm</h3>
+                <div class="transaction-item">
+                  <img src="${data.item.image || '/static/images/v1.jpg'}" alt="${data.item.name}" style="width:100px;height:100px;border-radius:12px" />
+                  <div class="item-info">
+                    <div class="item-name" style="font-size:18px">${data.item.name}</div>
+                    <div class="item-type">${data.item.type === 'vehicle' ? 'Xe điện' : 'Pin xe điện'}</div>
+                    <div style="margin-top:8px;color:#999">ID: ${data.item.id}</div>
+                  </div>
+                </div>
+            `;
+          }
+
+          html += `</div>`;
+
+          if (data.timeline && data.timeline.length > 0) {
+            html += `
+              <div class="detail-section">
+                <h3><i class="fas fa-clock"></i> Lịch sử xử lý</h3>
+                <div class="timeline">
+            `;
+
+            data.timeline.forEach(event => {
+              html += `
+                <div class="timeline-item">
+                  <div class="timeline-time">${formatDateTime(event.created_at)}</div>
+                  <div class="timeline-content">
+                    <div class="timeline-event">${getEventTypeText(event.event_type)}</div>
+                    <div class="timeline-desc">${event.description || ''}</div>
+                    <div style="font-size:11px;color:#999;margin-top:4px">
+                      ${event.actor_type === 'system' ? 'Hệ thống' : event.actor_type === 'admin' ? 'Admin' : 'Người dùng'}
+                    </div>
+                  </div>
+                </div>
+              `;
+            });
+
+            html += `
+                </div>
+              </div>
+            `;
+          }
+
+          modalBody.innerHTML = html;
+        } catch (e) {
+          modalBody.innerHTML = '<p style="color:red;text-align:center">Không thể tải chi tiết</p>';
+        }
+      }
+
+      function closeDetailModal() {
+        document.getElementById('detailModal').classList.remove('show');
+      }
+
+      // Helper functions
+      function formatMoney(amount) {
+        return (amount || 0).toLocaleString('vi-VN') + ' đ';
+      }
+
+      function formatDateTime(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        return d.toLocaleString('vi-VN');
+      }
+
+      function getStatusText(status) {
+        const map = {
+          'pending': 'Đang xử lý',
+          'processing': 'Đang giao hàng',
+          'completed': 'Hoàn tất',
+          'refunded': 'Hoàn tiền',
+          'cancelled': 'Đã hủy',
+          'failed': 'Thất bại'
+        };
+        return map[status] || status;
+      }
+
+      function getTransactionTypeText(type) {
+        const map = {
+          'order_purchase': 'Mua hàng',
+          'order_sale': 'Bán hàng',
+          'wallet_deposit': 'Nạp tiền ví',
+          'wallet_withdraw': 'Rút tiền ví',
+          'refund': 'Hoàn tiền',
+          'platform_fee': 'Phí nền tảng',
+          'escrow_release': 'Giải ngân'
+        };
+        return map[type] || type;
+      }
+
+      function getWalletTypeText(type) {
+        const map = {
+          'deposit': 'Nạp tiền',
+          'withdraw': 'Rút tiền',
+          'refund': 'Hoàn tiền',
+          'platform_fee': 'Phí nền tảng',
+          'escrow_hold': 'Giữ tạm',
+          'escrow_release': 'Giải ngân',
+          'commission_earn': 'Hoa hồng'
+        };
+        return map[type] || type;
+      }
+
+      function getEventTypeText(type) {
+        const map = {
+          'created': 'Tạo giao dịch',
+          'payment_received': 'Đã thanh toán',
+          'processing': 'Đang xử lý',
+          'shipped': 'Đã giao hàng',
+          'completed': 'Hoàn tất',
+          'refunded': 'Hoàn tiền',
+          'cancelled': 'Đã hủy'
+        };
+        return map[type] || type;
+      }
+
+      // Load initial data
+      if (userId) {
+        loadTransactions();
+      } else {
+        document.querySelector('.transactions-container').innerHTML = '<div class="empty-state"><p>Vui lòng đăng nhập để xem lịch sử giao dịch</p></div>';
+      }
+    </script>
+  </body>
+</html>

@@ -9,6 +9,7 @@ FAVORITES_URL = os.getenv("FAVORITES_URL", "http://127.0.0.1:5004")
 ORDERS_URL = os.getenv("ORDERS_URL", "http://127.0.0.1:5005")
 AUCTIONS_URL = os.getenv("AUCTIONS_URL", "http://127.0.0.1:5006")
 REVIEWS_URL = os.getenv("REVIEWS_URL", "http://127.0.0.1:5007")
+TRANSACTIONS_URL = os.getenv("TRANSACTIONS_URL", "http://127.0.0.1:5008")
 JWT_SECRET = os.getenv("JWT_SECRET", os.getenv("GATEWAY_SECRET", "devsecret"))
 JWT_ALGOS = ["HS256"]
 
@@ -62,10 +63,13 @@ def home_page():
 def compare_page():
     return render_template("compare.html")
 
-@app.get('/auctions')
-def auctions_page():
-    return render_template('auctions.html')
+# NOTE: Trang danh sách đấu giá đã được tích hợp vào trang chủ (index.html)
+# Không cần trang riêng /auctions nữa
+# @app.get('/auctions')
+# def auctions_page():
+#     return render_template('auctions.html')
 
+# GIỮ trang chi tiết đấu giá - user click vào card ở trang chủ sẽ vào đây
 @app.get('/auctions/<int:aid>')
 def auction_detail_page(aid:int):
     return render_template('auction_detail.html')
@@ -124,6 +128,14 @@ def favorites_page():
     except Exception:
         favs = []
     return render_template("favorites.html", favs=favs, user=user)
+
+@app.route("/reviews", methods=["GET"], endpoint="reviews_page")
+def reviews_page():
+    user = get_current_user()
+    if not user:
+        session["next_after_login"] = url_for("reviews_page")
+        return redirect(url_for("login_page"))
+    return render_template("reviews.html", user=user)
 
 # ===== Cart & Checkout pages =====
 @app.post('/cart/add')
@@ -665,3 +677,156 @@ def api_reviews_list(user_id:int):
         return (r.json(), r.status_code)
     except requests.RequestException:
         return {"error": "reviews_unavailable"}, 503
+
+@app.get('/api/reviews/by-reviewer/<int:reviewer_id>')
+def api_reviews_by_reviewer(reviewer_id:int):
+    try:
+        r = requests.get(f"{REVIEWS_URL}/reviews/by-reviewer/{reviewer_id}", timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "reviews_unavailable"}, 503
+
+@app.get('/api/reviews/pending')
+def api_reviews_pending():
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    try:
+        r = requests.get(f"{REVIEWS_URL}/reviews/pending/{user['sub']}", timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "reviews_unavailable"}, 503
+
+@app.patch('/api/reviews/<int:review_id>')
+def api_reviews_update(review_id:int):
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    d = request.get_json(force=True)
+    d['requester_id'] = user['sub']
+    try:
+        r = requests.patch(f"{REVIEWS_URL}/reviews/{review_id}", json=d, timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "reviews_unavailable"}, 503
+
+@app.delete('/api/reviews/<int:review_id>')
+def api_reviews_delete(review_id:int):
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    try:
+        r = requests.delete(f"{REVIEWS_URL}/reviews/{review_id}?requester_id={user['sub']}", timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "reviews_unavailable"}, 503
+
+@app.post('/api/reviews/<int:review_id>/helpful')
+def api_reviews_helpful(review_id:int):
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    try:
+        r = requests.post(f"{REVIEWS_URL}/reviews/{review_id}/helpful", json={"user_id": user['sub']}, timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "reviews_unavailable"}, 503
+
+@app.post('/api/reviews/<int:review_id>/report')
+def api_reviews_report(review_id:int):
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    d = request.get_json(force=True)
+    d['reporter_id'] = user['sub']
+    try:
+        r = requests.post(f"{REVIEWS_URL}/reviews/{review_id}/report", json=d, timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "reviews_unavailable"}, 503
+
+
+# ===== Transaction History Routes =====
+@app.get('/transactions')
+def transactions_page():
+    """Trang lịch sử giao dịch"""
+    user = get_current_user()
+    if not user:
+        session['next_after_login'] = url_for('transactions_page')
+        return redirect(url_for('login_page'))
+    return render_template('transactions.html', user=user)
+
+
+@app.get('/api/transactions/user/<int:user_id>')
+def api_get_user_transactions(user_id: int):
+    """API lấy giao dịch của user (mua hàng + bán hàng)"""
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    
+    # Security: user chỉ xem được GD của mình, trừ admin
+    if user.get('sub') != user_id and user.get('role') != 'admin':
+        return {"error": "forbidden"}, 403
+    
+    # Forward query params
+    params = dict(request.args)
+    try:
+        r = requests.get(f"{TRANSACTIONS_URL}/transactions/user/{user_id}", params=params, timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "transactions_unavailable"}, 503
+
+
+@app.get('/api/transactions/wallet/<int:user_id>')
+def api_get_wallet_transactions(user_id: int):
+    """API lấy lịch sử ví điện tử"""
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    
+    if user.get('sub') != user_id and user.get('role') != 'admin':
+        return {"error": "forbidden"}, 403
+    
+    params = dict(request.args)
+    try:
+        r = requests.get(f"{TRANSACTIONS_URL}/transactions/wallet/{user_id}", params=params, timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "transactions_unavailable"}, 503
+
+
+@app.get('/api/transactions/<int:transaction_id>')
+def api_get_transaction_detail(transaction_id: int):
+    """API lấy chi tiết giao dịch + timeline"""
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    
+    try:
+        r = requests.get(f"{TRANSACTIONS_URL}/transactions/{transaction_id}", timeout=5)
+        if r.ok:
+            data = r.json()
+            # Security check: user phải là người tham gia GD
+            if user.get('role') != 'admin':
+                if data.get('user_id') != user.get('sub') and data.get('partner_id') != user.get('sub'):
+                    return {"error": "forbidden"}, 403
+            return (data, 200)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "transactions_unavailable"}, 503
+
+
+@app.get('/api/transactions/admin/all')
+def api_admin_get_all_transactions():
+    """API admin xem tất cả giao dịch"""
+    user = get_current_user()
+    if not user or user.get('role') != 'admin':
+        return {"error": "forbidden"}, 403
+    
+    params = dict(request.args)
+    try:
+        r = requests.get(f"{TRANSACTIONS_URL}/transactions/admin/all", params=params, timeout=5)
+        return (r.json(), r.status_code)
+    except requests.RequestException:
+        return {"error": "transactions_unavailable"}, 503
+

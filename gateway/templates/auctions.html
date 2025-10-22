@@ -10,74 +10,253 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
     />
     <style>
+      body {
+        background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+        min-height: 100vh;
+      }
       .auctions-wrap {
-        max-width: 1200px;
-        margin: 24px auto;
-        padding: 0 16px;
+        max-width: 1400px;
+        margin: 40px auto;
+        padding: 0 24px;
+      }
+      .page-hero {
+        background: linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%);
+        color: white;
+        padding: 48px 32px;
+        border-radius: 20px;
+        margin-bottom: 32px;
+        box-shadow: 0 8px 32px rgba(255, 111, 0, 0.3);
+        text-align: center;
+      }
+      .page-hero h1 {
+        font-size: 42px;
+        margin: 0 0 12px 0;
+        font-weight: 700;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+      }
+      .page-hero p {
+        font-size: 18px;
+        opacity: 0.95;
+        margin: 0;
       }
       .section-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin: 8px 0 12px;
+        margin: 32px 0 24px;
+        padding-bottom: 16px;
+        border-bottom: 3px solid #ff6f00;
       }
-      .create-card {
-        background: #fff;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        padding: 16px;
-        margin-bottom: 16px;
-      }
-      .form-row {
+      .section-header h2 {
+        font-size: 28px;
+        color: #2c3e50;
+        margin: 0;
         display: flex;
+        align-items: center;
         gap: 12px;
-        flex-wrap: wrap;
       }
-      .form-row .field {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        min-width: 180px;
-      }
-      .field input,
-      .field select {
-        padding: 10px;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-      }
-      .btn {
-        padding: 10px 14px;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-      }
-      .btn-primary {
-        background: #ff6f00;
-        color: #fff;
+      .section-header h2 i {
+        color: #ff6f00;
+        font-size: 32px;
       }
       .product-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-        gap: 16px;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 28px;
+        margin-top: 24px;
       }
       .product-card {
-        background: #fff;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        border: 2px solid transparent;
+      }
+      .product-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 12px 40px rgba(255, 111, 0, 0.25);
+        border-color: #ff6f00;
+      }
+      .auction-badge {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        background: linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 700;
+        z-index: 10;
+        box-shadow: 0 4px 12px rgba(255, 111, 0, 0.4);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .auction-badge i {
+        animation: swing 1s ease-in-out infinite;
+      }
+      @keyframes swing {
+        0%,
+        100% {
+          transform: rotate(-10deg);
+        }
+        50% {
+          transform: rotate(10deg);
+        }
+      }
+      .product-image-wrapper {
+        position: relative;
+        overflow: hidden;
+        height: 220px;
+        background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
       }
       .product-image {
         width: 100%;
-        height: 160px;
+        height: 100%;
         object-fit: cover;
+        transition: transform 0.4s ease;
+        cursor: pointer;
+      }
+      .product-card:hover .product-image {
+        transform: scale(1.1);
       }
       .product-info {
+        padding: 20px;
+      }
+      .product-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 0 0 12px 0;
+        cursor: pointer;
+        transition: color 0.2s;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        min-height: 48px;
+      }
+      .product-title:hover {
+        color: #ff6f00;
+      }
+      .price-section {
+        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+      }
+      .product-price {
+        font-size: 28px;
+        font-weight: 700;
+        color: #ff6f00;
+        margin: 0 0 8px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .product-price i {
+        font-size: 24px;
+      }
+      .price-label {
+        font-size: 13px;
+        color: #666;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+      }
+      .countdown-timer {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         padding: 12px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        margin-bottom: 16px;
+        border-left: 4px solid #ff6f00;
+      }
+      .countdown-timer i {
+        font-size: 20px;
+        color: #ff6f00;
+      }
+      .timer-text {
+        flex: 1;
+        font-size: 14px;
+        color: #666;
+        font-weight: 500;
+      }
+      .timer-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #e53935;
+        font-family: "Courier New", monospace;
+        letter-spacing: 1px;
       }
       .product-actions {
         display: flex;
+        gap: 10px;
+        margin-top: 16px;
+      }
+      .btn {
+        flex: 1;
+        padding: 14px 20px;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         gap: 8px;
-        margin-top: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+      }
+      .btn:active {
+        transform: translateY(0);
+      }
+      .btn-bid {
+        background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+        color: white;
+      }
+      .btn-bid:hover {
+        background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%);
+        color: white;
+      }
+      .btn-primary:hover {
+        background: linear-gradient(135deg, #ff8f00 0%, #ffa726 100%);
+      }
+      .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      }
+      .empty-state i {
+        font-size: 80px;
+        color: #e0e0e0;
+        margin-bottom: 24px;
+      }
+      .empty-state h3 {
+        font-size: 24px;
+        color: #666;
+        margin: 0 0 12px 0;
+      }
+      .empty-state p {
+        color: #999;
+        font-size: 16px;
+        margin: 0;
       }
     </style>
   </head>
@@ -91,6 +270,7 @@
         <div class="user-menu">
           <a href="/" class="user-menu-item">Trang chủ</a>
           <a href="/favorites" class="user-menu-item">Yêu thích</a>
+          <a href="/reviews" class="user-menu-item">Đánh giá</a>
           <a href="/cart" class="user-menu-item">Giỏ hàng</a>
           <a href="/admin" class="user-menu-item">Admin</a>
           {% if session.get('user') %}
@@ -107,13 +287,15 @@
     </header>
 
     <div class="auctions-wrap">
+      <div class="page-hero">
+        <h1><i class="fas fa-gavel"></i> Phiên Đấu Giá EV</h1>
+        <p>Tìm kiếm và đấu giá xe điện, pin xe điện với giá tốt nhất</p>
+      </div>
+
       <div class="section-header">
-        <h2>Phiên đấu giá đang diễn ra</h2>
+        <h2><i class="fas fa-fire"></i> Đang diễn ra</h2>
       </div>
       <div id="auctionsGrid" class="product-grid"></div>
-
-      <!-- Form tạo phiên đấu giá sẽ được tích hợp từ phần Đăng bài -->
-      <!-- Endpoint POST /auctions/create vẫn có sẵn để sử dụng -->
     </div>
 
     <script>
@@ -130,11 +312,12 @@
           }
         } catch (e) {}
         if (data.length === 0) {
-          const empty = document.createElement("div");
-          empty.style.cssText =
-            "padding:16px;color:#777;text-align:center;width:100%";
-          empty.textContent = "Chưa có phiên đấu giá nào.";
-          grid.appendChild(empty);
+          grid.innerHTML = `
+            <div class="empty-state" style="grid-column: 1 / -1;">
+              <i class="fas fa-gavel"></i>
+              <h3>Chưa có phiên đấu giá nào</h3>
+              <p>Các phiên đấu giá mới sẽ xuất hiện ở đây</p>
+            </div>`;
           return;
         }
         for (const a of data) {
@@ -151,9 +334,13 @@
           const now = new Date();
           const remaining =
             a && ends ? Math.max(0, Math.floor((ends - now) / 1000)) : 0;
-          const remStr = a
-            ? new Date(remaining * 1000).toISOString().substring(11, 19)
-            : "";
+          const hours = Math.floor(remaining / 3600);
+          const mins = Math.floor((remaining % 3600) / 60);
+          const secs = remaining % 60;
+          const remStr = `${String(hours).padStart(2, "0")}:${String(
+            mins
+          ).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+
           const card = document.createElement("div");
           card.className = "product-card";
           const title =
@@ -170,32 +357,88 @@
             a.item_type === "vehicle"
               ? "/static/images/v1.jpg"
               : "/static/images/v3.jpg";
-          const priceText =
+          const currentPrice =
             a.highest_bid != null ? a.highest_bid : a.starting_price;
+          const priceLabel =
+            a.highest_bid != null ? "Giá cao nhất" : "Giá khởi điểm";
+
           card.innerHTML = `
-            <img src="${img}" alt="auction" class="product-image" style="cursor:pointer" onclick="window.location.href='/auctions/${
+            <div class="auction-badge">
+              <i class="fas fa-gavel"></i>
+              <span>ĐANG ĐẤU GIÁ</span>
+            </div>
+            <div class="product-image-wrapper">
+              <img src="${img}" alt="auction" class="product-image" onclick="window.location.href='/auctions/${
             a.id
           }'"/>
+            </div>
             <div class="product-info">
-              <h3 class="product-title" style="cursor:pointer" onclick="window.location.href='/auctions/${
+              <h3 class="product-title" onclick="window.location.href='/auctions/${
                 a.id
               }'">${title}</h3>
-              <div class="product-price">Giá hiện tại: ${fmtMoney(
-                priceText
-              )}</div>
-              <div class="product-location"><i class="far fa-clock"></i> Còn lại: ${remStr}</div>
+              
+              <div class="price-section">
+                <div class="price-label">${priceLabel}</div>
+                <div class="product-price">
+                  <i class="fas fa-tag"></i>
+                  ${fmtMoney(currentPrice)}
+                </div>
+              </div>
+              
+              <div class="countdown-timer">
+                <i class="fas fa-clock"></i>
+                <div style="flex:1">
+                  <div class="timer-text">Thời gian còn lại</div>
+                  <div class="timer-value" id="timer-${a.id}">${remStr}</div>
+                </div>
+              </div>
+              
               <div class="product-actions">
-                <button class="btn" onclick="event.stopPropagation();placeBid(${
+                <button class="btn btn-bid" onclick="event.stopPropagation();placeBid(${
                   a.id
-                })"><i class='fas fa-gavel'></i> Đấu giá</button>
+                })">
+                  <i class='fas fa-gavel'></i> Đấu giá
+                </button>
                 ${
                   a.buy_now_price
-                    ? `<button class="btn btn-primary" onclick="event.stopPropagation();buyNowAuction(${a.id})"><i class='fas fa-bolt'></i> Mua ngay</button>`
+                    ? `<button class="btn btn-primary" onclick="event.stopPropagation();buyNowAuction(${a.id})">
+                        <i class='fas fa-bolt'></i> Mua ngay
+                      </button>`
                     : ""
                 }
               </div>
             </div>`;
           grid.appendChild(card);
+
+          // Start countdown timer for this card
+          if (remaining > 0) {
+            const timerEl = card.querySelector(`#timer-${a.id}`);
+            let timeLeft = remaining;
+            const interval = setInterval(() => {
+              timeLeft--;
+              if (timeLeft <= 0) {
+                clearInterval(interval);
+                timerEl.textContent = "00:00:00";
+                timerEl.style.color = "#999";
+                return;
+              }
+              const h = Math.floor(timeLeft / 3600);
+              const m = Math.floor((timeLeft % 3600) / 60);
+              const s = timeLeft % 60;
+              timerEl.textContent = `${String(h).padStart(2, "0")}:${String(
+                m
+              ).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+
+              // Change color when time is running out
+              if (timeLeft < 300) {
+                // less than 5 minutes
+                timerEl.style.color = "#e53935";
+              } else if (timeLeft < 3600) {
+                // less than 1 hour
+                timerEl.style.color = "#ff9800";
+              }
+            }, 1000);
+          }
         }
       }
       async function placeBid(aid) {

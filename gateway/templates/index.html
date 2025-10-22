@@ -139,6 +139,17 @@
       .logo-home-btn i {
         font-size: 18px;
       }
+
+      /* Animation for auction badge */
+      @keyframes swing {
+        0%,
+        100% {
+          transform: rotate(-10deg);
+        }
+        50% {
+          transform: rotate(10deg);
+        }
+      }
     </style>
   </head>
   <body>
@@ -151,8 +162,10 @@
 
         <div class="user-menu">
           <a href="/policy" class="user-menu-item">Chính sách</a>
-          <a href="/auctions" class="user-menu-item">Đấu giá</a>
+          <!-- Phiên đấu giá đã hiển thị ở trang chủ, không cần link riêng -->
           <a href="/favorites" class="user-menu-item">Yêu thích</a>
+          <a href="/reviews" class="user-menu-item">Đánh giá</a>
+          <a href="/transactions" class="user-menu-item">Giao dịch</a>
           <a href="/cart" class="user-menu-item">Giỏ hàng</a>
           <a href="/checkout" class="user-menu-item">Thanh toán</a>
           <a href="#" class="user-menu-item"
@@ -173,9 +186,14 @@
               <div class="dropdown-name">
                 {{ session['user'].get('username') }}
               </div>
-              <a href="#" class="dropdown-item">Hồ sơ</a>
+              <a href="/profile" class="dropdown-item"
+                ><i class="fas fa-user"></i> Hồ sơ</a
+              >
+              <a href="/transactions" class="dropdown-item"
+                ><i class="fas fa-history"></i> Lịch sử giao dịch</a
+              >
               <a href="{{ url_for('logout_page') }}" class="dropdown-item"
-                >Đăng xuất</a
+                ><i class="fas fa-sign-out-alt"></i> Đăng xuất</a
               >
             </div>
           </div>
@@ -400,23 +418,62 @@
         renderBatteries(bRes.items || []);
       }
 
+      /*
+       * ==============================================
+       * RENDER ACTIVE AUCTIONS - Hiển thị phiên đấu giá ở trang chủ
+       * ==============================================
+       *
+       * HƯỚNG DẪN CHO TEAMMATE LÀM PHẦN ĐĂNG TIN:
+       *
+       * 1. Khi user đăng tin xe/pin, cho option checkbox "Đấu giá"
+       * 2. Nếu chọn đấu giá, hiện thêm 3 field:
+       *    - Giá khởi điểm (starting_price): bắt buộc
+       *    - Giá mua ngay (buy_now_price): tùy chọn, có thể để null
+       *    - Thời gian kết thúc (ends_at): datetime picker
+       *
+       * 3. Sau khi tạo xe/pin thành công (có item_id), gọi API:
+       *    POST /api/auctions/create
+       *    Body: {
+       *      "item_type": "vehicle" hoặc "battery",
+       *      "item_id": <id vừa tạo>,
+       *      "seller_id": <user_id hiện tại>,
+       *      "starting_price": <số nguyên VND>,
+       *      "buy_now_price": <số nguyên VND hoặc null>,
+       *      "ends_at": "2025-10-25T18:00:00" (ISO format)
+       *    }
+       *
+       * 4. Phiên đấu giá sẽ tự động hiện ở trang chủ section này
+       *
+       * NOTE: Code dưới đây render các card đấu giá với:
+       * - Badge "ĐANG ĐẤU GIÁ" màu cam
+       * - Countdown timer động
+       * - Nút "Đấu giá" và "Mua ngay" (nếu có)
+       * ==============================================
+       */
       async function renderActiveAuctions(list) {
         const section = document.getElementById("auctionsSection");
         const grid = document.getElementById("auctionsGrid");
         const count = document.getElementById("auctionsCount");
         section.style.display = "block";
         grid.innerHTML = "";
+
         if (!list || list.length === 0) {
           if (count) count.textContent = "";
           const empty = document.createElement("div");
           empty.style.cssText =
-            "padding:16px;color:#777;text-align:center;width:100%";
-          empty.innerHTML = "Chưa có phiên đấu giá nào. Hãy quay lại sau!";
+            "padding:40px;color:#999;text-align:center;width:100%;background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06)";
+          empty.innerHTML = `
+            <i class="fas fa-gavel" style="font-size:48px;color:#e0e0e0;margin-bottom:12px"></i>
+            <p style="margin:0;font-size:16px">Chưa có phiên đấu giá nào</p>
+            <p style="margin:8px 0 0;font-size:14px;color:#bbb">Các phiên đấu giá mới sẽ xuất hiện ở đây</p>
+          `;
           grid.appendChild(empty);
           return;
         }
-        if (count) count.textContent = `${list.length} phiên`;
-        // fetch item details for nicer cards
+
+        if (count) count.textContent = `🔥 ${list.length} phiên đang hot`;
+
+        // Fetch item details for richer display
         const enriched = await Promise.all(
           list.map(async (a) => {
             let info = null;
@@ -437,11 +494,19 @@
           const now = new Date();
           const remaining =
             a && ends ? Math.max(0, Math.floor((ends - now) / 1000)) : 0;
-          const remStr = a
-            ? new Date(remaining * 1000).toISOString().substring(11, 19)
-            : "";
+
+          // Format countdown timer
+          const hours = Math.floor(remaining / 3600);
+          const mins = Math.floor((remaining % 3600) / 60);
+          const secs = remaining % 60;
+          const remStr = `${String(hours).padStart(2, "0")}:${String(
+            mins
+          ).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+
           const card = document.createElement("div");
           card.className = "product-card";
+          card.style.position = "relative";
+
           const title =
             a.item_type === "vehicle"
               ? info
@@ -452,37 +517,95 @@
                   info.capacity_kwh || ""
                 } kWh`
               : `Pin #${a.item_id}`;
-          const priceText =
+
+          const currentPrice =
             a.highest_bid != null ? a.highest_bid : a.starting_price;
+          const priceLabel =
+            a.highest_bid != null ? "Giá cao nhất" : "Giá khởi điểm";
+
           const img =
             a.item_type === "vehicle"
               ? "/static/images/v1.jpg"
               : "/static/images/v3.jpg";
+
           card.innerHTML = `
+            <!-- Auction Badge -->
+            <div style="position:absolute;top:12px;left:12px;background:linear-gradient(135deg,#ff6f00,#ff8f00);color:white;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:700;z-index:10;box-shadow:0 2px 8px rgba(255,111,0,0.4);display:flex;align-items:center;gap:6px">
+              <i class="fas fa-gavel" style="animation:swing 1s ease-in-out infinite"></i>
+              <span>ĐẤU GIÁ</span>
+            </div>
+            
             <img src="${img}" alt="auction" class="product-image" style="cursor:pointer" onclick="window.location.href='/auctions/${
             a.id
           }'"/>
+            
             <div class="product-info">
               <h3 class="product-title" style="cursor:pointer" onclick="window.location.href='/auctions/${
                 a.id
               }'">${title}</h3>
-              <div class="product-price">Giá hiện tại: ${fmtMoney(
-                priceText
-              )}</div>
-              <div class="product-location"><i class="far fa-clock"></i> Còn lại: ${remStr}</div>
+              
+              <!-- Price Box -->
+              <div style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);padding:12px;border-radius:8px;margin:8px 0">
+                <div style="font-size:11px;color:#666;font-weight:600;text-transform:uppercase;margin-bottom:4px">${priceLabel}</div>
+                <div class="product-price" style="display:flex;align-items:center;gap:6px">
+                  <i class="fas fa-tag"></i>
+                  ${fmtMoney(currentPrice)}
+                </div>
+              </div>
+              
+              <!-- Countdown Timer -->
+              <div style="display:flex;align-items:center;gap:8px;padding:10px;background:#f8f9fa;border-radius:8px;border-left:3px solid #ff6f00;margin:8px 0">
+                <i class="far fa-clock" style="font-size:16px;color:#ff6f00"></i>
+                <div style="flex:1">
+                  <div style="font-size:11px;color:#666">Còn lại</div>
+                  <div id="timer-${
+                    a.id
+                  }" style="font-size:16px;font-weight:700;color:#e53935;font-family:monospace">${remStr}</div>
+                </div>
+              </div>
+              
               <div class="product-actions">
-                <button class="action-btn" onclick="event.stopPropagation();placeBid(${
+                <button class="action-btn btn-compare" onclick="event.stopPropagation();placeBid(${
                   a.id
-                })"><i class='fas fa-gavel'></i> Đấu giá</button>
+                })">
+                  <i class='fas fa-gavel'></i> Đấu giá
+                </button>
                 ${
                   a.buy_now_price
-                    ? `<button class="action-btn btn-buy" onclick="event.stopPropagation();buyNowAuction(${a.id})"><i class='fas fa-bolt'></i> Mua ngay</button>`
+                    ? `<button class="action-btn btn-buy" onclick="event.stopPropagation();buyNowAuction(${a.id})">
+                        <i class='fas fa-bolt'></i> Mua ngay
+                      </button>`
                     : ""
                 }
               </div>
             </div>
           `;
           grid.appendChild(card);
+
+          // Start real-time countdown
+          if (remaining > 0) {
+            const timerEl = card.querySelector(`#timer-${a.id}`);
+            let timeLeft = remaining;
+            const interval = setInterval(() => {
+              timeLeft--;
+              if (timeLeft <= 0) {
+                clearInterval(interval);
+                timerEl.textContent = "00:00:00";
+                timerEl.style.color = "#999";
+                return;
+              }
+              const h = Math.floor(timeLeft / 3600);
+              const m = Math.floor((timeLeft % 3600) / 60);
+              const s = timeLeft % 60;
+              timerEl.textContent = `${String(h).padStart(2, "0")}:${String(
+                m
+              ).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+
+              // Color change based on urgency
+              if (timeLeft < 300) timerEl.style.color = "#e53935";
+              else if (timeLeft < 3600) timerEl.style.color = "#ff9800";
+            }, 1000);
+          }
         });
       }
 

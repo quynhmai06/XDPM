@@ -223,8 +223,10 @@
         </div>
         <div class="user-menu">
           <a href="/" class="user-menu-item">Trang chủ</a>
-          <a href="/auctions" class="user-menu-item">Đấu giá</a>
+          <!-- Đấu giá ở trang chủ -->
           <a href="/favorites" class="user-menu-item">Yêu thích</a>
+          <a href="/reviews" class="user-menu-item">Đánh giá</a>
+          <a href="/transactions" class="user-menu-item">Giao dịch</a>
           {% if session.get('user') %}
           <a href="{{ url_for('logout_page') }}" class="user-menu-item"
             >Đăng xuất</a
@@ -240,7 +242,7 @@
 
     <div style="max-width: 1200px; margin: 0 auto; padding: 16px">
       <div class="breadcrumb">
-        <a href="/">Trang chủ</a> › <a href="/auctions">Phiên đấu giá</a> ›
+        <a href="/">Trang chủ</a> › <span>Phiên đấu giá</span> ›
         <span id="breadTitle">Chi tiết</span>
       </div>
     </div>
