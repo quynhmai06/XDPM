@@ -7,6 +7,7 @@ class Product(db.Model):
     __tablename__ = "products"
 
     id               = db.Column(db.Integer, primary_key=True)
+    product_type     = db.Column(db.String(20), nullable=False, default="car", index=True)
     name             = db.Column(db.String(180), nullable=False, index=True)
     description      = db.Column(db.Text)
     price            = db.Column(db.Integer, nullable=False, default=0, index=True)

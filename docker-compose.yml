@@ -23,13 +23,18 @@ services:
       JWT_SECRET: supersecret
     depends_on: [db]
     ports: ["5002:5002"]
-
+    
   pricing_service:
     build: ./pricing-service
     environment:
-      OPENAI_API_KEY: ..   
-    depends_on: []
+      PROVIDER: ${PROVIDER}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL}
+      # Dự phòng OpenAI (không dùng khi PROVIDER=gemini)
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL}
     ports: ["5003:5003"]
+
 
   web_gateway:
     build: ./gateway
@@ -37,7 +42,7 @@ services:
       AUTH_URL: http://auth_service:5001
       LISTING_URL: http://listing_service:5002
       PRICING_URL: http://pricing_service:5003
-      JWT_SECRET: supersecret          # <<< QUAN TRỌNG: trùng với auth_service
+      JWT_SECRET: supersecret         
       GATEWAY_SECRET: dev
     depends_on: [auth_service, listing_service, pricing_service]
     ports: ["8000:8000"]

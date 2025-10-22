@@ -10,7 +10,7 @@ JWT_SECRET = os.getenv("JWT_SECRET", "devsecret")
 # ---------- Auth helpers ----------
 def current_user():
     auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer "): 
+    if not auth.startswith("Bearer "):
         return None
     token = auth.split(" ", 1)[1].strip()
     try:
@@ -34,7 +34,7 @@ def require_admin():
 def to_json(p: Product):
     return {
         "id": p.id,
-        "product_type": p.product_type,   
+        "product_type": getattr(p, "product_type", "car"),
         "name": p.name,
         "description": p.description,
         "price": p.price,
@@ -43,9 +43,10 @@ def to_json(p: Product):
         "year": p.year,
         "mileage": p.mileage,
         "battery_capacity": p.battery_capacity,
-        "battery_chemistry": p.battery_chemistry,
-        "soh_percent": p.soh_percent,   
-        "cycle_count": p.cycle_count,   
+        # các field dưới có thể không tồn tại trong model → dùng getattr
+        "battery_chemistry": getattr(p, "battery_chemistry", None),
+        "soh_percent": getattr(p, "soh_percent", None),
+        "cycle_count": getattr(p, "cycle_count", None),
         "owner": p.owner,
         "main_image_url": p.main_image_url,
         "sub_image_urls": json.loads(p.sub_image_urls or "[]"),
@@ -70,14 +71,6 @@ def parse_int(v, default=None, minv=None, maxv=None):
 
 @bp.get("/")
 def list_products():
-    """
-    Query params:
-      q (search in name/description), brand, province,
-      min_price, max_price, year_from, year_to, mileage_max,
-      approved (0/1), owner (username),
-      sort (created_desc|created_asc|price_asc|price_desc),
-      page (default 1), per_page (<=50)
-    """
     q = Product.query
 
     # Filters
@@ -91,6 +84,11 @@ def list_products():
 
     province = request.args.get("province")
     if province: q = q.filter(Product.province == province)
+
+    # lọc theo loại sản phẩm nếu có
+    product_type = request.args.get("product_type")
+    if product_type:
+        q = q.filter(Product.product_type == product_type)
 
     owner = request.args.get("owner")
     if owner: q = q.filter(Product.owner == owner)
@@ -162,6 +160,7 @@ def create_product():
         return jsonify(error="sub_image_urls phải là danh sách URL."), 400
 
     p = Product(
+        product_type=(data.get("product_type") or "car").strip(),  # ✅ ghi loại sản phẩm
         name=name,
         description=data.get("description"),
         price=price,
@@ -196,6 +195,10 @@ def update_product(pid):
         return jsonify(error="Đã duyệt, không thể sửa."), 400
 
     data = request.get_json(force=True)
+    if "product_type" in data:
+        v = (data.get("product_type") or "").strip()
+        if v: p.product_type = v
+
     if "name" in data:
         if not (data["name"] or "").strip():
             return jsonify(error="Tên không hợp lệ."), 400

@@ -470,3 +470,7 @@ body {
 .user-dropdown .dropdown-item{ display:block; padding:8px 10px; color:#111827; text-decoration:none; border-radius:8px; }
 .user-dropdown .dropdown-item:hover{ background:#f3f4f6; }
 
+.flash-wrap { max-width: 960px; margin: 16px auto; padding: 0 12px; }
+.flash { padding: 12px 14px; border-radius: 8px; margin-bottom: 8px; font-weight: 600; }
+.flash.success { background: #e8fff2; color: #0a8a43; border: 1px solid #b9f0cf; }
+.flash.error   { background: #ffecec; color: #a80d0d; border: 1px solid #f4b5b5; }

@@ -1,17 +1,15 @@
 # gateway/app.py
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 import os, requests, jwt, time, json
-from flask import jsonify
 from werkzeug.utils import secure_filename
 
 # ==== Config các service ====
-AUTH_URL = os.getenv("AUTH_URL", "http://127.0.0.1:5001")
+AUTH_URL    = os.getenv("AUTH_URL", "http://127.0.0.1:5001")
 LISTING_URL = os.getenv("LISTING_URL", "http://127.0.0.1:5002")
 PRICING_URL = os.getenv("PRICING_URL", "http://127.0.0.1:5003")
 
-
 JWT_SECRET = os.getenv("JWT_SECRET", "devsecret")
-JWT_ALGOS = ["HS256"]
+JWT_ALGOS  = ["HS256"]
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.getenv("GATEWAY_SECRET", "dev")
@@ -19,12 +17,7 @@ app.secret_key = os.getenv("GATEWAY_SECRET", "dev")
 # ==== Helpers JWT / Session ====
 def decode_token(token: str):
     # Bỏ kiểm tra 'sub' phải là string (verify_sub=False)
-    return jwt.decode(
-        token,
-        JWT_SECRET,
-        algorithms=JWT_ALGOS,
-        options={"verify_sub": False}
-    )
+    return jwt.decode(token, JWT_SECRET, algorithms=JWT_ALGOS, options={"verify_sub": False})
 
 def is_admin_session() -> bool:
     user = session.get("user")
@@ -56,9 +49,7 @@ def home():
         items = res.json().get("items", []) if res.ok else []
     except requests.RequestException:
         items = []
-
     return render_template("index.html", items=items)
-
 
 # ---------- Auth ----------
 @app.route("/login", methods=["GET", "POST"], endpoint="login_page")
@@ -84,7 +75,7 @@ def login_page():
         if r.ok:
             token = r.json().get("access_token")
             try:
-                payload = jwt.decode(token, JWT_SECRET, algorithms=JWT_ALGOS)
+                payload = decode_token(token)
             except Exception:
                 flash("Token không hợp lệ.", "error")
                 return render_template("login.html")
@@ -105,9 +96,9 @@ def login_page():
 def register_page():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
-        email = request.form.get("email", "").strip()
+        email    = request.form.get("email", "").strip()
         password = request.form.get("password", "")
-        confirm = request.form.get("confirm_password", "")
+        confirm  = request.form.get("confirm_password", "")
 
         if password != confirm:
             flash("Mật khẩu xác nhận không khớp.", "error")
@@ -128,7 +119,7 @@ def register_page():
             return redirect(url_for("login_page"))
 
         msg = None
-        if r.headers.get("content-type","").startswith("application/json"):
+        if r.headers.get("content-type", "").startswith("application/json"):
             data = r.json()
             err = (data.get("error") or "").lower()
             if "exist" in err:
@@ -138,7 +129,6 @@ def register_page():
             elif "username" in err:
                 msg = "Tên đăng nhập không hợp lệ hoặc đã tồn tại."
         flash(msg or "Đăng ký thất bại.", "error")
-
 
     return render_template("register.html")
 
@@ -154,21 +144,20 @@ def logout_page():
 def add_listing():
     u = session.get("user")
     if not u:
-        # nhớ URL tiếp tục sau khi login
         session["next_after_login"] = url_for("add_listing")
         flash("Vui lòng đăng nhập để đăng tin.", "error")
         return redirect(url_for("login_page"))
 
     if request.method == "POST":
         payload = {
-            "name": request.form.get("name", "").strip(),
-            "description": request.form.get("description", "").strip(),
+            "name": (request.form.get("name") or "").strip(),
+            "description": (request.form.get("description") or "").strip(),
             "price": int(request.form.get("price") or 0),
-            "brand": request.form.get("brand", "").strip(),
-            "province": request.form.get("province", "").strip(),
+            "brand": (request.form.get("brand") or "").strip(),
+            "province": (request.form.get("province") or "").strip(),
             "year": int(request.form.get("year") or 0),
             "mileage": int(request.form.get("mileage") or 0),
-            "battery_capacity": request.form.get("battery_capacity", "").strip(),
+            "battery_capacity": (request.form.get("battery_capacity") or "").strip(),
         }
         if not payload["name"] or payload["price"] <= 0:
             flash("Thiếu tên hoặc giá không hợp lệ.", "error")
@@ -208,7 +197,6 @@ def add_listing():
                     msg = None
             flash(msg or "Đăng tin thất bại.", "error")
 
-    # GET
     return render_template("post_product.html")
 
 # ---------- Admin dashboard ----------
@@ -218,7 +206,6 @@ def admin_page():
     products = []
     transactions = []
 
-    # Nếu admin → load users từ auth-service
     if is_admin_session():
         try:
             headers = {"Authorization": f"Bearer {session['access_token']}"}
@@ -228,12 +215,10 @@ def admin_page():
         except requests.RequestException:
             flash("Không kết nối được auth service.", "error")
 
-    # Load danh sách bài đăng từ listing-service (mọi user đều xem được)
     try:
         r2 = requests.get(f"{LISTING_URL}/listings/?sort=created_desc", timeout=8)
         if r2.ok and r2.headers.get("content-type", "").startswith("application/json"):
             data = r2.json()
-            # hỗ trợ cả 2 kiểu response (items hoặc list)
             products = data.get("items", data if isinstance(data, list) else [])
     except requests.RequestException:
         flash("Không kết nối được listing service.", "error")
@@ -246,7 +231,6 @@ def admin_page():
         is_admin=is_admin_session()
     )
 
-# modal login ngay trong trang admin
 @app.post("/admin/login", endpoint="admin_login")
 def admin_login():
     username = request.form.get("username", "").strip()
@@ -290,7 +274,7 @@ def admin_login():
     flash("Đăng nhập admin thành công!", "success")
     return redirect(url_for("admin_page"))
 
-# ---- Admin duyệt / bỏ duyệt / xóa bài đăng (gọi listing-service) ----
+# ---- Admin duyệt / bỏ duyệt / xóa bài đăng ----
 @app.post("/admin/approve/<int:pid>")
 @app.get("/admin/approve/<int:pid>")
 def approve_product(pid):
@@ -318,7 +302,6 @@ def approve_product(pid):
 
     return redirect(url_for("admin_page"))
 
-
 @app.get("/admin/delete/<int:pid>")
 def delete_product(pid):
     if not is_admin_session():
@@ -345,7 +328,7 @@ def delete_product(pid):
 
     return redirect(url_for("admin_page"))
 
-# ---- Quản lý user (gọi auth-service) ----
+# ---- Quản lý user (auth-service) ----
 @app.route("/admin/approve_user/<int:user_id>", methods=["POST", "GET"])
 def approve_user(user_id):
     if not is_admin_session():
@@ -388,24 +371,30 @@ def delete_user(user_id):
 # ---------- AI Price Suggest ----------
 @app.post("/ai/price_suggest")
 def price_suggest():
-    # Lấy dữ liệu từ form multipart (không ảnh)
-    payload = {
-        "product_type": request.form.get("product_type", "car"),
-        "name": request.form.get("name", ""),
-        "brand": request.form.get("brand", ""),
-        "province": request.form.get("province", ""),
-        "year": request.form.get("year", ""),
-        "mileage": request.form.get("mileage", ""),
-        "battery_capacity": request.form.get("battery_capacity", ""),
-        "description": request.form.get("description", ""), 
-    }
+    # Lấy dữ liệu từ form multipart (hoặc JSON)
+    if request.content_type and request.content_type.startswith("application/json"):
+        payload = request.get_json(silent=True) or {}
+    else:
+        payload = {
+            "product_type": request.form.get("product_type", "car"),
+            "name": request.form.get("name", ""),
+            "brand": request.form.get("brand", ""),
+            "province": request.form.get("province", ""),
+            "year": request.form.get("year", ""),
+            "mileage": request.form.get("mileage", ""),
+            "battery_capacity": request.form.get("battery_capacity", ""),
+            "description": request.form.get("description", ""),
+        }
+
     try:
-        r = requests.post(f"{PRICING_URL}/predict", json=payload, timeout=5)
+        # tăng timeout (model đôi khi >5s)
+        r = requests.post(f"{PRICING_URL}/predict", json=payload, timeout=25)
         return (r.text, r.status_code, {"Content-Type": "application/json"})
-    except requests.RequestException:
+    except requests.RequestException as e:
+        # log lỗi để xem trong `docker logs xdpm-web_gateway-1`
+        app.logger.exception("price_suggest failed: %s", e)
         return jsonify(error="Không kết nối được pricing-service"), 502
 
 
 if __name__ == "__main__":
-    # Bạn đang dùng 8000; đổi 8080 nếu muốn
     app.run(host="0.0.0.0", port=8000, debug=True)
