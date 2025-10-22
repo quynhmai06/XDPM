@@ -1,3 +1,4 @@
+from sqlalchemy import or_
 import os
 import re
 import jwt
@@ -5,25 +6,21 @@ from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, session, render_template, url_for, current_app, flash, redirect
 from types import SimpleNamespace
 from werkzeug.utils import secure_filename
-from werkzeug.security import generate_password_hash, check_password_hash   # ✅ thêm dòng này
+from werkzeug.security import generate_password_hash, check_password_hash 
 from pathlib import Path
 import uuid
 from models import db, User, UserProfile
 
-
 ALLOWED_IMAGE_EXTS = {"png", "jpg", "jpeg", "gif", "webp"}
-AVATAR_DIR = "uploads/avatars"  # nằm trong static/
+AVATAR_DIR = "uploads/avatars"  
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
-SECRET = os.getenv("JWT_SECRET", "devsecret")  # nhớ đồng bộ với .env/docker
+SECRET = os.getenv("JWT_SECRET", "devsecret")  
 
-
-# -------------------- Helpers --------------------
 def normalize_email(s: str | None) -> str | None:
     if not s:
         return None
     return s.strip().lower()
-
 
 def normalize_phone(s: str | None) -> str | None:
     if not s:
@@ -35,7 +32,6 @@ def normalize_phone(s: str | None) -> str | None:
         digits = "0" + digits[3:]
     return digits
 
-
 def _make_token(u: User) -> str:
     payload = {
         "sub": u.id,
@@ -46,7 +42,6 @@ def _make_token(u: User) -> str:
         "exp": datetime.utcnow() + timedelta(hours=6),
     }
     return jwt.encode(payload, SECRET, algorithm="HS256")
-
 
 def _require_admin():
     auth = request.headers.get("Authorization", "")
@@ -60,7 +55,6 @@ def _require_admin():
     if payload.get("role") != "admin":
         return None, ({"error": "forbidden"}, 403)
     return payload, None
-
 
 def _require_user():
     auth = request.headers.get("Authorization", "")
@@ -76,19 +70,33 @@ def _require_user():
         return None, ({"error": "user_not_found"}, 404)
     if u.locked:
         return None, ({"error": "locked"}, 403)
-    # Cho phép user thường cần approved; admin thì luôn pass
     if u.role != "admin" and not u.approved:
         return None, ({"error": "not_approved"}, 403)
     return u, None
 
+def _save_avatar(file_storage):
+    if not file_storage or not getattr(file_storage, "filename", ""):
+        return None, "no_file"
 
-# -------------------- Health --------------------
+    fname = secure_filename(file_storage.filename)
+    if "." not in fname:
+        return None, "bad_filename"
+
+    ext = fname.rsplit(".", 1)[-1].lower()
+    if ext not in ALLOWED_IMAGE_EXTS:
+        return None, "unsupported_type"
+
+    dest_dir = Path(current_app.static_folder) / AVATAR_DIR
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    new_name = f"{uuid.uuid4().hex}.{ext}"
+    file_storage.save(dest_dir / new_name)
+    return new_name, None
+
 @bp.get("/")
 def health():
     return {"service": "auth", "status": "ok", "prefix": "/auth"}
 
-
-# -------------------- Auth: Register/Login --------------------
 @bp.post("/register")
 def register():
     d = request.get_json(force=True) if request.is_json else request.form
@@ -117,7 +125,7 @@ def register():
         email=email,
         password=generate_password_hash(password),
         role="member",
-        approved=False,  # member mới cần admin duyệt
+        approved=False, 
         locked=False,
         phone=phone,
     )
@@ -128,11 +136,9 @@ def register():
 
 @bp.route("/login", methods=["GET", "POST"])
 def login():
-    # nếu GET → hiển thị form login
     if request.method == "GET":
         return render_template("login.html")
 
-    # nếu POST → xử lý form hoặc JSON
     data = request.get_json(force=True) if request.is_json else request.form
     identifier = (data.get("username") or data.get("identifier") or data.get("email") or "").strip()
     password = data.get("password") or ""
@@ -143,7 +149,6 @@ def login():
         flash("Vui lòng nhập đầy đủ thông tin!", "error")
         return redirect(url_for("auth.login"))
 
-    # phân biệt username/email/số điện thoại
     by_email = "@" in identifier
     by_phone = identifier.isdigit()
 
@@ -154,7 +159,6 @@ def login():
     else:
         u = User.query.filter_by(username=identifier).first()
 
-    # kiểm tra tồn tại + mật khẩu
     if not u or not check_password_hash(u.password, password):
         if request.is_json:
             return {"error": "invalid_credentials"}, 401
@@ -173,27 +177,23 @@ def login():
         flash("Tài khoản chưa được admin duyệt!", "error")
         return redirect(url_for("auth.login"))
 
-    # ---- Nếu thành công ----
     token = _make_token(u)
 
-    # API mode
     if request.is_json:
         return {"access_token": token, "role": u.role}
 
-    # Web mode
     session["user_id"] = u.id
     session["username"] = u.username
     session["role"] = u.role
     flash("Đăng nhập thành công!", "success")
 
-    # điều hướng theo role
     if u.role == "admin":
         return redirect(url_for("auth.admin_list_users"))
     else:
         return redirect(url_for("auth.profile_page"))
 
 
-@bp.get("/login")
+@bp.get("/login_page")
 def login_page():
     return render_template("login.html")
 
@@ -209,8 +209,6 @@ def me():
         return {"error": "invalid_token"}, 401
     return payload
 
-
-# -------------------- Admin APIs --------------------
 @bp.get("/admin/users")
 def admin_list_users():
     _, err = _require_admin()
@@ -257,12 +255,14 @@ def get_profile():
     u, err = _require_user()
     if err:
         return err
+    # Lấy/khởi tạo profile
     p = UserProfile.query.filter_by(user_id=u.id).first()
     if not p:
         p = UserProfile(user_id=u.id)
         db.session.add(p)
         db.session.commit()
     return {"user": u.to_dict_basic(), "profile": p.to_dict()}
+
 
 
 @bp.put("/profile")
@@ -275,10 +275,11 @@ def update_profile():
     if not p:
         p = UserProfile(user_id=u.id)
         db.session.add(p)
-    # các field profile
-    for field in ["full_name", "address", "vehicle_info", "battery_info", "avatar_url", "gender"]:
-        if field in d:
-            setattr(p, field, d[field])
+
+    # Các trường trong bảng profile
+    if "full_name" in d:  p.full_name = d.get("full_name") or None
+    if "address" in d:    p.address   = d.get("address") or None
+    if "gender" in d:     p.gender    = d.get("gender") or None
     if "birthdate" in d:
         val = d.get("birthdate")
         if val:
@@ -288,26 +289,13 @@ def update_profile():
                 return {"error": "invalid_birthdate_format"}, 400
         else:
             p.birthdate = None
+
     # phone lưu ở bảng users
     if "phone" in d:
         u.phone = d.get("phone") or None
+
     db.session.commit()
     return {"ok": True, "profile": p.to_dict(), "user": u.to_dict_basic()}
-
-
-@bp.put("/profile")
-def _save_avatar(file_storage):
-    if not file_storage or not file_storage.filename:
-        return None, "no_file"
-    ext = file_storage.filename.rsplit(".", 1)[-1].lower()
-    if ext not in ALLOWED_IMAGE_EXTS:
-        return None, "unsupported_type"
-    filename = f"{uuid.uuid4().hex}.{ext}"
-    upload_dir = Path(current_app.static_folder) / AVATAR_DIR
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    path = upload_dir / filename
-    file_storage.save(path)
-    return filename, None
 
 
 @bp.post("/profile")  # hỗ trợ form từ trình duyệt (multipart/form-data)
@@ -360,6 +348,10 @@ def update_profile_form():
         else url_for("static", filename="img/avatar-placeholder.png"),
     }
 
+# Route HTML hiển thị trang hồ sơ trong auth-service (tùy chọn)
+@bp.get("/profile-page", endpoint="profile_html")
+def profile_html():
+    return render_template("profile.html")  # hoặc "profile_only.html"
 
 # -------------------- Profile page (HTML) --------------------
 @bp.get("/profile/view")  # KHÔNG trùng với API JSON
