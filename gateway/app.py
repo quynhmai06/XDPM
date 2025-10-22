@@ -199,6 +199,21 @@ def add_listing():
 
     return render_template("post_product.html")
 
+@app.get("/listings/<int:pid>")
+def product_detail(pid):
+    try:
+        r = requests.get(f"{LISTING_URL}/listings/{pid}", timeout=6)
+        if not r.ok or not r.headers.get("content-type","").startswith("application/json"):
+            flash("Không tải được thông tin sản phẩm.", "error")
+            return redirect(url_for("home"))
+        item = r.json()
+    except requests.RequestException:
+        flash("Không kết nối được listing service.", "error")
+        return redirect(url_for("home"))
+
+    return render_template("product_detail.html", item=item)
+
+
 # ---------- Admin dashboard ----------
 @app.route("/admin", methods=["GET"], endpoint="admin_page")
 def admin_page():

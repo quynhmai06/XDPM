@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ item.name }} — Chi tiết</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    :root{
+      /* màu chủ đạo giống header index */
+      --primary:#f4b207;        /* vàng cam */
+      --primary-600:#e0a000;
+      --ink:#0f172a;
+      --muted:#667085;
+      --ring:#e5e7eb;
+      --card:#ffffff;
+      --bg:#f6f7fb;
+      --success:#16a34a;
+    }
+    body{background:var(--bg)}
+    .container{max-width:1100px;margin:28px auto;padding:0 16px}
+    .breadcrumb{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:14px;margin-bottom:16px}
+    .breadcrumb a{color:var(--muted);text-decoration:none}
+    .breadcrumb a:hover{color:var(--ink)}
+
+    .page{
+      display:grid;gap:22px;
+      grid-template-columns: minmax(0,2fr) minmax(0,1.2fr);
+    }
+
+    .panel{
+      background:var(--card);border:1px solid var(--ring);
+      border-radius:14px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.06);
+    }
+    .panel .box{padding:18px 18px}
+
+    /* Gallery */
+    .media{display:grid;grid-template-rows:auto auto}
+    .cover{aspect-ratio:16/10;background:#fafafa}
+    .cover img{width:100%;height:100%;object-fit:cover;display:block}
+    .thumbs{display:flex;gap:10px;padding:12px 18px;background:#fafafa;border-top:1px solid var(--ring)}
+    .thumbs img{
+      width:88px;height:66px;object-fit:cover;border-radius:10px;border:1px solid var(--ring);
+      background:#fff; cursor:pointer; transition:transform .15s ease;
+    }
+    .thumbs img:hover{transform:translateY(-2px)}
+
+    /* Right column */
+    .title{display:flex;align-items:center;gap:10px;margin:0 0 6px 0}
+    .badge{
+      background:rgba(244,178,7,.14);color:var(--primary-600);border:1px solid rgba(244,178,7,.35);
+      font-weight:600;font-size:12px;padding:4px 8px;border-radius:999px
+    }
+    .price{font-weight:800;font-size:26px;color:#d10c0c;margin:10px 0 2px}
+    .meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;color:var(--ink)}
+    .meta div{padding:10px 12px;background:#fafafa;border:1px solid var(--ring);border-radius:10px}
+
+    .actions{display:flex;gap:10px;margin-top:16px}
+    .btn{
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      padding:12px 16px;border-radius:12px;text-decoration:none;font-weight:700;
+      border:1px solid transparent; transition: all .15s ease;
+    }
+    .btn-primary{background:var(--primary);color:#1f2937}
+    .btn-primary:hover{background:var(--primary-600)}
+    .btn-ghost{background:#fff;border-color:var(--ring);color:var(--ink)}
+    .btn-ghost:hover{border-color:#d1d5db}
+
+    /* Description / specs */
+    .section-title{font-size:16px;font-weight:800;margin:0 0 10px 0;color:var(--ink)}
+    .desc{color:#374151;line-height:1.6;white-space:pre-wrap}
+
+    .specs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+    .spec{background:#fff;border:1px solid var(--ring);border-radius:10px;padding:10px 12px}
+    .spec .k{color:var(--muted);font-size:12px}
+    .spec .v{font-weight:700;color:var(--ink)}
+
+    /* Sticky card on large screen */
+    @media (min-width: 1024px){
+      .sticky{position:sticky;top:18px}
+    }
+
+    /* mobile */
+    @media (max-width: 860px){
+      .page{grid-template-columns:1fr}
+      .meta{grid-template-columns:1fr 1fr}
+      .specs{grid-template-columns:1fr 1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav class="breadcrumb">
+      <a href="/">Trang chủ</a> <span>/</span>
+      <a href="/?approved=1">Xe điện</a> <span>/</span>
+      <span>{{ item.name }}</span>
+    </nav>
+
+    <div class="page">
+      <!-- LEFT: gallery + mô tả -->
+      <section class="panel media">
+        <div class="cover">
+          <img id="heroImg"
+               src="{{ item.main_image_url or '/static/images/placeholder.png' }}"
+               alt="{{ item.name }}"
+               onerror="this.onerror=null;this.src='/static/images/placeholder.png'">
+        </div>
+        {% set thumbs = (item.sub_image_urls or []) %}
+        {% if thumbs|length %}
+          <div class="thumbs">
+            <img onclick="swapImg(this)" src="{{ item.main_image_url or '/static/images/placeholder.png' }}" onerror="this.style.display='none'">
+            {% for u in thumbs %}
+              <img onclick="swapImg(this)" src="{{ u }}" onerror="this.style.display='none'">
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="box">
+          <h3 class="section-title">Mô tả</h3>
+          <div class="desc">
+            {{ (item.description or "Người bán chưa cung cấp mô tả chi tiết.") }}
+          </div>
+
+          <h3 class="section-title" style="margin-top:16px">Thông số nhanh</h3>
+          <div class="specs">
+            <div class="spec"><div class="k">Thương hiệu</div><div class="v">{{ item.brand or "-" }}</div></div>
+            <div class="spec"><div class="k">Khu vực</div><div class="v">{{ item.province or "-" }}</div></div>
+            <div class="spec"><div class="k">Năm SX</div><div class="v">{{ item.year or "-" }}</div></div>
+            <div class="spec"><div class="k">Số km</div><div class="v">{{ item.mileage or 0 }}</div></div>
+            <div class="spec"><div class="k">Pin</div><div class="v">{{ item.battery_capacity or "-" }}</div></div>
+            <div class="spec"><div class="k">Trạng thái</div><div class="v">{{ "Đã duyệt" if item.approved else "Chờ duyệt" }}</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: thông tin mua bán -->
+      <aside class="panel sticky">
+        <div class="box">
+          <div class="title">
+            <span class="badge">{{ item.product_type|default("Xe điện")|upper }}</span>
+            <h1 style="margin:0;font-size:22px">{{ item.name }}</h1>
+          </div>
+
+          <div class="price">{{ "{:,.0f}".format(item.price) }} đ</div>
+          <div class="meta">
+            <div>Hãng: <b>{{ item.brand or "-" }}</b></div>
+            <div>Khu vực: <b>{{ item.province or "-" }}</b></div>
+            <div>Năm SX: <b>{{ item.year or "-" }}</b></div>
+            <div>Số km: <b>{{ item.mileage or 0 }}</b></div>
+            <div>Pin: <b>{{ item.battery_capacity or "-" }}</b></div>
+            <div>Mã tin: <b>#{{ item.id }}</b></div>
+          </div>
+
+          <div class="actions">
+            <a class="btn btn-primary" href="javascript:void(0)">
+              <i class="fa-solid fa-phone"></i> Liên hệ người bán
+            </a>
+            <a class="btn btn-ghost" href="/">
+              <i class="fa-solid fa-arrow-left"></i> Về trang chủ
+            </a>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Icons (nếu chưa có ở layout) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/js/all.min.js" defer></script>
+  <script>
+    function swapImg(el){
+      const hero = document.getElementById('heroImg');
+      if(!hero || !el || !el.src) return;
+      const tmp = hero.src; hero.src = el.src; el.src = tmp;
+    }
+  </script>
+</body>
+</html>

@@ -36,6 +36,7 @@ services:
     ports: ["5003:5003"]
 
 
+
   web_gateway:
     build: ./gateway
     environment:
@@ -46,6 +47,8 @@ services:
       GATEWAY_SECRET: dev
     depends_on: [auth_service, listing_service, pricing_service]
     ports: ["8000:8000"]
+    volumes:
+      - ./gateway/static/uploads:/app/static/uploads  
 
 volumes:
   dbdata:
