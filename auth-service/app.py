@@ -3,8 +3,10 @@ from flask import Flask, jsonify
 from models import db
 from routes import bp
 
-app = Flask(__name__)
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+DB_PATH  = os.path.join(BASE_DIR, "auth.db")  # <- tuyệt đối
 
+app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///auth.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 

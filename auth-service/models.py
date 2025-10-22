@@ -4,21 +4,30 @@ from datetime import datetime
 
 db = SQLAlchemy()
 
-# === ADD: UserProfile (đặt trước User) ===
 class UserProfile(db.Model):
-    __tablename__ = "user_profiles"
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), unique=True, nullable=False)
+    __tablename__ = "user_profile"
 
-    full_name    = db.Column(db.String(255))
-    address      = db.Column(db.String(500))
-    vehicle_info = db.Column(db.Text)            # JSON text
-    battery_info = db.Column(db.Text)            # JSON text
-    avatar_url   = db.Column(db.String(500))
-    updated_at   = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = db.Column(db.Integer, primary_key=True)
+
+    # FK 1-1 tới users.id
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, unique=True, index=True)
+
+    # Thông tin hồ sơ
+    full_name   = db.Column(db.String(120))
+    address     = db.Column(db.String(255))
+    gender      = db.Column(db.String(20))
+    birthdate   = db.Column(db.Date, nullable=True)         # hoặc đổi sang String nếu bạn muốn
+    avatar_url  = db.Column(db.String(255))
+
+    # Bổ sung vì to_dict() đang dùng
+    vehicle_info = db.Column(db.String(255))
+    battery_info = db.Column(db.String(255))
+
+    # Thời gian cập nhật (tự cập nhật khi commit)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Quan hệ về User: dùng back_populates để không xung đột với User.profile
     user = db.relationship("User", back_populates="profile")
-    gender     = db.Column(db.String(10))        # "male" | "female" | "other"
-    birthdate  = db.Column(db.Date, nullable=True)
 
     def to_dict(self):
         return {
