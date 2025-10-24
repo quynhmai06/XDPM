@@ -1,0 +1,137 @@
+{
+  "info": {
+    "name": "Payment Service API",
+    "_postman_id": "a2d5b7f8-9e9b-4a5f-9e3f-f4e4c0f5e1d2",
+    "description": "Collection test cho payment-service (Flask, port 5003)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://192.168.0.111:5003/",
+          "protocol": "http",
+          "host": ["192.168.0.111"],
+          "port": "5003",
+          "path": [""]
+        }
+      }
+    },
+    {
+      "name": "Create Payment",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"order_id\": 101,\n  \"buyer_id\": 1,\n  \"seller_id\": 2,\n  \"amount\": 15000000,\n  \"provider\": \"DemoPay\"\n}"
+        },
+        "url": {
+          "raw": "http://192.168.0.111:5003/payment/create",
+          "protocol": "http",
+          "host": ["192.168.0.111"],
+          "port": "5003",
+          "path": ["payment", "create"]
+        }
+      }
+    },
+    {
+      "name": "List Payments",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://192.168.0.111:5003/payment",
+          "protocol": "http",
+          "host": ["192.168.0.111"],
+          "port": "5003",
+          "path": ["payment"]
+        }
+      }
+    },
+    {
+      "name": "Get Payment by ID",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://192.168.0.111:5003/payment/1",
+          "protocol": "http",
+          "host": ["192.168.0.111"],
+          "port": "5003",
+          "path": ["payment", "1"]
+        }
+      }
+    },
+    {
+      "name": "Simulate Payment Success",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://192.168.0.111:5003/payment/simulate/1",
+          "protocol": "http",
+          "host": ["192.168.0.111"],
+          "port": "5003",
+          "path": ["payment", "simulate", "1"]
+        }
+      }
+    },
+    {
+      "name": "Create Contract",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"payment_id\": 1,\n  \"title\": \"Hợp đồng mua bán xe điện\",\n  \"content\": \"Bên A đồng ý bán và bên B đồng ý mua theo thỏa thuận...\"\n}"
+        },
+        "url": {
+          "raw": "http://192.168.0.111:5003/payment/contract/create",
+          "protocol": "http",
+          "host": ["192.168.0.111"],
+          "port": "5003",
+          "path": ["payment", "contract", "create"]
+        }
+      }
+    },
+    {
+      "name": "Sign Contract",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"contract_id\": 1,\n  \"signer_name\": \"Lê Quý Nam\"\n}"
+        },
+        "url": {
+          "raw": "http://192.168.0.111:5003/payment/contract/sign",
+          "protocol": "http",
+          "host": ["192.168.0.111"],
+          "port": "5003",
+          "path": ["payment", "contract", "sign"]
+        }
+      }
+    },
+    {
+      "name": "View Contract",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://192.168.0.111:5003/payment/contract/view/1",
+          "protocol": "http",
+          "host": ["192.168.0.111"],
+          "port": "5003",
+          "path": ["payment", "contract", "view", "1"]
+        }
+      }
+    }
+  ]
+}

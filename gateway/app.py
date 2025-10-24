@@ -1,17 +1,14 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
-import os, requests, jwt, uuid
-from decimal import Decimal
+import os, requests, uuid
 
 # ==== Upstream services ====
 AUTH_URL     = os.getenv("AUTH_URL", "http://auth_service:5001")
 PAYMENT_URL  = os.getenv("PAYMENT_URL", "http://payment_service:5003")
-JWT_SECRET   = os.getenv("JWT_SECRET", "devsecret")
-JWT_ALGOS    = ["HS256"]
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.getenv("GATEWAY_SECRET", "dev")
 
-# ==== Catalog demo (đã bổ sung mô tả & thông tin người bán) ====
+# ==== Catalog demo ====
 CATALOG = {
     1: {
         "id": 1,
@@ -25,11 +22,7 @@ CATALOG = {
             "Bảo dưỡng chính hãng, không tai nạn, bao test tại hãng.\n"
             "Trang bị ADAS cơ bản, nội thất nỉ giữ gìn, 2 chìa khoá."
         ),
-        "seller_info": {
-            "name": "Nguyễn Văn A",
-            "phone": "0901 234 567",
-            "email": "nguyenvana@example.com"
-        }
+        "seller_info": {"name": "Nguyễn Văn A", "phone": "0901 234 567", "email": "nguyenvana@example.com"}
     },
     2: {
         "id": 2,
@@ -43,27 +36,18 @@ CATALOG = {
             "Tình trạng xe đẹp, không va chạm; Autopilot kích hoạt cơ bản.\n"
             "Hỗ trợ sang tên toàn quốc, có thể kiểm tra tại gara bên mua chỉ định."
         ),
-        "seller_info": {
-            "name": "Trần Thị B",
-            "phone": "0912 888 333",
-            "email": "tranthib@example.com"
-        }
+        "seller_info": {"name": "Trần Thị B", "phone": "0912 888 333", "email": "tranthib@example.com"}
     },
 }
 def get_product(pid: int):
-    # TODO: gọi listings-service để lấy dữ liệu thật
     return CATALOG.get(int(pid))
 
 # ===== Helpers =====
-def decode_token(token: str):
-    return jwt.decode(token, JWT_SECRET, algorithms=JWT_ALGOS)
-
 def is_admin_session() -> bool:
     user = session.get("user")
     return bool(user and user.get("role") == "admin")
 
 def _proxy_json(method: str, url: str, payload=None):
-    """Proxy helper cho JSON requests."""
     try:
         r = requests.request(method, url, json=payload, timeout=8)
         if r.headers.get("content-type", "").startswith("application/json"):
@@ -72,17 +56,41 @@ def _proxy_json(method: str, url: str, payload=None):
     except requests.RequestException as e:
         return ({"error": f"upstream error: {type(e).__name__}"}, 502)
 
+def verify_via_auth(token: str):
+    """Xác thực token bằng AUTH_URL/auth/me, gửi cả header và query để tránh rơi header."""
+    if not token:
+        return None, "Token rỗng"
+    try:
+        r = requests.get(
+            f"{AUTH_URL}/auth/me",
+            headers={"Authorization": f"Bearer {token}"},
+            params={"token": token},   # <-- thêm gửi qua query
+            timeout=5,
+        )
+    except requests.RequestException:
+        return None, "Không kết nối được Auth service."
+    if r.status_code != 200:
+        # cố đọc chi tiết lỗi từ auth
+        try:
+            err = (r.json() or {}).get("error")
+        except Exception:
+            err = None
+        return None, f"Token không hợp lệ" + (f" ({err})" if err else "")
+    try:
+        return r.json(), None
+    except Exception:
+        return None, "Auth service trả về payload không hợp lệ."
+
 # ---- Cart helpers (lưu trong session) ----
 def _cart():
-    return session.setdefault("cart", {})  # {product_id(str): qty(int)}
+    return session.setdefault("cart", {})
 
 def cart_items():
     cart = _cart()
     items, total = [], 0
     for pid_str, qty in cart.items():
         p = get_product(int(pid_str))
-        if not p:
-            continue
+        if not p: continue
         line_total = p["price"] * qty
         items.append({**p, "qty": qty, "line_total": line_total})
         total += line_total
@@ -91,7 +99,6 @@ def cart_items():
 # ===== UI =====
 @app.route("/", endpoint="home")
 def home():
-    # Trang chủ tĩnh; nút trên card nên là "Xem sản phẩm" -> /product/<id>
     return render_template("index.html")
 
 # ===== Auth & Admin =====
@@ -103,6 +110,8 @@ def login_page():
         if not username or not password:
             flash("Vui lòng nhập đầy đủ thông tin.", "error")
             return render_template("login.html")
+
+        # gọi auth/login để lấy token
         try:
             r = requests.post(f"{AUTH_URL}/auth/login",
                               json={"username": username, "password": password},
@@ -111,16 +120,32 @@ def login_page():
             flash("Không kết nối được Auth service.", "error")
             return render_template("login.html")
 
-        if r.ok:
-            token = r.json().get("access_token")
-            payload = jwt.decode(token, JWT_SECRET, algorithms=JWT_ALGOS)
-            session["access_token"] = token
-            session["user"] = payload
-            next_url = request.args.get("next") or session.pop("next_after_login", None)
-            if payload.get("role") == "admin":
-                return redirect(next_url or url_for("admin_page"))
-            return redirect(next_url or url_for("home"))
-        flash("Sai tài khoản hoặc mật khẩu.", "error")
+        if not r.ok:
+            # cố đọc chi tiết lỗi từ auth
+            msg = None
+            try: msg = r.json().get("error")
+            except Exception: pass
+            flash(msg or "Đăng nhập thất bại.", "error")
+            return render_template("login.html")
+
+        token = (r.json() or {}).get("access_token")
+        if not token:
+            flash("Auth service không trả về access_token.", "error")
+            return render_template("login.html")
+
+        # ✅ không tự decode nữa — xác thực qua /auth/me
+        payload, err = verify_via_auth(token)
+        if err:
+            flash(f"{err}.", "error")
+            return render_template("login.html")
+
+        session["access_token"] = token
+        session["user"] = payload
+        next_url = request.args.get("next") or session.pop("next_after_login", None)
+        if payload.get("role") == "admin":
+            return redirect(next_url or url_for("admin_page"))
+        return redirect(next_url or url_for("home"))
+
     return render_template("login.html")
 
 @app.route("/register", methods=["GET", "POST"], endpoint="register_page")
@@ -190,18 +215,21 @@ def admin_login():
     if not r.ok:
         flash("Đăng nhập thất bại.", "error")
         return redirect(url_for("admin_page"))
-    token = r.json().get("access_token")
+
+    token = (r.json() or {}).get("access_token")
     if not token:
         flash("Auth service không trả về access_token.", "error")
         return redirect(url_for("admin_page"))
-    try:
-        payload = decode_token(token)
-    except Exception:
-        flash("Token không hợp lệ.", "error")
+
+    payload, err = verify_via_auth(token)
+    if err:
+        flash(f"{err}.", "error")
         return redirect(url_for("admin_page"))
+
     if payload.get("role") != "admin":
         flash("Tài khoản không phải admin.", "error")
         return redirect(url_for("admin_page"))
+
     session["access_token"] = token
     session["user"] = payload
     flash("Đăng nhập admin thành công!", "success")
@@ -237,7 +265,7 @@ def delete_user(user_id):
         flash("Không kết nối được auth service.", "error")
     return redirect(url_for("admin_page"))
 
-# ===== Payment & Digital Contract (proxy đến payment-service) =====
+# ===== Payment & Digital Contract (proxy) =====
 @app.post("/api/payments/create")
 def gw_pay_create():
     payload = request.get_json(silent=True) or {}
@@ -275,7 +303,6 @@ def product_detail(pid):
         return redirect(url_for("home"))
     return render_template("product.html", p=p)
 
-# (Tuỳ chọn: vẫn giữ buy_now nếu sau này muốn bật lại nút “Mua ngay”)
 @app.post("/buy/<int:pid>")
 def buy_now(pid):
     p = get_product(pid)
@@ -333,7 +360,7 @@ def cart_checkout():
     payload = {
         "order_id": int(str(uuid.uuid4().int)[-9:]),
         "buyer_id": session.get("user", {}).get("id", 0),
-        "seller_id": 0,  # escrow/platform; thực tế tách theo seller
+        "seller_id": 0,  # escrow/platform
         "amount": total,
         "method": request.form.get("method", "e-wallet"),
         "provider": request.form.get("provider", "DemoPay"),
@@ -349,6 +376,5 @@ def cart_checkout():
         flash("Không kết nối được payment-service.", "error")
     return redirect(url_for("cart_view"))
 
-# ===== Dev mode =====
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)

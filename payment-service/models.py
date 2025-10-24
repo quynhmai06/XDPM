@@ -1,3 +1,4 @@
+# models.py (REPLACE TOÀN BỘ NỘI DUNG)
 from datetime import datetime
 from db import db
 
@@ -7,11 +8,12 @@ class Payment(db.Model):
     order_id = db.Column(db.Integer, nullable=False)
     buyer_id = db.Column(db.Integer, nullable=False)
     seller_id = db.Column(db.Integer, nullable=False)
-    amount = db.Column(db.Numeric(12,2), nullable=False)
+    amount = db.Column(db.Integer, nullable=False)  # VND integer
     method = db.Column(db.String(50), default="e-wallet")   # e-wallet | banking
     provider = db.Column(db.String(50), default="DemoPay")  # MoMo, ZaloPay, VNPAY...
-    status = db.Column(db.String(20), default="pending")    # pending | paid | failed
+    status = db.Column(db.String(20), default="pending")    # pending | paid | failed | canceled
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class Contract(db.Model):
     __tablename__ = "contracts"

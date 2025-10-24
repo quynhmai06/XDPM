@@ -31,6 +31,14 @@ def _require_admin():
         return None, ({"error": "forbidden"}, 403)
     return payload, None
 
+def _bearer_from_request():
+    """Lấy token từ header Authorization: Bearer <token>"""
+    auth = (request.headers.get("Authorization") or "").strip()
+    parts = auth.split(None, 1)
+    if len(parts) == 2 and parts[0].lower() == "bearer":
+        return parts[1].strip()
+    return None
+
 # ===== Public =====
 @bp.get("/")
 def health():
@@ -70,17 +78,31 @@ def login():
         return {"error": "not_approved"}, 403
     return {"access_token": _make_token(u)}
 
-
 @bp.get("/me")
 def me():
-    auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer "):
+    token = _bearer_from_request() \
+            or (request.args.get("token") or "").strip() \
+            or ((request.get_json(silent=True) or {}).get("token") or "").strip()
+
+    if not token:
         return {"error": "no_token"}, 401
+
     try:
-        payload = jwt.decode(auth.split(" ", 1)[1], SECRET, algorithms=["HS256"])
-    except Exception:
+        payload = jwt.decode(token, SECRET, algorithms=["HS256"])
+        return payload, 200
+
+    except jwt.ExpiredSignatureError as e:
+        print(f"[auth] /me decode error: ExpiredSignatureError: {e}")
+        return {"error": "expired"}, 401
+    except jwt.InvalidSignatureError as e:
+        print(f"[auth] /me decode error: InvalidSignatureError: {e}")
+        return {"error": "bad_signature"}, 401
+    except jwt.DecodeError as e:
+        print(f"[auth] /me decode error: DecodeError: {e}")
+        return {"error": "malformed"}, 401
+    except Exception as e:
+        print(f"[auth] /me decode error: {type(e).__name__}: {e}")
         return {"error": "invalid_token"}, 401
-    return payload
 
 # ===== Admin APIs (JWT role=admin) =====
 @bp.get("/admin/users")
@@ -119,3 +141,16 @@ def update_status(uid: int):
 
     db.session.commit()
     return {"ok": True, "status": status}
+
+# (Tùy chọn debug)
+@bp.post("/debug/decode")
+def debug_decode_no_verify():
+    d = request.get_json(silent=True) or {}
+    token = (d.get("token") or "").strip()
+    if not token:
+        return {"error": "no_token"}, 400
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        return {"payload": payload}, 200
+    except Exception as e:
+        return {"error": f"malformed: {type(e).__name__}: {e}"}, 400
