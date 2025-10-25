@@ -150,7 +150,7 @@ def create_product():
     name = (data.get("name") or "").strip()
     price = parse_int(data.get("price"), 0, 1)
     if not name or price <= 0:
-        return jsonify(error="Thiếu tên hoặc giá không hợp lệ."), 400
+        return jsonify(error="Nhập các thông tin bắt buộc!"), 400
 
     # Validate số
     year = parse_int(data.get("year"))

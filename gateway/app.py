@@ -160,7 +160,7 @@ def add_listing():
             "battery_capacity": (request.form.get("battery_capacity") or "").strip(),
         }
         if not payload["name"] or payload["price"] <= 0:
-            flash("Thiếu tên hoặc giá không hợp lệ.", "error")
+            flash("Nhập các thông tin bắt buộc!", "error")
             return render_template("post_product.html")
 
         # Lưu ảnh tại gateway
