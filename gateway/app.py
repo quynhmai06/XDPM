@@ -150,6 +150,7 @@ def add_listing():
 
     if request.method == "POST":
         payload = {
+            "product_type": (request.form.get("product_type") or "car").strip(),
             "name": (request.form.get("name") or "").strip(),
             "description": (request.form.get("description") or "").strip(),
             "price": int(request.form.get("price") or 0),
