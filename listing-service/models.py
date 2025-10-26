@@ -10,7 +10,7 @@ class Product(db.Model):
     product_type     = db.Column(db.String(20), nullable=False, default="car", index=True)
     name             = db.Column(db.String(180), nullable=False, index=True)
     description      = db.Column(db.Text)
-    price            = db.Column(db.Integer, nullable=False, default=0, index=True)
+    price = db.Column(db.BigInteger, nullable=False, default=0, index=True)
     brand            = db.Column(db.String(80), index=True)
     province         = db.Column(db.String(80), index=True)
     year             = db.Column(db.Integer, index=True)
@@ -19,7 +19,7 @@ class Product(db.Model):
     owner            = db.Column(db.String(80), nullable=False, index=True)
 
     main_image_url   = db.Column(db.String(255))
-    sub_image_urls   = db.Column(db.Text)  # JSON list string
+    sub_image_urls   = db.Column(db.Text)  
 
     approved         = db.Column(db.Boolean, default=False, index=True)
     approved_at      = db.Column(db.DateTime)

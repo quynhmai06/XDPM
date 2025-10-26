@@ -43,15 +43,12 @@
               <a href="{{ url_for('logout_page') }}" class="dropdown-item">Đăng xuất</a>
             </div>
           </div>
-          {% if session.get('user') %}
-             <a href="{{ url_for('add_listing') }}" class="post-button">Đăng tin</a>
-          {% else %}
-            <a href="{{ url_for('login_page') }}" class="post-button">Đăng tin</a>
-          {% endif %}
 
+          <a href="{{ url_for('add_listing') }}" class="post-button">Đăng tin</a>
         {% else %}
           <a href="{{ url_for('login_page') }}" class="user-menu-item">Đăng nhập</a>
           <a href="{{ url_for('register_page') }}" class="user-menu-item">Đăng ký</a>
+          <a href="{{ url_for('login_page') }}" class="post-button">Đăng tin</a>
         {% endif %}
       </div>
     </div>
@@ -74,39 +71,69 @@
     </div>
   </section>
 
+  <!-- =========== XE ĐIỆN =========== -->
   <section class="product-section">
     <div class="section-header">
       <h2 class="section-title">Xe điện nổi bật</h2>
       <a href="#" class="view-all">Xem tất cả</a>
     </div>
-    <div class="product-grid">
-       {% if items and items|length %}
-        {% for p in items %}
-         <a href="/listings/{{ p.id }}" class="product-card">
-           <img src="{{ p.main_image_url or '/static/images/placeholder.png' }}" alt="{{ p.name }}" class="product-image"/>
-           <div class="product-info">
-            <h3 class="product-title">{{ p.name }}</h3>
-             <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
-             <div class="product-location">
-               <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
-          </div>
-        </div>
-      </a>
-    {% endfor %}
-   {% else %}
-      <p>Chưa có bài đăng nào được duyệt.</p>
-    {% endif %}
-  </div>
 
+    <div class="product-grid">
+      {% if cars and cars|length %}
+        {% for p in cars %}
+          <a href="/listings/{{ p.id }}" class="product-card">
+            <img
+              src="{{ p.main_image_url or '/static/images/placeholder.png' }}"
+              alt="{{ p.name }}"
+              class="product-image"
+              onerror="this.onerror=null;this.src='/static/images/placeholder.png'"/>
+            <div class="product-info">
+              <h3 class="product-title">{{ p.name }}</h3>
+              <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
+              <div class="product-location">
+                <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
+              </div>
+            </div>
+          </a>
+        {% endfor %}
+      {% else %}
+        <p>Chưa có xe nào được duyệt.</p>
+      {% endif %}
+    </div>
   </section>
 
+  <!-- =========== PIN XE ĐIỆN =========== -->
   <section class="product-section">
     <div class="section-header">
       <h2 class="section-title">Pin xe điện mới về</h2>
       <a href="#" class="view-all">Xem tất cả</a>
     </div>
-    <div class="product-grid"></div>
+
+    <div class="product-grid">
+      {% if batts and batts|length %}
+        {% for p in batts %}
+          <a href="/listings/{{ p.id }}" class="product-card">
+            <img
+              src="{{ p.main_image_url or '/static/images/placeholder.png' }}"
+              alt="{{ p.name }}"
+              class="product-image"
+              onerror="this.onerror=null;this.src='/static/images/placeholder.png'"/>
+            <div class="product-info">
+              <h3 class="product-title">{{ p.name }}</h3>
+              <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
+              <div class="product-location">
+                <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
+              </div>
+            </div>
+          </a>
+        {% endfor %}
+      {% else %}
+        <p>Chưa có pin nào được duyệt.</p>
+      {% endif %}
+    </div>
   </section>
+
+  <!-- ===== Modals ===== -->
   <div id="authModal" class="modal" style="display:none">
     <div class="modal-content">
       <span class="close" onclick="document.getElementById('authModal').style.display='none'">&times;</span>

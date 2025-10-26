@@ -43,13 +43,32 @@ def save_image(file_storage, prefix="img"):
 
 @app.route("/", endpoint="home")
 def home():
+    cars = []
+    batts = []
     try:
-        # Lấy danh sách sản phẩm đã duyệt từ listing-service
-        res = requests.get(f"{LISTING_URL}/listings/?approved=1&sort=created_desc&per_page=12", timeout=5)
-        items = res.json().get("items", []) if res.ok else []
+        # gọi xe điện
+        r1 = requests.get(
+            f"{LISTING_URL}/listings/?approved=1&product_type=car&sort=created_desc&per_page=12",
+            timeout=5
+        )
+        if r1.ok and r1.headers.get("content-type","").startswith("application/json"):
+            cars = r1.json().get("items", [])
     except requests.RequestException:
-        items = []
-    return render_template("index.html", items=items)
+        cars = []
+
+    try:
+        # gọi pin xe điện
+        r2 = requests.get(
+            f"{LISTING_URL}/listings/?approved=1&product_type=battery&sort=created_desc&per_page=12",
+            timeout=5
+        )
+        if r2.ok and r2.headers.get("content-type","").startswith("application/json"):
+            batts = r2.json().get("items", [])
+    except requests.RequestException:
+        batts = []
+
+    return render_template("index.html", cars=cars, batts=batts)
+
 
 # ---------- Auth ----------
 @app.route("/login", methods=["GET", "POST"], endpoint="login_page")
