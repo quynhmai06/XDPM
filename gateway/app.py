@@ -2,7 +2,6 @@ from flask import Flask, render_template, redirect, url_for, request, session, f
 import os, requests, jwt
 from functools import wraps
 
-# ================== Config ==================
 AUTH_URL = os.getenv("AUTH_URL", "http://127.0.0.1:5001")
 ADMIN_URL = os.getenv("ADMIN_URL", "http://127.0.0.1:5003")
 JWT_SECRET = os.getenv("JWT_SECRET", "devsecret")
@@ -11,8 +10,6 @@ JWT_ALGOS = ["HS256"]
 app = Flask(__name__, template_folder="templates", static_folder="static", static_url_path="/static")
 app.secret_key = os.getenv("GATEWAY_SECRET", "dev")
 
-
-# ================== Helpers ==================
 def decode_token(token: str):
     return jwt.decode(token, JWT_SECRET, algorithms=JWT_ALGOS)
 
@@ -33,7 +30,6 @@ def login_required(next_endpoint_name="login_page"):
         def inner(*args, **kwargs):
             token = session.get("access_token")
             if not token:
-                # lưu route hiện tại để quay lại sau khi login
                 session["next_after_login"] = url_for(request.endpoint, **(request.view_args or {}))
                 return redirect(url_for(next_endpoint_name))
             return f(*args, **kwargs)
@@ -41,7 +37,6 @@ def login_required(next_endpoint_name="login_page"):
     return _wrap
 
 
-# ================== Routes ==================
 @app.route("/", endpoint="home")
 def home():
     return render_template("index.html")
@@ -306,17 +301,9 @@ def change_password_gateway():
 
     return redirect(url_for("profile"))
 
-
-# ===== Profile page (giao diện) =====
-# Đặt endpoint = "profile" để mọi {{ url_for('profile') }} trong template đều chạy được
 @app.get("/profile", endpoint="profile")
-@login_required() 
 def profile_page():
-    # Nếu bạn dùng file profile_only.html thì đổi tên file tại đây cho đúng:
-    # return render_template("profile_only.html")
     return render_template("profile.html")
 
-
-# ================== Main ==================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)
