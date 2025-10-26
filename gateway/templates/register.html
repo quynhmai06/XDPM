@@ -76,6 +76,9 @@
 
       <form method="POST" action="{{ url_for('register_page') }}">
         <div class="field">
+          <input class="input" type="text" name="hoten" placeholder="Họ và tên" required>
+        </div>
+        <div class="field">
           <input class="input" type="text" name="username" placeholder="Tên đăng nhập" required>
         </div>
         <div class="field">
@@ -94,8 +97,6 @@
       </form>
 
       <div class="divider"><span>hoặc</span></div>
-
-      <!-- Giữ nguyên 2 nút nhưng xóa url_for -->
       <a class="btn btn-google" href="#">
         <img class="ic" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="">
         <span>Tiếp tục với Google</span>

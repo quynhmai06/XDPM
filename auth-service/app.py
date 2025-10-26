@@ -4,7 +4,7 @@ from models import db
 from routes import bp
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DB_PATH  = os.path.join(BASE_DIR, "auth.db")  # <- tuyệt đối
+DB_PATH  = os.path.join(BASE_DIR, "auth.db") 
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///auth.db")

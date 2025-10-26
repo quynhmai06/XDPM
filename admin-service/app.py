@@ -17,12 +17,10 @@ def create_app():
 
     db.init_app(app)
 
-    # health
     @app.get("/health")
     def health():
         return {"service":"admin-service", "status":"ok"}
 
-    # register blueprints
     app.register_blueprint(bp_users)
     app.register_blueprint(bp_posts)
     app.register_blueprint(bp_tx)

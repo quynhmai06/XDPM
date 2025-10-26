@@ -101,14 +101,11 @@
   </div>
 
   <script>
-    // ======== AUTH-SERVICE ENDPOINTS ========
     const API = {
       me: 'http://127.0.0.1:5001/auth/me',
       profile: 'http://127.0.0.1:5001/auth/profile'
     };
 
-
-    // ======== HELPERS ========
     const $ = (s)=>document.querySelector(s);
     const statusEl = $('#status');
     const avatarImg = $('#avatarImg');
@@ -120,7 +117,7 @@
       </svg>`);
 
     function getToken(){
-      return localStorage.getItem('ACCESS_TOKEN') || '{{ session.get("access_token", "") }}';
+      return {{ session.get("access_token", "") | tojson}}';
     }
     function setAvatar(src){ avatarImg.src = src || fallbackAvatar; }
     function setStatus(msg, ok=true){
@@ -135,7 +132,7 @@
       const res = await fetch(url, { ...init, headers });
       if (res.status === 401) {
         localStorage.removeItem('ACCESS_TOKEN');
-        window.location.href = '/login.html';
+        window.location.href = '/login';
       }
       return res;
     }
@@ -160,7 +157,6 @@
       return res.json();
     }
 
-    // ======== STATE & RENDER ========
     let data = { user:{}, profile:{} };
 
     function render(){
@@ -178,11 +174,10 @@
       else if (raw.startsWith('http') || raw.startsWith('/')) setAvatar(raw);
       else setAvatar(`/static/uploads/avatars/${raw}`);
     }
-
     async function loadProfile(){
       setStatus('Đang tải hồ sơ...', true);
       try{
-        data = await apiGet(API.profile); // { user, profile }
+        data = await apiGet(API.profile); 
         render();
         setStatus('');
       }catch(e){
@@ -190,11 +185,8 @@
       }
     }
 
-    // ======== EVENTS ========
     $('#btnRefresh').addEventListener('click', loadProfile);
-
     $('#btnReset').addEventListener('click', ()=> render());
-
     $('#avatarInput').addEventListener('change', (ev)=>{
       const f = ev.target.files?.[0];
       if(!f) return;
@@ -202,17 +194,14 @@
       rd.onload = ()=> setAvatar(rd.result);
       rd.readAsDataURL(f);
     });
-
     $('#profileForm').addEventListener('submit', async (e)=>{
       e.preventDefault();
       setStatus('Đang lưu...', true);
       try{
-        // 1) Upload avatar nếu có
         const file = $('#avatarInput').files[0];
         if (file) {
           const fd = new FormData();
           fd.append('avatar', file);
-          // Optionally kèm text để backend cập nhật form (nếu muốn)
           fd.append('full_name', $('#full_name').value.trim());
           fd.append('address', $('#address').value.trim());
           fd.append('gender', $('#gender').value);
@@ -220,12 +209,9 @@
           fd.append('phone', $('#phone').value.trim());
           const up = await apiUpload(API.profile, fd);
           if (up && up.avatar_src) setAvatar(up.avatar_src);
-          // đồng bộ state nếu backend trả profile/user
           if (up && up.profile) data.profile = up.profile;
           if (up && up.user) data.user = up.user;
         }
-
-        // 2) Cập nhật thông tin JSON
         const payload = {
           full_name: $('#full_name').value.trim(),
           address: $('#address').value.trim(),
@@ -243,8 +229,6 @@
         setStatus('Không thể lưu: ' + err, false);
       }
     });
-
-    /// ======== INIT ========
     (async function init(){
       const token = getToken();
       if (!token){
@@ -255,13 +239,13 @@
       setAvatar(fallbackAvatar);
 
       try {
-        await apiGet(API.me);   // <- không truyền token
+        await apiGet(API.me);   
       } catch {
         window.location.href = '/login';
         return;
       }
 
-      await loadProfile();      // <- không truyền token
+      await loadProfile();     
     })();
 
   </script>

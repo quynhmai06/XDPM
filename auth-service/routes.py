@@ -248,14 +248,11 @@ def update_status(uid: int):
     db.session.commit()
     return {"ok": True, "status": status}
 
-
-# -------------------- Profile APIs --------------------
 @bp.get("/profile")
 def get_profile():
     u, err = _require_user()
     if err:
         return err
-    # Lấy/khởi tạo profile
     p = UserProfile.query.filter_by(user_id=u.id).first()
     if not p:
         p = UserProfile(user_id=u.id)
@@ -275,8 +272,6 @@ def update_profile():
     if not p:
         p = UserProfile(user_id=u.id)
         db.session.add(p)
-
-    # Các trường trong bảng profile
     if "full_name" in d:  p.full_name = d.get("full_name") or None
     if "address" in d:    p.address   = d.get("address") or None
     if "gender" in d:     p.gender    = d.get("gender") or None
@@ -289,26 +284,21 @@ def update_profile():
                 return {"error": "invalid_birthdate_format"}, 400
         else:
             p.birthdate = None
-
-    # phone lưu ở bảng users
     if "phone" in d:
         u.phone = d.get("phone") or None
 
     db.session.commit()
     return {"ok": True, "profile": p.to_dict(), "user": u.to_dict_basic()}
 
-
-@bp.post("/profile")  # hỗ trợ form từ trình duyệt (multipart/form-data)
+@bp.post("/profile")  
 def update_profile_form():
     u, err = _require_user()
     if err:
         return err
-    # Lấy/khởi tạo profile
     p = UserProfile.query.filter_by(user_id=u.id).first()
     if not p:
         p = UserProfile(user_id=u.id)
         db.session.add(p)
-    # Field text từ form
     p.full_name = request.form.get("full_name") or p.full_name
     p.address = request.form.get("address") or p.address
     p.vehicle_info = request.form.get("vehicle_info") or p.vehicle_info
@@ -320,8 +310,7 @@ def update_profile_form():
             from datetime import datetime
             p.birthdate = datetime.strptime(birthdate, "%Y-%m-%d").date()
         except ValueError:
-            pass  # bỏ qua nếu sai format
-    # Phone: có thể lưu ở bảng users (bạn đã dùng như vậy)
+            pass  
     phone = request.form.get("phone")
     if phone is not None:
         from re import sub
@@ -331,14 +320,12 @@ def update_profile_form():
         if digits.startswith("084"):
             digits = "0" + digits[3:]
         u.phone = digits or None
-    # File avatar
     file = request.files.get("avatar")
     if file and file.filename:
         filename, e = _save_avatar(file)
         if not e:
-            p.avatar_url = filename  # chỉ lưu filename
+            p.avatar_url = filename  
     db.session.commit()
-    # Trả JSON (gateway có thể redirect nếu muốn)
     return {
         "ok": True,
         "profile": p.to_dict(),
@@ -348,13 +335,11 @@ def update_profile_form():
         else url_for("static", filename="img/avatar-placeholder.png"),
     }
 
-# Route HTML hiển thị trang hồ sơ trong auth-service (tùy chọn)
 @bp.get("/profile-page", endpoint="profile_html")
 def profile_html():
-    return render_template("profile.html")  # hoặc "profile_only.html"
+    return render_template("profile.html")  
 
-# -------------------- Profile page (HTML) --------------------
-@bp.get("/profile/view")  # KHÔNG trùng với API JSON
+@bp.get("/profile/view") 
 def profile_page():
     user_id = session.get("user_id")
     user = User.query.get(user_id)

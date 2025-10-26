@@ -51,33 +51,22 @@
       </div>
     </div>
 
-    <div class="admin-toolbar">
-      <div class="tabs">
-        <a class="tab active"><i class="fa-solid fa-gauge"></i> Tổng quan</a>
-        <a class="tab"><i class="fa-solid fa-users"></i> Thành viên</a>
-        <a class="tab"><i class="fa-solid fa-car"></i> Bài đăng</a>
-        <a class="tab"><i class="fa-solid fa-receipt"></i> Giao dịch</a>
+    <div class="tabs" id="adminTabs">
+      <a class="tab active" data-tab="overview"><i class="fa-solid fa-gauge"></i> Tổng quan</a>
+      <a class="tab" data-tab="users"><i class="fa-solid fa-users"></i> Thành viên</a>
+      <a class="tab" data-tab="products"><i class="fa-solid fa-car"></i> Bài đăng</a>
+      <a class="tab" data-tab="transactions"><i class="fa-solid fa-receipt"></i> Giao dịch</a>
+    </div>
+    <section class="admin-card" id="users">
+      <div class="section-head">
+        <h2 class="section-title"><i class="fa-solid fa-users"></i> Quản lý thành viên</h2>
       </div>
-      <div class="toolbar-actions">
-        <div class="searchbar">
-          <i class="fa-solid fa-magnifying-glass"></i>
-          <input placeholder="Tìm kiếm…"/>
-        </div>
-        <select class="select">
-          <option value="">Tất cả trạng thái</option>
+      <div class="section-tools">
+        <select id="filterUsers" class="select">
+          <option value="all">Tất cả trạng thái</option>
           <option value="pending">Chờ duyệt</option>
           <option value="approved">Đã duyệt</option>
         </select>
-        <button class="btn btn-primary"><i class="fa-solid fa-arrow-rotate-right"></i> Làm mới</button>
-      </div>
-    </div>
-
-    <section class="admin-card">
-      <div class="section-head">
-        <h2 class="section-title"><i class="fa-solid fa-users"></i> Quản lý thành viên</h2>
-        <div class="section-actions">
-          <button class="btn btn-outline"><i class="fa-solid fa-filter"></i> Lọc</button>
-        </div>
       </div>
       <div class="table-wrap">
         <table class="table">
@@ -94,6 +83,7 @@
           <tbody>
             {% if users is defined and users|length %}
               {% for user in users %}
+              <tr data-status="{{ 'approved' if user.approved else 'pending' }}">
               <tr>
                 <td>{{ user.id }}</td>
                 <td class="td-strong">{{ user.username }}</td>
@@ -132,12 +122,16 @@
       </div>
     </section>
 
-    <section class="admin-card">
+    <section class="admin-card" id="products">
       <div class="section-head">
         <h2 class="section-title"><i class="fa-solid fa-car"></i> Duyệt bài đăng</h2>
-        <div class="section-actions">
-          <button class="btn btn-outline"><i class="fa-solid fa-filter"></i> Lọc</button>
-        </div>
+      </div>
+      <div class="section-tools">
+        <select id="filterPosts" class="select">
+          <option value="all">Tất cả trạng thái</option>
+          <option value="pending">Chờ duyệt</option>
+          <option value="approved">Đã duyệt</option>
+        </select>
       </div>
       <div class="table-wrap">
         <table class="table">
@@ -154,6 +148,7 @@
           <tbody>
             {% if products is defined and products|length %}
               {% for p in products %}
+              <tr data-status="{{ 'approved' if p.approved else 'pending' }}">
               <tr>
                 <td>{{ p.id }}</td>
                 <td class="td-strong">{{ p.name }}</td>
@@ -180,12 +175,9 @@
       </div>
     </section>
 
-    <section class="admin-card">
+    <section class="admin-card" id="transactions">
       <div class="section-head">
         <h2 class="section-title"><i class="fa-solid fa-receipt"></i> Báo cáo giao dịch</h2>
-        <div class="section-actions">
-          <button class="btn btn-outline"><i class="fa-solid fa-filter"></i> Lọc</button>
-        </div>
       </div>
       <div class="table-wrap">
         <table class="table">
@@ -256,6 +248,103 @@
       const m = document.getElementById('adminLoginModal');
       if (ev.target === m) m.style.display = 'none';
     });
+    (function(){
+      const TITLE_MAP = [
+        { key: 'users',        includes: ['Quản lý thành viên','Quản lí thành viên','Thành viên'] },
+        { key: 'products',     includes: ['Duyệt bài đăng','Bài đăng'] },
+        { key: 'transactions', includes: ['Báo cáo giao dịch','Giao dịch'] },
+      ];
+      const VALID = ['overview','users','products','transactions'];
+      const tabs = Array.from(document.querySelectorAll('#adminTabs .tab, .tabs .tab, .tabs a, .tabs button'))
+        .filter(el => /tổng quan|thành viên|bài đăng|giao dịch/i.test(el.textContent || ''));
+      tabs.forEach(el => {
+        const t = (el.dataset.tab || el.textContent || '').toLowerCase();
+        if (!el.dataset.tab) {
+          if (/tổng quan/i.test(t)) el.dataset.tab = 'overview';
+          else if (/thành viên/i.test(t)) el.dataset.tab = 'users';
+          else if (/bài đăng/i.test(t)) el.dataset.tab = 'products';
+          else if (/giao dịch/i.test(t)) el.dataset.tab = 'transactions';
+        }
+      });
+      const cardSelectors = '.admin-card, section, .card';
+      const cards = Array.from(document.querySelectorAll(cardSelectors))
+        .filter(el => {
+          const heading = el.querySelector('h1,h2,h3,h4,.card-title,.title,.header');
+          return heading && heading.textContent && heading.textContent.trim().length > 0;
+        });
+      const panels = [];
+      cards.forEach(card => {
+        const heading = card.querySelector('h1,h2,h3,h4,.card-title,.title,.header');
+        const text = (heading.textContent || '').trim();
+        for (const m of TITLE_MAP) {
+          if (m.includes.some(s => text.toLowerCase().includes(s.toLowerCase()))) {
+            card.dataset.section = m.key;
+            panels.push(card);
+            break;
+          }
+        }
+      });
+      if (panels.length === 0) return;
+
+      function activate(view){
+        tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === view));
+        if (view === 'overview') {
+          panels.forEach(p => p.classList.remove('is-hidden'));
+        } else {
+          panels.forEach(p => p.classList.toggle('is-hidden', p.dataset.section !== view));
+        }
+      }
+
+      function initFromHash(){
+        const h = (location.hash || '#overview').slice(1);
+        const view = VALID.includes(h) ? h : 'overview';
+        activate(view);
+      }
+      tabs.forEach(tab => {
+        tab.addEventListener('click', (e) => {
+          e.preventDefault();
+          const view = tab.dataset.tab;
+          if (!VALID.includes(view)) return;
+          history.replaceState(null, '', '#' + view);
+          activate(view);
+        });
+      });
+
+      window.addEventListener('hashchange', initFromHash);
+      initFromHash();
+    })();
+
+    (function(){
+      function setupStatusFilter(selectId, sectionSelector){
+        const sel = document.getElementById(selectId);
+        const section = document.querySelector(sectionSelector);
+        if (!sel || !section) return;
+        const rows = Array.from(section.querySelectorAll('tbody tr'));
+        function ensureStatus(tr){
+          if (tr.dataset.status) return tr.dataset.status;
+          const t = (tr.innerText || '').toLowerCase();
+          if (t.includes('chờ duyệt')) return tr.dataset.status = 'pending';
+          if (t.includes('đã duyệt')) return tr.dataset.status = 'approved';
+          return tr.dataset.status = 'unknown';
+        }
+        rows.forEach(ensureStatus);
+
+        function apply(){
+          const v = sel.value; 
+          rows.forEach(tr => {
+            const st = tr.dataset.status || ensureStatus(tr);
+            tr.classList.toggle('is-hidden', !(v === 'all' || v === st));
+          });
+        }
+
+        sel.addEventListener('change', apply);
+        window.addEventListener('hashchange', apply);
+        apply();
+      }
+
+      setupStatusFilter('filterUsers', '#users');
+      setupStatusFilter('filterPosts', '#products');
+    })();
   </script>
   <style>
     .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1000;display:none}
@@ -264,6 +353,12 @@
     .flash-message{padding:10px;border-radius:10px;margin-bottom:8px}
     .flash-success{background:#ecfdf5;color:#166534;border:1px solid #bbf7d0}
     .flash-error{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+    .is-hidden { display: none !important; }
+    .tab.active { font-weight: 700; }
+    .section-head{
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+    }
+    .section-tools{ margin-left:auto; display:flex; gap:8px; }
   </style>
 
   <footer class="footer">
