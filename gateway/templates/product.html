@@ -54,11 +54,27 @@
         </div>
 
         <div class="actions" style="margin-top:12px">
+          <!-- Thêm vào giỏ -->
           <form method="post" action="{{ url_for('cart_add', pid=p.id) }}">
             <input type="number" name="qty" value="1" min="1" style="width:90px;padding:8px;border-radius:8px;border:1px solid #d1d5db">
-            <button class="btn btn-outline" type="submit"><i class="fas fa-cart-plus"></i> Thêm vào giỏ</button>
+            <button class="btn btn-outline" type="submit">
+              <i class="fas fa-cart-plus"></i> Thêm vào giỏ
+            </button>
           </form>
-          <a class="btn btn-primary" href="{{ url_for('cart_view') }}"><i class="fas fa-shopping-cart"></i> Xem giỏ hàng</a>
+
+          <!-- Xem giỏ -->
+          <a class="btn btn-primary" href="{{ url_for('cart_view') }}">
+            <i class="fas fa-shopping-cart"></i> Xem giỏ hàng
+          </a>
+
+          <!-- MUA NGAY: gọi POST /buy/<id> trên gateway -->
+          <form method="post" action="/buy/{{ p.id }}">
+            <input type="hidden" name="method" value="e-wallet">
+            <input type="hidden" name="provider" value="DemoPay">
+            <button class="btn btn-primary" type="submit">
+              <i class="fas fa-bolt"></i> Mua ngay
+            </button>
+          </form>
         </div>
       </div>
     </div>

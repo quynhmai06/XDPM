@@ -65,6 +65,7 @@
       <h2 class="section-title">Xe điện nổi bật</h2>
       <a href="#" class="view-all">Xem tất cả</a>
     </div>
+
     <div class="product-grid">
       <!-- Sản phẩm #1 -->
       <div class="product-card" data-id="1" data-price="590000000" data-seller="302">
@@ -79,6 +80,13 @@
         <div class="product-actions">
           <a href="/product/1" class="button outline">Xem sản phẩm</a>
           <button class="button outline" onclick="addToCart(1)">Thêm giỏ</button>
+
+          <!-- MUA NGAY: POST /buy/1 -->
+          <form method="post" action="/buy/1" style="display:inline">
+            <input type="hidden" name="method" value="e-wallet">
+            <input type="hidden" name="provider" value="DemoPay">
+            <button class="button primary" type="submit"><i class="fas fa-bolt"></i> Mua ngay</button>
+          </form>
         </div>
       </div>
 
@@ -95,6 +103,13 @@
         <div class="product-actions">
           <a href="/product/2" class="button outline">Xem sản phẩm</a>
           <button class="button outline" onclick="addToCart(2)">Thêm giỏ</button>
+
+          <!-- MUA NGAY: POST /buy/2 -->
+          <form method="post" action="/buy/2" style="display:inline">
+            <input type="hidden" name="method" value="e-wallet">
+            <input type="hidden" name="provider" value="DemoPay">
+            <button class="button primary" type="submit"><i class="fas fa-bolt"></i> Mua ngay</button>
+          </form>
         </div>
       </div>
     </div>
@@ -108,58 +123,7 @@
     <div class="product-grid"></div>
   </section>
 
-  <!-- ====== PAYMENT & DIGITAL CONTRACT DEMO (giữ nguyên) ====== -->
-  <section class="product-section">
-    <div class="section-header">
-      <h2 class="section-title">Giao dịch & Thanh toán</h2>
-      <span class="view-all">Demo e-wallet / banking & hợp đồng số</span>
-    </div>
-
-    <div class="product-grid" style="grid-template-columns: 1fr 1fr;">
-      <div class="product-card" style="padding:16px">
-        <h3 class="product-title">Tạo thanh toán</h3>
-        <form id="payForm" class="form-grid">
-          <div class="form-row"><label>Order ID</label><input name="order_id" value="1001"/></div>
-          <div class="form-row"><label>Số tiền (VND)</label><input name="amount" value="150000000"/></div>
-          <div class="form-row"><label>Buyer ID</label><input name="buyer_id" value="501"/></div>
-          <div class="form-row"><label>Seller ID</label><input name="seller_id" value="302"/></div>
-          <div class="form-row">
-            <label>Phương thức</label>
-            <select name="method">
-              <option value="e-wallet">E-Wallet</option>
-              <option value="banking">Banking</option>
-            </select>
-          </div>
-          <div class="form-row"><label>Provider</label><input name="provider" value="DemoPay"/></div>
-          <button class="post-button" type="submit">Tạo thanh toán</button>
-        </form>
-        <div id="payResult" class="small mt-2"></div>
-
-        <div class="mt-2">
-          <button id="btnSimulate" class="button outline">Giả lập thanh toán (Paid)</button>
-          <input id="simPid" class="input small" style="width:160px" placeholder="payment_id">
-          <span id="simResult" class="small ms-2"></span>
-        </div>
-      </div>
-
-      <div class="product-card" style="padding:16px">
-        <h3 class="product-title">Hợp đồng mua bán số hóa</h3>
-        <form id="contractForm" class="form-grid">
-          <div class="form-row"><label>Payment ID</label><input name="payment_id" placeholder="ID từ bước tạo thanh toán"/></div>
-          <div class="form-row"><label>Tiêu đề</label><input name="title" value="Hợp đồng mua bán xe điện cũ"/></div>
-          <div class="form-row"><label>Nội dung</label><textarea name="content" rows="6">Bên A (Người bán) cam kết tình trạng pin theo mô tả; Bên B (Người mua) thanh toán đủ số tiền...</textarea></div>
-          <button class="post-button" type="submit">Tạo hợp đồng</button>
-        </form>
-        <hr style="margin:12px 0;border:none;border-top:1px solid #eee">
-        <form id="signForm" class="form-grid">
-          <div class="form-row"><label>Contract ID</label><input name="contract_id" placeholder="ID hợp đồng vừa tạo"/></div>
-          <div class="form-row"><label>Người ký</label><input name="signer_name" value="Nguyễn Văn B"/></div>
-          <button class="button outline" type="submit">Ký điện tử</button>
-        </form>
-        <div id="contractResult" class="small mt-2"></div>
-      </div>
-    </div>
-  </section>
+  <!-- ====== PAYMENT & DIGITAL CONTRACT DEMO (giữ nguyên nếu bạn có block này ở dưới) ====== -->
 
   <footer class="footer"><p>© 2025 EV Trading Platform. Tất cả quyền được bảo lưu.</p></footer>
 
@@ -167,7 +131,7 @@
     function toggleUserMenu(e){
       e.preventDefault();
       const dd = document.getElementById('userDropdown');
-      dd.style.display = (!dd.style.display || dd.style.display === 'none') ? 'block' : 'none';
+      dd && (dd.style.display = (!dd.style.display || dd.style.display === 'none') ? 'block' : 'none');
     }
     document.addEventListener('click', function(ev){
       const wrap = document.querySelector('.user-avatar-wrap');
@@ -192,64 +156,84 @@
       }catch(e){ alert('Lỗi kết nối khi thêm giỏ'); }
     }
 
-    document.getElementById('payForm').addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const payload = Object.fromEntries(fd.entries());
-      payload.order_id = Number(payload.order_id);
-      payload.buyer_id = Number(payload.buyer_id);
-      payload.seller_id = Number(payload.seller_id);
-      payload.amount = Number(payload.amount);
-      const res = await postJSON('/api/payments/create', payload);
-      const box = document.getElementById('payResult');
-      if(res.ok){
-        box.innerHTML = `✅ Tạo payment_id=<b>${res.data.payment_id}</b>, trạng thái: <b>${res.data.status}</b><br>
-          Checkout: <code>${res.data.checkout_url}</code><br>
-          Gợi ý: copy payment_id để tạo hợp đồng.`;
-        document.getElementById('simPid').value = res.data.payment_id;
-      } else {
-        box.innerHTML = '❌ ' + (res.data.error || 'Lỗi tạo thanh toán');
-      }
-    });
+    // Các listener dưới đây chỉ gắn khi block DEMO tồn tại để tránh lỗi JS
+    const payForm = document.getElementById('payForm');
+    if (payForm){
+      payForm.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const payload = Object.fromEntries(fd.entries());
+        payload.order_id = Number(payload.order_id);
+        payload.buyer_id = Number(payload.buyer_id);
+        payload.seller_id = Number(payload.seller_id);
+        payload.amount = Number(payload.amount);
+        const res = await postJSON('/api/payments/create', payload);
+        const box = document.getElementById('payResult');
+        if(res.ok){
+          box.innerHTML = `✅ Tạo payment_id=<b>${res.data.payment_id}</b>, trạng thái: <b>${res.data.status}</b><br>
+            Checkout: <code>${res.data.checkout_url}</code><br>
+            Gợi ý: copy payment_id để tạo hợp đồng.`;
+          const simPid = document.getElementById('simPid');
+          if (simPid) simPid.value = res.data.payment_id;
+        } else {
+          box.innerHTML = '❌ ' + (res.data.error || 'Lỗi tạo thanh toán');
+        }
+      });
+    }
 
-    document.getElementById('btnSimulate').addEventListener('click', async ()=>{
-      const pid = document.getElementById('simPid').value.trim();
-      if(!pid) return alert('Nhập payment_id');
-      const r = await fetch(`/api/payments/simulate/${pid}`);
-      const t = await r.json();
-      document.getElementById('simResult').textContent = r.ok ? `Đã thanh toán: ${t.status}` : 'Lỗi simulate';
-    });
+    const btnSimulate = document.getElementById('btnSimulate');
+    if (btnSimulate){
+      btnSimulate.addEventListener('click', async ()=>{
+        const pidInput = document.getElementById('simPid');
+        const pid = pidInput ? pidInput.value.trim() : '';
+        if(!pid) return alert('Nhập payment_id');
+        const r = await fetch(`/api/payments/simulate/${pid}`);
+        const t = await r.json();
+        const box = document.getElementById('simResult');
+        if (box) box.textContent = r.ok ? `Đã thanh toán: ${t.status}` : 'Lỗi simulate';
+      });
+    }
 
-    document.getElementById('contractForm').addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const payload = Object.fromEntries(fd.entries());
-      payload.payment_id = Number(payload.payment_id);
-      const res = await postJSON('/api/contracts/create', payload);
-      const box = document.getElementById('contractResult');
-      box.innerHTML = res.ok ? `✅ Tạo contract_id=<b>${res.data.contract_id}</b>` : '❌ ' + (res.data.error||'Lỗi tạo hợp đồng');
-    });
+    const contractForm = document.getElementById('contractForm');
+    if (contractForm){
+      contractForm.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const payload = Object.fromEntries(fd.entries());
+        payload.payment_id = Number(payload.payment_id);
+        const res = await postJSON('/api/contracts/create', payload);
+        const box = document.getElementById('contractResult');
+        if (box) box.innerHTML = res.ok ? `✅ Tạo contract_id=<b>${res.data.contract_id}</b>` : '❌ ' + (res.data.error||'Lỗi tạo hợp đồng');
+      });
+    }
 
-    document.getElementById('signForm').addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const payload = Object.fromEntries(fd.entries());
-      payload.contract_id = Number(payload.contract_id);
-      const res = await postJSON('/api/contracts/sign', payload);
-      const box = document.getElementById('contractResult');
-      if(res.ok){
-        box.innerHTML = `🖊️ Đã ký hợp đồng #<b>${payload.contract_id}</b><br>
-          <b>JWT:</b> <code style="word-break:break-all">${res.data.signature_jwt}</code><br>
-          Tra cứu: <code>/api/contracts/view/${payload.contract_id}</code>`;
-      } else {
-        box.innerHTML = '❌ ' + (res.data.error||'Lỗi ký hợp đồng');
-      }
-    });
+    const signForm = document.getElementById('signForm');
+    if (signForm){
+      signForm.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const payload = Object.fromEntries(fd.entries());
+        payload.contract_id = Number(payload.contract_id);
+        const res = await postJSON('/api/contracts/sign', payload);
+        const box = document.getElementById('contractResult');
+        if (box){
+          if(res.ok){
+            box.innerHTML = `🖊️ Đã ký hợp đồng #<b>${payload.contract_id}</b><br>
+              <b>JWT:</b> <code style="word-break:break-all">${res.data.signature_jwt}</code><br>
+              Tra cứu: <code>/api/contracts/view/${payload.contract_id}</code>`;
+          } else {
+            box.innerHTML = '❌ ' + (res.data.error||'Lỗi ký hợp đồng');
+          }
+        }
+      });
+    }
   </script>
 
   <style>
     .product-actions{display:flex;gap:8px;padding:10px 14px 14px}
-    .button.outline{border:1px solid #ccc;background:#fff;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .button{border:1px solid #ccc;background:#fff;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .button.outline{border-color:#ccc;background:#fff}
+    .button.primary{border-color:#111827;background:#111827;color:#fff}
   </style>
 </body>
 </html>

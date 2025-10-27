@@ -1,43 +1,69 @@
-from flask import Blueprint, request
+from flask import Blueprint, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User
 import jwt, datetime, os
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
-SECRET = os.getenv("JWT_SECRET", "devsecret")  # phải trùng với gateway
+
+# Đọc secret/algorithm thống nhất từ ENV (ưu tiên JWT_SECRET_KEY)
+SECRET     = os.getenv("JWT_SECRET_KEY") or os.getenv("JWT_SECRET") or "supersecret-dev"
+ALGORITHM  = os.getenv("JWT_ALGORITHM", "HS256")
 
 # ===== Helpers =====
 def _make_token(u: User) -> str:
+    # PyJWT v2 yêu cầu 'sub' là STRING -> ép sang str để tránh InvalidSubjectError
     payload = {
-        "sub": u.id,
+        "sub": str(u.id),
         "username": u.username,
         "role": u.role,
         "approved": u.approved,
         "locked": u.locked,
+        "iat": datetime.datetime.utcnow(),
         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=6),
     }
-    return jwt.encode(payload, SECRET, algorithm="HS256")
+    token = jwt.encode(payload, SECRET, algorithm=ALGORITHM)
+    # PyJWT v1 trả bytes -> ép về str để chắc chắn
+    if isinstance(token, bytes):
+        token = token.decode()
+    return token
+
+def _decode_bearer_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
+        return payload, None
+    except jwt.ExpiredSignatureError as e:
+        print(f"[auth] decode error: ExpiredSignatureError: {e}")
+        return None, ({"error": "expired"}, 401)
+    except jwt.InvalidSignatureError as e:
+        print(f"[auth] decode error: InvalidSignatureError: {e}")
+        return None, ({"error": "bad_signature"}, 401)
+    except jwt.DecodeError as e:
+        print(f"[auth] decode error: DecodeError: {e}")
+        return None, ({"error": "malformed"}, 401)
+    except Exception as e:
+        print(f"[auth] decode error: {type(e).__name__}: {e}")
+        return None, ({"error": "invalid_token"}, 401)
 
 def _require_admin():
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
         return None, ({"error": "no_token"}, 401)
-    token = auth.split(" ", 1)[1]
-    try:
-        payload = jwt.decode(token, SECRET, algorithms=["HS256"])
-    except Exception:
-        return None, ({"error": "invalid_token"}, 401)
+    token = auth.split(" ", 1)[1].strip()
+    payload, err = _decode_bearer_token(token)
+    if err:
+        return None, err
     if payload.get("role") != "admin":
         return None, ({"error": "forbidden"}, 403)
     return payload, None
 
 def _bearer_from_request():
-    """Lấy token từ header Authorization: Bearer <token>"""
+    """Lấy token từ header Authorization: Bearer <token> (fallback x-access-token)"""
     auth = (request.headers.get("Authorization") or "").strip()
     parts = auth.split(None, 1)
     if len(parts) == 2 and parts[0].lower() == "bearer":
         return parts[1].strip()
-    return None
+    # fallback cho một số client cũ
+    return (request.headers.get("x-access-token") or "").strip()
 
 # ===== Public =====
 @bp.get("/")
@@ -87,22 +113,23 @@ def me():
     if not token:
         return {"error": "no_token"}, 401
 
-    try:
-        payload = jwt.decode(token, SECRET, algorithms=["HS256"])
-        return payload, 200
+    payload, err = _decode_bearer_token(token)
+    if err:
+        return err
 
-    except jwt.ExpiredSignatureError as e:
-        print(f"[auth] /me decode error: ExpiredSignatureError: {e}")
-        return {"error": "expired"}, 401
-    except jwt.InvalidSignatureError as e:
-        print(f"[auth] /me decode error: InvalidSignatureError: {e}")
-        return {"error": "bad_signature"}, 401
-    except jwt.DecodeError as e:
-        print(f"[auth] /me decode error: DecodeError: {e}")
-        return {"error": "malformed"}, 401
-    except Exception as e:
-        print(f"[auth] /me decode error: {type(e).__name__}: {e}")
-        return {"error": "invalid_token"}, 401
+    # Chuẩn hoá response, ép sub về int nếu cần
+    uid = payload.get("sub")
+    try:
+        uid = int(uid)
+    except Exception:
+        pass
+    return jsonify({
+        "id": uid,
+        "username": payload.get("username"),
+        "role": payload.get("role"),
+        "approved": payload.get("approved"),
+        "locked": payload.get("locked"),
+    }), 200
 
 # ===== Admin APIs (JWT role=admin) =====
 @bp.get("/admin/users")

@@ -1,14 +1,23 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
-import os, requests, uuid
+# app.py (GATEWAY) - FULL (đã sửa + bổ sung ADMIN_URL, admin bridge, admin_login)
+import os
+import uuid
+import requests
+from flask import (
+    Flask, render_template, request, redirect, url_for,
+    jsonify, session, flash, Response
+)
 
-# ==== Upstream services ====
-AUTH_URL     = os.getenv("AUTH_URL", "http://auth_service:5001")
-PAYMENT_URL  = os.getenv("PAYMENT_URL", "http://payment_service:5003")
+# ====================== CẤU HÌNH DỊCH VỤ UPSTREAM ======================
+AUTH_URL    = os.getenv("AUTH_URL", "http://auth_service:5001")
+PAYMENT_URL = os.getenv("PAYMENT_URL", "http://payment_service:5003")
+PAYMENT_PUBLIC_URL = os.getenv("PAYMENT_PUBLIC_URL", "http://localhost:5003")  # dùng khi muốn mở trực tiếp ngoài proxy
+ADMIN_URL   = os.getenv("ADMIN_URL", "http://admin_service:5002")              # <-- BỔ SUNG
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
-app.secret_key = os.getenv("GATEWAY_SECRET", "dev")
+app.secret_key = os.getenv("GATEWAY_SECRET", "dev-gateway-secret")
 
-# ==== Catalog demo ====
+
+# ========================== DEMO CATALOG / PRODUCT ==========================
 CATALOG = {
     1: {
         "id": 1,
@@ -18,9 +27,8 @@ CATALOG = {
         "img": "/static/images/v1.jpg",
         "location": "TP. Hồ Chí Minh",
         "description": (
-            "Xe VinFast VF e34 màu trắng, odo 8.000 km, pin còn 95% dung lượng.\n"
-            "Bảo dưỡng chính hãng, không tai nạn, bao test tại hãng.\n"
-            "Trang bị ADAS cơ bản, nội thất nỉ giữ gìn, 2 chìa khoá."
+            "Xe VinFast VF e34 màu trắng, odo 8.000 km, pin ~95%.\n"
+            "Bảo dưỡng chính hãng, không tai nạn; nội thất nỉ giữ gìn."
         ),
         "seller_info": {"name": "Nguyễn Văn A", "phone": "0901 234 567", "email": "nguyenvana@example.com"}
     },
@@ -33,8 +41,7 @@ CATALOG = {
         "location": "Hà Nội",
         "description": (
             "Tesla Model 3 SR+ nhập Mỹ, odo 15.000 km, pin ~98%.\n"
-            "Tình trạng xe đẹp, không va chạm; Autopilot kích hoạt cơ bản.\n"
-            "Hỗ trợ sang tên toàn quốc, có thể kiểm tra tại gara bên mua chỉ định."
+            "Tình trạng xe đẹp; Autopilot cơ bản; hỗ trợ kiểm tra gara chỉ định."
         ),
         "seller_info": {"name": "Trần Thị B", "phone": "0912 888 333", "email": "tranthib@example.com"}
     },
@@ -42,301 +49,356 @@ CATALOG = {
 def get_product(pid: int):
     return CATALOG.get(int(pid))
 
-# ===== Helpers =====
-def is_admin_session() -> bool:
-    user = session.get("user")
-    return bool(user and user.get("role") == "admin")
 
-def _proxy_json(method: str, url: str, payload=None):
+# =============================== HELPERS ===============================
+def _proxy_json(method: str, url: str, payload=None, timeout=10):
+    """Gọi HTTP tới upstream (Auth/Payment/Admin) và chuẩn hóa về (data, status_code)."""
     try:
-        r = requests.request(method, url, json=payload, timeout=8)
-        if r.headers.get("content-type", "").startswith("application/json"):
-            return (r.json(), r.status_code)
-        return ({"message": r.text}, r.status_code)
+        r = requests.request(method, url, json=payload, timeout=timeout)
+        ct = (r.headers.get("content-type") or "").lower()
+        data = r.json() if ct.startswith("application/json") else {"message": r.text}
+        return data, r.status_code
     except requests.RequestException as e:
-        return ({"error": f"upstream error: {type(e).__name__}"}, 502)
+        return {"error": f"upstream_error:{type(e).__name__}"}, 502
+
 
 def verify_via_auth(token: str):
-    """Xác thực token bằng AUTH_URL/auth/me, gửi cả header và query để tránh rơi header."""
+    """
+    Xác thực token bằng AUTH_URL/auth/me (đính kèm cả header & query).
+    Trả về (payload, error_message).
+    """
     if not token:
-        return None, "Token rỗng"
+        return None, "Token rỗng."
     try:
         r = requests.get(
             f"{AUTH_URL}/auth/me",
             headers={"Authorization": f"Bearer {token}"},
-            params={"token": token},   # <-- thêm gửi qua query
-            timeout=5,
+            params={"token": token},
+            timeout=6,
         )
     except requests.RequestException:
         return None, "Không kết nối được Auth service."
     if r.status_code != 200:
-        # cố đọc chi tiết lỗi từ auth
         try:
             err = (r.json() or {}).get("error")
         except Exception:
             err = None
-        return None, f"Token không hợp lệ" + (f" ({err})" if err else "")
+        return None, "Token không hợp lệ" + (f" ({err})" if err else "")
     try:
         return r.json(), None
     except Exception:
         return None, "Auth service trả về payload không hợp lệ."
 
-# ---- Cart helpers (lưu trong session) ----
-def _cart():
-    return session.setdefault("cart", {})
 
-def cart_items():
-    cart = _cart()
-    items, total = [], 0
-    for pid_str, qty in cart.items():
-        p = get_product(int(pid_str))
-        if not p: continue
-        line_total = p["price"] * qty
-        items.append({**p, "qty": qty, "line_total": line_total})
-        total += line_total
-    return items, total
-
-# ===== UI =====
-@app.route("/", endpoint="home")
+# ================================ PAGES ================================
+@app.get("/")
 def home():
     return render_template("index.html")
 
-# ===== Auth & Admin =====
-@app.route("/login", methods=["GET", "POST"], endpoint="login_page")
-def login_page():
-    if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "")
-        if not username or not password:
-            flash("Vui lòng nhập đầy đủ thông tin.", "error")
-            return render_template("login.html")
+@app.get("/policy")
+def policy_page():
+    return render_template("policy.html")
 
-        # gọi auth/login để lấy token
-        try:
-            r = requests.post(f"{AUTH_URL}/auth/login",
-                              json={"username": username, "password": password},
-                              timeout=5)
-        except requests.RequestException:
-            flash("Không kết nối được Auth service.", "error")
-            return render_template("login.html")
-
-        if not r.ok:
-            # cố đọc chi tiết lỗi từ auth
-            msg = None
-            try: msg = r.json().get("error")
-            except Exception: pass
-            flash(msg or "Đăng nhập thất bại.", "error")
-            return render_template("login.html")
-
-        token = (r.json() or {}).get("access_token")
-        if not token:
-            flash("Auth service không trả về access_token.", "error")
-            return render_template("login.html")
-
-        # ✅ không tự decode nữa — xác thực qua /auth/me
-        payload, err = verify_via_auth(token)
-        if err:
-            flash(f"{err}.", "error")
-            return render_template("login.html")
-
-        session["access_token"] = token
-        session["user"] = payload
-        next_url = request.args.get("next") or session.pop("next_after_login", None)
-        if payload.get("role") == "admin":
-            return redirect(next_url or url_for("admin_page"))
-        return redirect(next_url or url_for("home"))
-
-    return render_template("login.html")
-
-@app.route("/register", methods=["GET", "POST"], endpoint="register_page")
-def register_page():
-    if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        email = request.form.get("email", "").strip()
-        password = request.form.get("password", "")
-        confirm = request.form.get("confirm_password", "")
-        if password != confirm:
-            flash("Mật khẩu xác nhận không khớp.", "error")
-            return render_template("register.html")
-        try:
-            r = requests.post(f"{AUTH_URL}/auth/register",
-                              json={"username": username, "email": email, "password": password},
-                              timeout=5)
-        except requests.RequestException:
-            flash("Không kết nối được Auth service.", "error")
-            return render_template("register.html")
-
-        if r.status_code in (200, 201):
-            flash("Đăng ký thành công! Vui lòng chờ admin duyệt.", "success")
-            return redirect(url_for("login_page"))
-
-        msg = r.json().get("error") if r.headers.get("content-type","").startswith("application/json") else None
-        flash(msg or "Đăng ký thất bại.", "error")
-    return render_template("register.html")
-
-@app.get("/logout", endpoint="logout_page")
-def logout_page():
-    was_admin = is_admin_session()
-    session.clear()
-    flash("Đã đăng xuất!", "success")
-    return redirect(url_for("admin_page") if was_admin else url_for("home"))
-
-@app.route("/admin", methods=["GET"], endpoint="admin_page")
-def admin_page():
-    users, products, transactions = [], [], []
-    if is_admin_session():
-        try:
-            headers = {"Authorization": f"Bearer {session['access_token']}"}
-            r = requests.get(f"{AUTH_URL}/auth/admin/users", headers=headers, timeout=5)
-            if r.ok and r.headers.get("content-type","").startswith("application/json"):
-                users = r.json().get("data", [])
-            else:
-                flash("Không lấy được danh sách người dùng.", "error")
-        except requests.RequestException:
-            flash("Không kết nối được auth service.", "error")
-    return render_template("admin.html",
-                           users=users, products=products, transactions=transactions,
-                           is_admin=is_admin_session())
-
-@app.post("/admin/login", endpoint="admin_login")
-def admin_login():
-    username = request.form.get("username", "").strip()
-    password = request.form.get("password", "")
-    if not username or not password:
-        flash("Vui lòng nhập đầy đủ thông tin.", "error")
-        return redirect(url_for("admin_page"))
-    try:
-        r = requests.post(f"{AUTH_URL}/auth/login",
-                          json={"username": username, "password": password},
-                          timeout=5)
-    except requests.RequestException:
-        flash("Không kết nối được Auth service.", "error")
-        return redirect(url_for("admin_page"))
-    if not r.ok:
-        flash("Đăng nhập thất bại.", "error")
-        return redirect(url_for("admin_page"))
-
-    token = (r.json() or {}).get("access_token")
-    if not token:
-        flash("Auth service không trả về access_token.", "error")
-        return redirect(url_for("admin_page"))
-
-    payload, err = verify_via_auth(token)
-    if err:
-        flash(f"{err}.", "error")
-        return redirect(url_for("admin_page"))
-
-    if payload.get("role") != "admin":
-        flash("Tài khoản không phải admin.", "error")
-        return redirect(url_for("admin_page"))
-
-    session["access_token"] = token
-    session["user"] = payload
-    flash("Đăng nhập admin thành công!", "success")
-    return redirect(url_for("admin_page"))
-
-@app.route("/admin/approve_user/<int:user_id>", methods=["POST", "GET"])
-def approve_user(user_id):
-    if not is_admin_session():
-        session["next_after_login"] = url_for("approve_user", user_id=user_id)
-        return redirect(url_for("login_page"))
-    try:
-        headers = {"Authorization": f"Bearer {session['access_token']}", "Content-Type": "application/json"}
-        r = requests.patch(f"{AUTH_URL}/auth/users/{user_id}/status",
-                           json={"status": "approved"}, headers=headers, timeout=5)
-        flash("Đã duyệt tài khoản." if r.ok else "Duyệt thất bại.",
-              "success" if r.ok else "error")
-    except requests.RequestException:
-        flash("Không kết nối được auth service.", "error")
-    return redirect(url_for("admin_page"))
-
-@app.get("/admin/delete_user/<int:user_id>", endpoint="delete_user")
-def delete_user(user_id):
-    if not is_admin_session():
-        session["next_after_login"] = url_for("delete_user", user_id=user_id)
-        return redirect(url_for("login_page"))
-    try:
-        headers = {"Authorization": f"Bearer {session['access_token']}", "Content-Type": "application/json"}
-        r = requests.patch(f"{AUTH_URL}/auth/users/{user_id}/status",
-                           json={"status": "locked"}, headers=headers, timeout=5)
-        flash("Đã khóa tài khoản (thay cho xóa)." if r.ok else "Khóa tài khoản thất bại.",
-              "success" if r.ok else "error")
-    except requests.RequestException:
-        flash("Không kết nối được auth service.", "error")
-    return redirect(url_for("admin_page"))
-
-# ===== Payment & Digital Contract (proxy) =====
-@app.post("/api/payments/create")
-def gw_pay_create():
-    payload = request.get_json(silent=True) or {}
-    data, code = _proxy_json("POST", f"{PAYMENT_URL}/payment/create", payload)
-    return jsonify(data), code
-
-@app.get("/api/payments/simulate/<int:pid>")
-def gw_pay_sim(pid):
-    data, code = _proxy_json("GET", f"{PAYMENT_URL}/payment/simulate/{pid}")
-    return jsonify(data), code
-
-@app.post("/api/contracts/create")
-def gw_contract_create():
-    payload = request.get_json(silent=True) or {}
-    data, code = _proxy_json("POST", f"{PAYMENT_URL}/payment/contract/create", payload)
-    return jsonify(data), code
-
-@app.post("/api/contracts/sign")
-def gw_contract_sign():
-    payload = request.get_json(silent=True) or {}
-    data, code = _proxy_json("POST", f"{PAYMENT_URL}/payment/contract/sign", payload)
-    return jsonify(data), code
-
-@app.get("/api/contracts/view/<int:cid>")
-def gw_contract_view(cid):
-    data, code = _proxy_json("GET", f"{PAYMENT_URL}/payment/contract/view/{cid}")
-    return jsonify(data), code
-
-# ===== Product detail / Cart =====
 @app.get("/product/<int:pid>")
-def product_detail(pid):
+def product_detail(pid: int):
     p = get_product(pid)
     if not p:
         flash("Sản phẩm không tồn tại.", "error")
         return redirect(url_for("home"))
     return render_template("product.html", p=p)
 
-@app.post("/buy/<int:pid>")
-def buy_now(pid):
-    p = get_product(pid)
-    if not p:
-        return jsonify({"error": "not found"}), 404
-    payload = {
-        "order_id": int(str(uuid.uuid4().int)[-9:]),
-        "buyer_id": session.get("user", {}).get("id", 0),
-        "seller_id": p["seller_id"],
-        "amount": p["price"],
-        "method": request.form.get("method", "e-wallet"),
-        "provider": request.form.get("provider", "DemoPay"),
-    }
+# ✅ GIỮ ĐÚNG GIAO DIỆN THANH TOÁN: ui.html
+@app.get("/payment/ui")
+def payment_ui():
+    return render_template("ui.html")
+
+
+# ============================== AUTH PAGES ==============================
+@app.get("/login")
+def login_page():
+    return render_template("login.html")
+
+@app.post("/login")
+def do_login():
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
+    if not username or not password:
+        flash("Vui lòng nhập đầy đủ thông tin.", "error")
+        return redirect(url_for("login_page"))
+    # Gọi auth/login để lấy token
     try:
-        r = requests.post(f"{PAYMENT_URL}/payment/create", json=payload, timeout=8)
-        if r.ok:
-            flash(f"Tạo thanh toán thành công (payment_id={r.json().get('payment_id')}).", "success")
-        else:
-            flash("Tạo thanh toán thất bại.", "error")
+        r = requests.post(f"{AUTH_URL}/auth/login",
+                          json={"username": username, "password": password},
+                          timeout=6)
     except requests.RequestException:
-        flash("Không kết nối được payment-service.", "error")
-    return redirect(url_for("product_detail", pid=pid))
+        flash("Không kết nối được Auth service.", "error")
+        return redirect(url_for("login_page"))
+    if not r.ok:
+        try:
+            msg = r.json().get("error")
+        except Exception:
+            msg = "Đăng nhập thất bại."
+        flash(msg, "error")
+        return redirect(url_for("login_page"))
+
+    token = (r.json() or {}).get("access_token")
+    if not token:
+        flash("Auth service không trả về access_token.", "error")
+        return redirect(url_for("login_page"))
+
+    payload, err = verify_via_auth(token)
+    if err:
+        flash(err, "error")
+        return redirect(url_for("login_page"))
+
+    session["access_token"] = token
+    session["user"] = payload
+    flash("Đăng nhập thành công.", "success")
+    next_url = request.args.get("next") or session.pop("next_after_login", None)
+    return redirect(next_url or url_for("home"))
+
+@app.get("/register")
+def register_page():
+    return render_template("register.html")
+
+@app.post("/register")
+def do_register():
+    username = request.form.get("username", "").strip()
+    email    = request.form.get("email", "").strip()
+    password = request.form.get("password", "")
+    confirm  = request.form.get("confirm_password", "")
+    if not username or not email or not password:
+        flash("Vui lòng nhập đủ Username/Email/Password.", "error")
+        return redirect(url_for("register_page"))
+    if password != confirm:
+        flash("Mật khẩu xác nhận không khớp.", "error")
+        return redirect(url_for("register_page"))
+    try:
+        r = requests.post(f"{AUTH_URL}/auth/register",
+                          json={"username": username, "email": email, "password": password},
+                          timeout=8)
+    except requests.RequestException:
+        flash("Không kết nối được Auth service.", "error")
+        return redirect(url_for("register_page"))
+    if r.status_code in (200, 201):
+        flash("Đăng ký thành công! Mời đăng nhập.", "success")
+        return redirect(url_for("login_page"))
+    try:
+        msg = r.json().get("error")
+    except Exception:
+        msg = "Đăng ký thất bại."
+    flash(msg, "error")
+    return redirect(url_for("register_page"))
+
+@app.get("/logout")
+def logout_page():
+    session.clear()
+    flash("Đã đăng xuất.", "success")
+    return redirect(url_for("home"))
+
+
+# ============================== ADMIN PAGES ==============================
+def is_admin_session() -> bool:
+    user = session.get("user")
+    return bool(user and user.get("role") == "admin")
+
+# Modal trong templates/admin.html POST tới route này
+@app.post("/admin/login")
+def admin_login():
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
+    if not username or not password:
+        flash("Vui lòng nhập đủ thông tin.", "error")
+        return redirect(url_for("admin_page"))
+
+    try:
+        r = requests.post(f"{AUTH_URL}/auth/login",
+                          json={"username": username, "password": password},
+                          timeout=6)
+    except requests.RequestException:
+        flash("Không kết nối được Auth service.", "error")
+        return redirect(url_for("admin_page"))
+
+    if not r.ok:
+        flash("Đăng nhập admin thất bại.", "error")
+        return redirect(url_for("admin_page"))
+
+    token = (r.json() or {}).get("access_token")
+    payload, err = verify_via_auth(token)
+    if err or not payload or payload.get("role") != "admin":
+        flash("Tài khoản không có quyền quản trị.", "error")
+        return redirect(url_for("admin_page"))
+
+    session["access_token"] = token
+    session["user"] = payload
+    flash("Đăng nhập quản trị thành công.", "success")
+    return redirect(url_for("admin_page"))
+
+@app.get("/admin")
+def admin_page():
+    # Nếu chưa login admin -> đẩy qua login (hoặc để modal hiển thị thì vẫn render trang)
+    if not is_admin_session():
+        # Cho phép xem giao diện với dữ liệu giả, modal đăng nhập vẫn hoạt động
+        pass
+
+    users = []
+    products = []
+    transactions = []
+    reviews = []
+
+    # Thử gọi admin-service để lấy data (nếu có)
+    try:
+        # 1 endpoint tổng hợp, nếu service bạn có: /admin/data
+        r = requests.get(f"{ADMIN_URL}/admin/data", timeout=5)
+        if r.ok:
+            data = r.json() or {}
+            users = data.get("users") or users
+            products = data.get("products") or products
+            transactions = data.get("transactions") or transactions
+    except Exception:
+        pass
+
+    # Fallback dữ liệu giả để bạn thấy UI ngay
+    if not users:
+        users = [
+            {"id": 1, "username": "Nam", "email": "nam@example.com", "is_admin": True, "approved": True},
+            {"id": 2, "username": "Mai", "email": "mai@example.com", "is_admin": False, "approved": False},
+        ]
+    if not products:
+        products = [
+            {"id": 10, "name": "Pin VinFast 45kWh", "owner": "Quân", "price": 35_000_000, "approved": False},
+            {"id": 11, "name": "VF e34 2023", "owner": "Đạt", "price": 585_000_000, "approved": True},
+        ]
+    if not transactions:
+        transactions = [
+            {"id": 100, "product": "VF e34", "buyer": "Đạt", "date": "27/10/2025", "status": "Hoàn tất"},
+        ]
+
+    # Danh sách yêu cầu thanh toán chờ duyệt (nếu admin-service có)
+    try:
+        r2 = requests.get(f"{ADMIN_URL}/admin/review/payment?status=pending", timeout=5)
+        if r2.ok:
+            reviews = r2.json() or []
+    except Exception:
+        pass
+
+    return render_template("admin.html",
+                           users=users,
+                           products=products,
+                           transactions=transactions,
+                           reviews=reviews)
+
+# === Hành động với USER (template gọi url_for('approve_user') / url_for('delete_user')) ===
+@app.post("/admin/approve_user/<int:user_id>")
+def approve_user(user_id: int):
+    if not is_admin_session():
+        session["next_after_login"] = url_for("approve_user", user_id=user_id)
+        return redirect(url_for("login_page"))
+    try:
+        headers = {
+            "Authorization": f"Bearer {session.get('access_token','')}",
+            "Content-Type": "application/json"
+        }
+        r = requests.patch(f"{AUTH_URL}/auth/users/{user_id}/status",
+                           json={"status": "approved"}, headers=headers, timeout=6)
+        flash("Đã duyệt tài khoản." if r.ok else "Duyệt thất bại.", "success" if r.ok else "error")
+    except requests.RequestException:
+        flash("Không kết nối được Auth service.", "error")
+    return redirect(url_for("admin_page"))
+
+@app.get("/admin/delete_user/<int:user_id>")
+def delete_user(user_id: int):
+    if not is_admin_session():
+        session["next_after_login"] = url_for("delete_user", user_id=user_id)
+        return redirect(url_for("login_page"))
+    try:
+        headers = {"Authorization": f"Bearer {session.get('access_token','')}"}
+        r = requests.delete(f"{AUTH_URL}/auth/users/{user_id}", headers=headers, timeout=6)
+        flash("Đã xoá tài khoản." if r.ok else "Xoá thất bại.", "success" if r.ok else "error")
+    except requests.RequestException:
+        flash("Không kết nối được Auth service.", "error")
+    return redirect(url_for("admin_page"))
+
+# === Hành động với PRODUCT (template có link /admin/approve/<id> và /admin/delete/<id>) ===
+@app.get("/admin/approve/<int:pid>")
+def admin_product_approve(pid: int):
+    if not is_admin_session():
+        session["next_after_login"] = url_for("admin_product_approve", pid=pid)
+        return redirect(url_for("login_page"))
+    try:
+        # Chuẩn đoán: admin-service có endpoint kiểu này
+        data, code = _proxy_json("POST", f"{ADMIN_URL}/admin/products/{pid}/approve")
+        flash("Đã duyệt bài đăng." if code == 200 else (data.get("error") or "Duyệt thất bại."), "success" if code == 200 else "error")
+    except Exception:
+        flash("Không kết nối được admin-service.", "error")
+    return redirect(url_for("admin_page"))
+
+@app.get("/admin/delete/<int:pid>")
+def admin_product_delete(pid: int):
+    if not is_admin_session():
+        session["next_after_login"] = url_for("admin_product_delete", pid=pid)
+        return redirect(url_for("login_page"))
+    try:
+        data, code = _proxy_json("DELETE", f"{ADMIN_URL}/admin/products/{pid}")
+        flash("Đã xoá bài đăng." if code in (200,204) else (data.get("error") or "Xoá thất bại."), "success" if code in (200,204) else "error")
+    except Exception:
+        flash("Không kết nối được admin-service.", "error")
+    return redirect(url_for("admin_page"))
+
+# === Bridge DUYỆT/TỪ CHỐI payment review (để gắn nút JS nếu bạn thêm vào template) ===
+@app.post("/admin/api/review/<int:rid>/approve")
+def gw_review_approve(rid: int):
+    if not is_admin_session():
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        data, code = _proxy_json("POST", f"{ADMIN_URL}/admin/review/payment/{rid}/approve", {"note": "ok"})
+        return jsonify(data), code
+    except Exception:
+        return jsonify({"error": "admin_unreachable"}), 502
+
+@app.post("/admin/api/review/<int:rid>/reject")
+def gw_review_reject(rid: int):
+    if not is_admin_session():
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        data, code = _proxy_json("POST", f"{ADMIN_URL}/admin/review/payment/{rid}/reject", {"note": "no"})
+        return jsonify(data), code
+    except Exception:
+        return jsonify({"error": "admin_unreachable"}), 502
+
+
+# ================================ CART ================================
+def _cart():
+    return session.setdefault("cart", {})
+
+def cart_items():
+    items, total = [], 0
+    for pid_str, qty in _cart().items():
+        p = get_product(int(pid_str))
+        if not p:
+            continue
+        line_total = p["price"] * qty
+        items.append({**p, "qty": qty, "line_total": line_total})
+        total += line_total
+    return items, total
+
+@app.get("/cart")
+def cart_view():
+    items, total = cart_items()
+    return jsonify({"items": items, "total": total})
 
 @app.post("/cart/add/<int:pid>")
-def cart_add(pid):
+def cart_add(pid: int):
     if not get_product(pid):
-        return jsonify({"error": "not found"}), 404
+        return jsonify({"error": "not_found"}), 404
+    qty = int(request.form.get("qty", 1))
     cart = _cart()
-    cart[str(pid)] = cart.get(str(pid), 0) + int(request.form.get("qty", 1))
+    cart[str(pid)] = cart.get(str(pid), 0) + qty
     session.modified = True
     return redirect(url_for("cart_view"))
 
 @app.post("/cart/remove/<int:pid>")
-def cart_remove(pid):
+def cart_remove(pid: int):
     _cart().pop(str(pid), None)
     session.modified = True
     return redirect(url_for("cart_view"))
@@ -345,11 +407,6 @@ def cart_remove(pid):
 def cart_clear():
     session["cart"] = {}
     return redirect(url_for("cart_view"))
-
-@app.get("/cart")
-def cart_view():
-    items, total = cart_items()
-    return render_template("cart.html", items=items, total=total)
 
 @app.post("/cart/checkout")
 def cart_checkout():
@@ -376,5 +433,95 @@ def cart_checkout():
         flash("Không kết nối được payment-service.", "error")
     return redirect(url_for("cart_view"))
 
+
+# =========================== PAYMENT PROXY (ui.html) ===========================
+# !!! RẤT QUAN TRỌNG: giữ nguyên path /payment/* đúng như JS trong ui.html !!!
+
+# 1) Tạo payment (ui.html → POST /payment/create)
+@app.post("/payment/create")
+def gw_payment_create():
+    payload = request.get_json(silent=True) or {}
+    data, code = _proxy_json("POST", f"{PAYMENT_URL}/payment/create", payload)
+    return jsonify(data), code  # trả về checkout_url/payment_id/status
+
+# 2) Tạo hợp đồng (ui.html → POST /payment/contract/create)
+@app.post("/payment/contract/create")
+def gw_contract_create():
+    payload = request.get_json(silent=True) or {}
+    data, code = _proxy_json("POST", f"{PAYMENT_URL}/payment/contract/create", payload)
+    return jsonify(data), code
+
+# 3) Ký hợp đồng (ui.html → POST /payment/contract/sign)
+@app.post("/payment/contract/sign")
+def gw_contract_sign():
+    payload = request.get_json(silent=True) or {}
+    data, code = _proxy_json("POST", f"{PAYMENT_URL}/payment/contract/sign", payload)
+    return jsonify(data), code
+
+# 4) (tuỳ chọn) Xem hợp đồng
+@app.get("/payment/contract/view/<int:cid>")
+def gw_contract_view(cid: int):
+    data, code = _proxy_json("GET", f"{PAYMENT_URL}/payment/contract/view/{cid}")
+    return jsonify(data), code
+
+
+# ===================== FLOW “MUA NGAY” → REDIRECT SANG PAYMENTS-SERVICE =====================
+@app.post("/buy/<int:pid>")
+def buy_now(pid: int):
+    p = get_product(pid)
+    if not p:
+        flash("Sản phẩm không tồn tại.", "error")
+        return redirect(url_for("product_detail", pid=pid))
+
+    payload = {
+        "order_id": int(str(uuid.uuid4().int)[-9:]),
+        "buyer_id": int(session.get("user", {}).get("id", 501)),  # demo
+        "seller_id": p["seller_id"],
+        "amount": p["price"],
+        "method": request.form.get("method", "e-wallet"),
+        "provider": request.form.get("provider", "DemoPay"),
+    }
+    try:
+        r = requests.post(f"{PAYMENT_URL}/payment/create", json=payload, timeout=10)
+        if not r.ok:
+            try:
+                msg = (r.json() or {}).get("error", "Tạo thanh toán thất bại.")
+            except Exception:
+                msg = "Tạo thanh toán thất bại."
+            flash(msg, "error")
+            return redirect(url_for("product_detail", pid=pid))
+
+        data = r.json() or {}
+        payment_id = data.get("payment_id")
+        if not payment_id:
+            flash("Thiếu payment_id/checkout_url.", "error")
+            return redirect(url_for("product_detail", pid=pid))
+
+        # ✅ Giữ như yêu cầu: chuyển hẳn qua trang checkout của payments-service (cùng tab)
+        return redirect(f"{PAYMENT_PUBLIC_URL}/payment/checkout/{payment_id}", code=302)
+
+    except requests.RequestException:
+        flash("Không kết nối được payment-service.", "error")
+        return redirect(url_for("product_detail", pid=pid))
+
+
+@app.get("/checkout/<int:pid>")
+def checkout_proxy(pid: int):
+    """
+    Proxy trang checkout của payment-service về cho trình duyệt.
+    (Giữ lại để nơi khác dùng nếu cần.)
+    """
+    try:
+        r = requests.get(f"{PAYMENT_URL}/payment/checkout/{pid}", timeout=8)
+    except Exception as e:
+        return f"Không gọi được payment-service: {e}", 502
+
+    content_type = r.headers.get("Content-Type", "text/html; charset=utf-8")
+    return Response(r.text, status=r.status_code, headers={"Content-Type": content_type})
+
+
+# ================================ MAIN ================================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    app.run(host=host, port=port, debug=True)

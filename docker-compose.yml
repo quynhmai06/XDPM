@@ -1,3 +1,4 @@
+version: "3.9"
 
 services:
   db:
@@ -15,6 +16,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+      start_period: 15s
+    restart: unless-stopped
 
   auth_service:
     build: ./auth-service
@@ -42,15 +45,15 @@ services:
       interval: 10s
       timeout: 3s
       retries: 20
-    # (khuyến nghị) seed admin ở lần chạy đầu:
-    # command: sh -lc "python init_db.py && python app.py"
+    restart: unless-stopped
 
   admin_service:
     build: ./admin-service
     environment:
       DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
       JWT_SECRET: supersecret
-      AUTH_URL: http://auth_service:5001   # QUAN TRỌNG: gọi qua DNS nội bộ
+      AUTH_URL: http://auth_service:5001
+      PAYMENT_URL: http://payment_service:5003      # ⬅ cần cho callback approve
       PORT: 5002
     depends_on:
       db:
@@ -74,17 +77,24 @@ services:
       interval: 10s
       timeout: 3s
       retries: 20
+    restart: unless-stopped
 
   payment_service:
     build: ./payment-service
     environment:
       DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+      ADMIN_URL: http://admin_service:5002          # ⬅ cần để gửi review sang Admin
+      VAT_RATE: "0.10"                              # ⬅ dùng cho invoice page
       PORT: 5003
     depends_on:
       db:
         condition: service_healthy
+      admin_service:                                  # ⬅ đảm bảo admin chạy rồi
+        condition: service_healthy
     ports:
       - "5003:5003"
+    volumes:
+      - ./payment-service:/app
     healthcheck:
       test:
         - CMD-SHELL
@@ -100,6 +110,8 @@ services:
       interval: 10s
       timeout: 3s
       retries: 20
+      start_period: 25s
+    restart: unless-stopped
 
   web_gateway:
     build: ./gateway
@@ -107,6 +119,7 @@ services:
       AUTH_URL:     http://auth_service:5001
       ADMIN_URL:    http://admin_service:5002
       PAYMENT_URL:  http://payment_service:5003
+      PAYMENT_PUBLIC_URL: http://localhost:5003
       JWT_SECRET:   supersecret
       GATEWAY_SECRET: dev
       PORT: 8000
@@ -121,6 +134,7 @@ services:
       - "8000:8000"
     volumes:
       - ./gateway:/app
+    restart: unless-stopped
 
 volumes:
   dbdata:
