@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, request, session, flash
+from flask import Flask, render_template, redirect, url_for, request, session, flash, Response
 import os, requests, jwt
 from functools import wraps
 
@@ -305,5 +305,33 @@ def change_password_gateway():
 def profile_page():
     return render_template("profile.html")
 
+@app.route("/auth/me")
+def proxy_me():
+    token = session.get("access_token")
+    if not token:
+        return Response('Unauthorized', status=401)
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        r = requests.get(f"{AUTH_URL}/auth/me", headers=headers, timeout=5)
+        return Response(r.content, status=r.status_code, content_type=r.headers.get("content-type"))
+    except requests.RequestException:
+        return Response("Auth service unreachable", status=502)
+
+@app.route("/auth/profile", methods=["GET", "PUT", "POST"])
+def proxy_profile():
+    token = session.get("access_token")
+    if not token:
+        return Response('Unauthorized', status=401)
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        if request.method == "GET":
+            r = requests.get(f"{AUTH_URL}/auth/profile", headers=headers, timeout=5)
+        elif request.method == "PUT":
+            r = requests.put(f"{AUTH_URL}/auth/profile", headers=headers, json=request.json, timeout=5)
+        else:  # POST upload avatar
+            r = requests.post(f"{AUTH_URL}/auth/profile", headers=headers, files=request.files, data=request.form, timeout=10)
+        return Response(r.content, status=r.status_code, content_type=r.headers.get("content-type"))
+    except requests.RequestException:
+        return Response("Auth service unreachable", status=502)
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)
