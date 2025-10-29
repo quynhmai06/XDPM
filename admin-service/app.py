@@ -17,9 +17,9 @@ def create_app():
 
     db.init_app(app)
 
-    @app.get("/health")
+    @app.route("/health", methods=["GET"])
     def health():
-        return {"service":"admin-service", "status":"ok"}
+        return jsonify(service="admin-service", status="ok"), 200
 
     app.register_blueprint(bp_users)
     app.register_blueprint(bp_posts)
@@ -34,4 +34,4 @@ if __name__ == "__main__":
     with app.app_context():
         db.create_all()
     port = int(os.getenv("PORT", "5003"))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=False)

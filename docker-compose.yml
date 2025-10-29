@@ -12,14 +12,15 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       PORT: 5001
     volumes:
-      - auth_data:/data        # <- nơi chứa auth.db (persist)
+      - auth_data:/data
     ports: ["5001:5001"]
-    restart: unless-stopped     # <- tự bật lại nếu host reboot
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:5001/auth/ >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys; \ntry:\n  r=urllib.request.urlopen('http://localhost:5001/health',timeout=2)\n  sys.exit(0 if r.getcode()==200 else 1)\nexcept Exception:\n  sys.exit(1)\nPY"]
       interval: 10s
       timeout: 3s
       retries: 10
+      start_period: 15s
 
   admin_service:
     build: { context: ./admin-service }
@@ -34,12 +35,13 @@ services:
       auth_service:
         condition: service_healthy
     ports: ["5003:5003"]
-    restart: unless-stopped     # <- nên thêm
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -sI http://localhost:5003 >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5003/health >/dev/null || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 10
+      start_period: 15s
 
   gateway:
     build: { context: ./gateway }
@@ -56,12 +58,9 @@ services:
       auth_service: { condition: service_healthy }
       admin_service: { condition: service_healthy }
     ports: ["8000:8000"]
-    restart: unless-stopped     # <- nên thêm
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8000/ >/dev/null || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
 
   postgres:
     image: postgres:16
@@ -76,5 +75,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  auth_data:    # <- khai báo rõ ràng
+  auth_data:
   ev_pgdata:

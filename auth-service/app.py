@@ -17,6 +17,10 @@ app.register_blueprint(bp)
 def root():
     return jsonify(service="auth", status="ok", prefix="/auth")
 
+@app.get("/health")
+def health():
+    return jsonify(ok=True), 200
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
