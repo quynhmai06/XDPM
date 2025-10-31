@@ -292,18 +292,35 @@ def update_profile():
 
 @bp.post("/profile")  
 def update_profile_form():
+    import sys
     u, err = _require_user()
     if err:
+        current_app.logger.error(f"[PROFILE] Auth error: {err}")
         return err
+    
+    current_app.logger.info(f"[PROFILE] User: {u.username} (ID: {u.id})")
+    current_app.logger.info(f"[PROFILE] Form data: {dict(request.form)}")
+    current_app.logger.info(f"[PROFILE] Files: {list(request.files.keys())}")
+    
     p = UserProfile.query.filter_by(user_id=u.id).first()
     if not p:
+        current_app.logger.info(f"[PROFILE] Creating new profile for user {u.id}")
         p = UserProfile(user_id=u.id)
         db.session.add(p)
-    p.full_name = request.form.get("full_name") or p.full_name
-    p.address = request.form.get("address") or p.address
-    p.vehicle_info = request.form.get("vehicle_info") or p.vehicle_info
-    p.battery_info = request.form.get("battery_info") or p.battery_info
-    p.gender = request.form.get("gender") or p.gender
+    
+    # Update text fields
+    if request.form.get("full_name"):
+        current_app.logger.info(f"[PROFILE] Updating full_name: {p.full_name} -> {request.form.get('full_name')}")
+        p.full_name = request.form.get("full_name")
+    if request.form.get("address"):
+        p.address = request.form.get("address")
+    if request.form.get("vehicle_info"):
+        p.vehicle_info = request.form.get("vehicle_info")
+    if request.form.get("battery_info"):
+        p.battery_info = request.form.get("battery_info")
+    if request.form.get("gender"):
+        p.gender = request.form.get("gender")
+    
     birthdate = request.form.get("birthdate")
     if birthdate:
         try:
@@ -320,20 +337,33 @@ def update_profile_form():
         if digits.startswith("084"):
             digits = "0" + digits[3:]
         u.phone = digits or None
+    
     file = request.files.get("avatar")
+    current_app.logger.info(f"[PROFILE] Avatar file: {file}")
     if file and file.filename:
+        current_app.logger.info(f"[PROFILE] Avatar filename: {file.filename}")
         filename, e = _save_avatar(file)
+        current_app.logger.info(f"[PROFILE] Save result: filename={filename}, error={e}")
         if not e:
-            p.avatar_url = filename  
+            p.avatar_url = filename
+            current_app.logger.info(f"[PROFILE] Set avatar_url to: {filename}")
+    
     db.session.commit()
-    return {
+    current_app.logger.info(f"[PROFILE] Committed to database. Profile: {p.to_dict()}")
+    
+    avatar_src = url_for("static", filename=f"{AVATAR_DIR}/{p.avatar_url}") if p.avatar_url else url_for("static", filename="img/avatar-placeholder.png")
+    current_app.logger.info(f"[PROFILE] Returning avatar_src: {avatar_src}")
+    
+    result = {
         "ok": True,
         "profile": p.to_dict(),
         "user": u.to_dict_basic(),
-        "avatar_src": url_for("static", filename=f"{AVATAR_DIR}/{p.avatar_url}")
-        if p.avatar_url
-        else url_for("static", filename="img/avatar-placeholder.png"),
+        "avatar_src": avatar_src,
     }
+    current_app.logger.info(f"[PROFILE] Response: {result}")
+    sys.stdout.flush()
+    sys.stderr.flush()
+    return result
 
 @bp.get("/profile-page", endpoint="profile_html")
 def profile_html():

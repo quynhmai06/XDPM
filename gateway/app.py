@@ -436,8 +436,13 @@ def api_upload_avatar():
     try:
         headers = {"Authorization": f"Bearer {session.get('access_token')}"}
         files = {}
+        
+        # Forward the file with original filename
         if 'avatar' in request.files:
-            files['avatar'] = request.files['avatar']
+            file = request.files['avatar']
+            if file and file.filename:
+                # Read file content and recreate with proper filename
+                files['avatar'] = (file.filename, file.stream, file.content_type or 'application/octet-stream')
         
         r = requests.post(
             f"{AUTH_URL}/auth/profile",
