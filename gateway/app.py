@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, Response
 import os, requests, jwt
 from flask import jsonify
 
@@ -1047,4 +1047,16 @@ def api_admin_get_all_transactions():
         return (r.json(), r.status_code)
     except requests.RequestException:
         return {"error": "transactions_unavailable"}, 503
+
+# Proxy static files from auth-service (avatars)
+@app.route("/static/uploads/avatars/<path:filename>")
+def proxy_avatar(filename):
+    """Proxy avatar files from auth-service"""
+    try:
+        r = requests.get(f"{AUTH_URL}/static/uploads/avatars/{filename}", timeout=5)
+        if r.ok:
+            return Response(r.content, mimetype=r.headers.get('content-type', 'image/jpeg'))
+        return "Not found", 404
+    except requests.RequestException:
+        return "Service unavailable", 503
 

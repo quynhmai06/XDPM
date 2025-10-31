@@ -548,8 +548,6 @@
       function anyEditing(){ return !!$('.info-row.editing') }
       function updateEditGroup(){
         $('#panel-info').classList.toggle('has-editing', anyEditing());
-        $('.avatar-edit').style.display = anyEditing() ? 'block' : 'none';
-        $('#avatarInput').classList.toggle('hidden', !anyEditing());
       }
 
       function startEditRow(row){
@@ -583,10 +581,46 @@
         startEditRow(row);
       });
 
-      $('#avatarInput').addEventListener('change', ev=>{
-        if (!anyEditing()) return;
+      $('#avatarInput').addEventListener('change', async (ev)=>{
         const f = ev.target.files?.[0]; if(!f) return;
-        const rd = new FileReader(); rd.onload = ()=> setAvatar(rd.result); rd.readAsDataURL(f);
+
+        // Preview immediately
+        const rd = new FileReader();
+        rd.onload = ()=> avatarImg.src = rd.result;
+        rd.readAsDataURL(f);
+
+        // Upload immediately
+        try{
+          setStatus('Đang tải ảnh lên...', true);
+          const fd = new FormData();
+          fd.append('avatar', f);
+          const up = await apiUpload(API.profile, fd);
+
+          console.log('Upload response:', up); // Debug
+
+          if (up?.profile) state.profile = up.profile;
+          if (up?.user) state.user = up.user;
+
+          // Use avatar_src from response (full URL from auth-service)
+          if (up?.avatar_src) {
+            avatarImg.src = up.avatar_src;
+          } else if (up?.profile?.avatar_url) {
+            // Fallback: construct URL from avatar_url
+            const url = up.profile.avatar_url;
+            if (url.startsWith('http') || url.startsWith('/')) {
+              avatarImg.src = url;
+            } else {
+              avatarImg.src = `/static/uploads/avatars/${url}`;
+            }
+          }
+
+          setStatus('Đã cập nhật ảnh đại diện!', true);
+          setTimeout(()=>setStatus(''), 3000);
+        }catch(err){
+          console.error('Upload error:', err);
+          setStatus('Không thể tải ảnh: ' + (err.message || err), false);
+          renderProfileView(); // Revert to original
+        }
       });
 
       $('#btnCancel').addEventListener('click', cancelAllEdits);
@@ -595,16 +629,6 @@
         e.preventDefault();
         try{
           setStatus('Đang lưu...', true);
-
-          const file = $('#avatarInput').files[0];
-          if (file){
-            const fd = new FormData();
-            fd.append('avatar', file);
-            const up = await apiUpload(API.profile, fd);
-            if (up?.profile) state.profile = up.profile;
-            if (up?.user) state.user = up.user;
-            if (up?.avatar_src) setAvatar(up.avatar_src);
-          }
 
           const row = $('.info-row.editing');
           if (row){
@@ -619,6 +643,7 @@
           cancelAllEdits();
           renderProfileView();
           setStatus('Đã lưu hồ sơ!', true);
+          setTimeout(()=>setStatus(''), 3000);
         }catch(err){
           setStatus('Không thể lưu: ' + (err.message || err), false);
         }
