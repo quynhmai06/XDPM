@@ -376,16 +376,111 @@ def profile_page_gateway():
         return redirect(url_for("login_page"))
     
     # Fetch profile from auth service
-    profile_data = {}
+    profile_data = {"profile": {}, "user": {}}
+    try:
+        headers = {"Authorization": f"Bearer {session.get('access_token')}"}
+        r = requests.get(f"{AUTH_URL}/auth/profile", headers=headers, timeout=3)
+        if r.ok and r.headers.get("content-type", "").startswith("application/json"):
+            profile_data = r.json()
+        else:
+            flash("Không lấy được thông tin profile.", "warning")
+    except requests.Timeout:
+        flash("Auth service đang quá tải, vui lòng thử lại.", "warning")
+    except requests.RequestException as e:
+        flash(f"Lỗi kết nối: {str(e)[:50]}", "error")
+    
+    return render_template("profile.html", 
+                         user=user, 
+                         profile=profile_data.get("profile", {}),
+                         user_info=profile_data.get("user", {}))
+
+@app.get("/api/profile", endpoint="api_get_profile")
+def api_get_profile():
+    """API proxy to get user profile"""
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    
     try:
         headers = {"Authorization": f"Bearer {session.get('access_token')}"}
         r = requests.get(f"{AUTH_URL}/auth/profile", headers=headers, timeout=5)
         if r.ok:
-            profile_data = r.json()
-    except requests.RequestException:
-        flash("Không lấy được thông tin profile.", "error")
+            return (r.json(), 200)
+        return (r.json() if r.headers.get("content-type", "").startswith("application/json") else {"error": "profile_error"}, r.status_code)
+    except requests.RequestException as e:
+        return {"error": "auth_unavailable", "message": str(e)[:100]}, 503
+
+@app.put("/api/profile", endpoint="api_update_profile")
+def api_update_profile():
+    """API proxy to update user profile"""
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
     
-    return render_template("profile.html", user=user, profile=profile_data)
+    try:
+        headers = {"Authorization": f"Bearer {session.get('access_token')}"}
+        r = requests.put(f"{AUTH_URL}/auth/profile", json=request.get_json(), headers=headers, timeout=5)
+        if r.ok:
+            return (r.json(), 200)
+        return (r.json() if r.headers.get("content-type", "").startswith("application/json") else {"error": "update_failed"}, r.status_code)
+    except requests.RequestException as e:
+        return {"error": "auth_unavailable", "message": str(e)[:100]}, 503
+
+@app.post("/api/profile", endpoint="api_upload_avatar")
+def api_upload_avatar():
+    """API proxy to upload avatar (multipart form)"""
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    
+    try:
+        headers = {"Authorization": f"Bearer {session.get('access_token')}"}
+        files = {}
+        if 'avatar' in request.files:
+            files['avatar'] = request.files['avatar']
+        
+        r = requests.post(
+            f"{AUTH_URL}/auth/profile",
+            data=request.form,
+            files=files if files else None,
+            headers=headers,
+            timeout=10
+        )
+        if r.ok:
+            return (r.json(), 200)
+        return (r.json() if r.headers.get("content-type", "").startswith("application/json") else {"error": "upload_failed"}, r.status_code)
+    except requests.RequestException as e:
+        return {"error": "auth_unavailable", "message": str(e)[:100]}, 503
+
+@app.get("/api/listings/mine", endpoint="api_my_listings")
+def api_my_listings():
+    """API to get current user's listings"""
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    
+    try:
+        r = requests.get(f"{LISTINGS_URL}/listings/user/{user['sub']}", timeout=5)
+        if r.ok:
+            return (r.json(), 200)
+        return {"items": []}, 200
+    except requests.RequestException:
+        return {"items": []}, 200
+
+@app.get("/api/payments/mine", endpoint="api_my_payments")
+def api_my_payments():
+    """API to get current user's payment history"""
+    user = get_current_user()
+    if not user:
+        return {"error": "unauthenticated"}, 401
+    
+    try:
+        r = requests.get(f"{TRANSACTIONS_URL}/transactions/user/{user['sub']}", timeout=5)
+        if r.ok:
+            return (r.json(), 200)
+        return {"items": []}, 200
+    except requests.RequestException:
+        return {"items": []}, 200
 
 @app.route("/profile/edit", methods=["GET", "POST"], endpoint="profile_edit_page")
 def profile_edit_page():
@@ -395,48 +490,51 @@ def profile_edit_page():
         return redirect(url_for("login_page"))
     
     if request.method == "POST":
-        # Handle form data + avatar upload
-        files_data = {}
-        if 'avatar' in request.files:
-            avatar = request.files['avatar']
-            if avatar and avatar.filename:
-                files_data['avatar'] = (avatar.filename, avatar.stream, avatar.content_type)
-        
-        form_data = {
-            'full_name': request.form.get('full_name', ''),
-            'address': request.form.get('address', ''),
-            'gender': request.form.get('gender', ''),
-            'birthdate': request.form.get('birthdate', ''),
-            'vehicle_info': request.form.get('vehicle_info', ''),
-            'battery_info': request.form.get('battery_info', '')
-        }
-        
+        # POST using form data with avatar
         try:
             headers = {"Authorization": f"Bearer {session.get('access_token')}"}
-            if files_data:
-                r = requests.put(f"{AUTH_URL}/auth/profile", data=form_data, files=files_data, headers=headers, timeout=10)
-            else:
-                r = requests.put(f"{AUTH_URL}/auth/profile", json=form_data, headers=headers, timeout=10)
+            files = {}
+            if 'avatar' in request.files and request.files['avatar'].filename:
+                files['avatar'] = request.files['avatar']
+            
+            # Use POST to auth/profile with multipart form-data
+            r = requests.post(
+                f"{AUTH_URL}/auth/profile",
+                data=request.form,
+                files=files if files else None,
+                headers=headers,
+                timeout=10
+            )
             
             if r.ok:
                 flash("Cập nhật profile thành công!", "success")
                 return redirect(url_for("profile_page_gateway"))
             else:
-                flash("Cập nhật profile thất bại.", "error")
-        except requests.RequestException:
-            flash("Không kết nối được auth service.", "error")
+                error_msg = r.json().get("error", "Unknown error") if r.headers.get("content-type", "").startswith("application/json") else "Update failed"
+                flash(f"Cập nhật thất bại: {error_msg}", "error")
+        except requests.Timeout:
+            flash("Auth service timeout, thử lại sau.", "error")
+        except requests.RequestException as e:
+            flash(f"Lỗi kết nối: {str(e)[:50]}", "error")
+        
+        return redirect(url_for("profile_edit_page"))
     
     # GET - fetch current profile
-    profile_data = {}
+    profile_data = {"profile": {}, "user": {}}
     try:
         headers = {"Authorization": f"Bearer {session.get('access_token')}"}
-        r = requests.get(f"{AUTH_URL}/auth/profile", headers=headers, timeout=5)
-        if r.ok:
+        r = requests.get(f"{AUTH_URL}/auth/profile", headers=headers, timeout=3)
+        if r.ok and r.headers.get("content-type", "").startswith("application/json"):
             profile_data = r.json()
+    except requests.Timeout:
+        flash("Auth service timeout.", "warning")
     except requests.RequestException:
-        flash("Không lấy được thông tin profile.", "error")
+        flash("Không lấy được thông tin profile.", "warning")
     
-    return render_template("profile_edit.html", user=user, profile=profile_data)
+    return render_template("profile_edit.html", 
+                         user=user, 
+                         profile=profile_data.get("profile", {}),
+                         user_info=profile_data.get("user", {}))
 
 @app.route("/add", methods=["GET"], endpoint="add_listing_page")
 def add_listing_page():
@@ -649,14 +747,26 @@ def api_favorites_list():
 def api_favorites_add():
     user = get_current_user()
     if not user:
-        return {"error": "unauthenticated"}, 401
+        return {"error": "unauthenticated", "message": "Vui lòng đăng nhập"}, 401
+    
     d = request.get_json(force=True)
+    if not d.get('item_type') or not d.get('item_id'):
+        return {"error": "missing_fields", "message": "Thiếu thông tin sản phẩm"}, 400
+    
     d['user_id'] = user['sub']
+    
     try:
         r = requests.post(f"{FAVORITES_URL}/favorites", json=d, timeout=5)
-        return (r.json(), r.status_code)
-    except requests.RequestException:
-        return {"error": "favorites_unavailable"}, 503
+        if r.ok:
+            return (r.json() if r.headers.get('content-type','').startswith('application/json') else {"ok": True}, r.status_code)
+        else:
+            # Forward error from favorites service
+            error_data = r.json() if r.headers.get('content-type','').startswith('application/json') else {"error": "unknown"}
+            return (error_data, r.status_code)
+    except requests.Timeout:
+        return {"error": "timeout", "message": "Favorites service quá tải"}, 503
+    except requests.RequestException as e:
+        return {"error": "favorites_unavailable", "message": str(e)[:100]}, 503
 
 @app.delete('/api/favorites/<int:fav_id>')
 def api_favorites_delete(fav_id:int):

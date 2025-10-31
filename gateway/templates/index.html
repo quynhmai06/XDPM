@@ -150,6 +150,29 @@
           transform: rotate(10deg);
         }
       }
+
+      /* Toast animations */
+      @keyframes slideIn {
+        from {
+          transform: translateX(400px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+
+      @keyframes slideOut {
+        from {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(400px);
+          opacity: 0;
+        }
+      }
     </style>
   </head>
   <body>
@@ -534,16 +557,16 @@
               <i class="fas fa-gavel" style="animation:swing 1s ease-in-out infinite"></i>
               <span>ĐẤU GIÁ</span>
             </div>
-            
+
             <img src="${img}" alt="auction" class="product-image" style="cursor:pointer" onclick="window.location.href='/auctions/${
             a.id
           }'"/>
-            
+
             <div class="product-info">
               <h3 class="product-title" style="cursor:pointer" onclick="window.location.href='/auctions/${
                 a.id
               }'">${title}</h3>
-              
+
               <!-- Price Box -->
               <div style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);padding:12px;border-radius:8px;margin:8px 0">
                 <div style="font-size:11px;color:#666;font-weight:600;text-transform:uppercase;margin-bottom:4px">${priceLabel}</div>
@@ -552,7 +575,7 @@
                   ${fmtMoney(currentPrice)}
                 </div>
               </div>
-              
+
               <!-- Countdown Timer -->
               <div style="display:flex;align-items:center;gap:8px;padding:10px;background:#f8f9fa;border-radius:8px;border-left:3px solid #ff6f00;margin:8px 0">
                 <i class="far fa-clock" style="font-size:16px;color:#ff6f00"></i>
@@ -563,7 +586,7 @@
                   }" style="font-size:16px;font-weight:700;color:#e53935;font-family:monospace">${remStr}</div>
                 </div>
               </div>
-              
+
               <div class="product-actions">
                 <button class="action-btn btn-compare" onclick="event.stopPropagation();placeBid(${
                   a.id
@@ -659,9 +682,9 @@
                 : ""
             }
             <div class="product-actions">
-              <button class="action-btn btn-favorite" onclick="addFav('vehicle', ${
-                v.id
-              })" title="Yêu thích"><i class="far fa-heart"></i></button>
+              <button class="action-btn btn-favorite" onclick="addFav('vehicle', ${v.id}, this)" title="Yêu thích">
+                <i class="far fa-heart"></i>
+              </button>
               <button class="action-btn btn-buy" onclick="buyNow('vehicle', ${
                 v.id
               }, ${v.seller_id || 1}, ${
@@ -726,9 +749,9 @@
                 : ""
             }
             <div class="product-actions">
-              <button class="action-btn btn-favorite" onclick="addFav('battery', ${
-                b.id
-              })" title="Yêu thích"><i class="far fa-heart"></i></button>
+              <button class="action-btn btn-favorite" onclick="addFav('battery', ${b.id}, this)" title="Yêu thích">
+                <i class="far fa-heart"></i>
+              </button>
               <button class="action-btn btn-buy" onclick="buyNow('battery', ${
                 b.id
               }, ${b.seller_id || 1}, ${
@@ -741,14 +764,93 @@
         });
       }
 
-      async function addFav(item_type, item_id) {
-        const res = await fetch("/api/favorites", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ item_type, item_id }),
-        });
-        if (res.ok) alert("Đã thêm yêu thích");
-        else alert("Vui lòng đăng nhập để lưu yêu thích");
+      async function addFav(item_type, item_id, btn) {
+        // Check if user is logged in first
+        {% if not session.get('user') %}
+        if (confirm("Bạn cần đăng nhập để lưu yêu thích. Chuyển đến trang đăng nhập?")) {
+          window.location.href = "/login?next=" + encodeURIComponent(window.location.pathname);
+        }
+        return;
+        {% endif %}
+
+        const button = btn || event.target.closest('.btn-favorite');
+        const isActive = button.classList.contains('active');
+
+        try {
+          // Nếu đã có trong favorites → Xóa (toggle off)
+          if (isActive && button.dataset.favId) {
+            const res = await fetch(`/api/favorites/${button.dataset.favId}`, {
+              method: "DELETE",
+              headers: { "Content-Type": "application/json" }
+            });
+
+            if (res.ok) {
+              button.classList.remove('active');
+              delete button.dataset.favId;
+              // Show toast instead of alert
+              showToast("💔 Đã xóa khỏi yêu thích", "info");
+            } else {
+              showToast("❌ Không thể xóa", "error");
+            }
+            return;
+          }
+
+          // Nếu chưa có → Thêm vào favorites
+          const res = await fetch("/api/favorites", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ item_type, item_id }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            button.classList.add('active');
+            button.dataset.favId = data.id || data.favorite_id || '';
+            showToast("❤️ Đã thêm vào yêu thích!", "success");
+          } else {
+            const error = await res.json().catch(() => ({}));
+            if (res.status === 401) {
+              if (confirm("Phiên đăng nhập đã hết hạn. Đăng nhập lại?")) {
+                window.location.href = "/login?next=" + encodeURIComponent(window.location.pathname);
+              }
+            } else if (res.status === 409) {
+              // Sản phẩm đã có trong favorites
+              button.classList.add('active');
+              showToast("⚠️ Sản phẩm đã có trong danh sách yêu thích!", "warning");
+            } else {
+              showToast("❌ " + (error.message || error.error || "Không thể thêm yêu thích"), "error");
+            }
+          }
+        } catch (err) {
+          console.error("Favorite error:", err);
+          showToast("❌ Lỗi kết nối. Vui lòng thử lại.", "error");
+        }
+      }
+
+      // Toast notification helper
+      function showToast(message, type = "info") {
+        const toast = document.createElement("div");
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+        toast.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#3b82f6'};
+          color: white;
+          padding: 12px 20px;
+          border-radius: 8px;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+          z-index: 10000;
+          animation: slideIn 0.3s ease;
+          font-weight: 500;
+        `;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+          toast.style.animation = "slideOut 0.3s ease";
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
       }
 
       // Compare feature đã chuyển sang trang Yêu thích

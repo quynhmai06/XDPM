@@ -1,444 +1,740 @@
 <!DOCTYPE html>
 <html lang="vi">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Hồ sơ cá nhân</title>
-  <style>
-    :root{
-      --bg:#f6f7fb; --card:#fff; --text:#111827; --muted:#6b7280; --border:#e5e7eb; --primary:#111827;
-      --ok:#059669; --err:#b91c1c; --chip:#eef2ff; --chip-text:#3730a3; --chip2:#ecfeff; --chip2-text:#155e75;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif}
-    a{color:inherit;text-decoration:none}
-    .hidden{display:none}
-    .container{max-width:1000px;margin:28px auto;padding:0 16px}
-    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-    header .subtitle{color:var(--muted);margin-top:4px}
-    .btn{height:36px;padding:0 14px;border-radius:10px;border:1px solid var(--primary);background:var(--primary);color:#fff;cursor:pointer}
-    .btn.ghost{background:#fff;color:var(--primary);border-color:var(--border)}
-    .btn:disabled{opacity:.6;cursor:not-allowed}
-    .btn.sm{height:36px;padding:0 12px;border-radius:10px;font-size:14px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.03);margin-bottom:14px}
-    .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hồ sơ cá nhân</title>
+    <style>
+      :root {
+        --bg: #f6f7fb;
+        --card: #fff;
+        --text: #111827;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --primary: #111827;
+        --ok: #059669;
+        --err: #b91c1c;
+        --chip: #eef2ff;
+        --chip-text: #3730a3;
+        --chip2: #ecfeff;
+        --chip2-text: #155e75;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
+          Ubuntu, Cantarell, Noto Sans, sans-serif;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      .hidden {
+        display: none;
+      }
+      .container {
+        max-width: 1000px;
+        margin: 28px auto;
+        padding: 0 16px;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      header .subtitle {
+        color: var(--muted);
+        margin-top: 4px;
+      }
+      .btn {
+        height: 36px;
+        padding: 0 14px;
+        border-radius: 10px;
+        border: 1px solid var(--primary);
+        background: var(--primary);
+        color: #fff;
+        cursor: pointer;
+      }
+      .btn.ghost {
+        background: #fff;
+        color: var(--primary);
+        border-color: var(--border);
+      }
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .btn.sm {
+        height: 36px;
+        padding: 0 12px;
+        border-radius: 10px;
+        font-size: 14px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+        margin-bottom: 14px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
 
-    /* Tabs */
-    .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
-    .tab-btn{padding:8px 12px;border:1px solid var(--border);background:#fff;border-radius:10px;cursor:pointer}
-    .tab-btn.active{background:#111827;color:#fff;border-color:#111827}
-    .tab-panel{display:none}
-    .tab-panel.active{display:block}
+      /* Tabs */
+      .tabs {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+      .tab-btn {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        background: #fff;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+      .tab-btn.active {
+        background: #111827;
+        color: #fff;
+        border-color: #111827;
+      }
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel.active {
+        display: block;
+      }
 
-    /* Profile */
-    .profile-section{display:flex;gap:24px;align-items:flex-start}
-    .avatar-wrap{position:relative;display:block;width:180px}
-    .avatar{width:180px;height:180px;border-radius:14px;object-fit:cover;border:1px solid var(--border);background:#f9fafb}
-    .avatar-edit{position:absolute;bottom:8px;left:8px;right:8px;text-align:center;font-size:13px;background:rgba(0,0,0,.65);color:#fff;padding:6px 8px;border-radius:10px}
-    .info-list{display:flex;flex-direction:column;gap:14px;width:100%}
-    .info-row{
-      display:grid; grid-template-columns:160px 1fr auto; align-items:center; gap:10px;
-    }
-    .info-row label{font-weight:600;color:#4b5563}
-    .value{
-      min-height:48px; display:flex; align-items:center;
-      padding:0 14px; border:1px solid var(--border); border-radius:12px; background:#fff; font-size:16px; width:100%;
-    }
-    .input-lg, .select-lg{
-      height:48px; padding:0 14px; border-radius:12px; border:1px solid var(--border); font-size:16px; width:100%; background:#fff; outline:none;
-    }
-    .icon-btn{height:36px;padding:0 12px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:#fff}
-    .edit-group{display:none;gap:8px}
-    .has-editing .edit-group{display:flex}
-    .status{margin-top:8px;color:var(--muted)}
+      /* Profile */
+      .profile-section {
+        display: flex;
+        gap: 24px;
+        align-items: flex-start;
+      }
+      .avatar-wrap {
+        position: relative;
+        display: block;
+        width: 180px;
+      }
+      .avatar {
+        width: 180px;
+        height: 180px;
+        border-radius: 14px;
+        object-fit: cover;
+        border: 1px solid var(--border);
+        background: #f9fafb;
+      }
+      .avatar-edit {
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        right: 8px;
+        text-align: center;
+        font-size: 13px;
+        background: rgba(0, 0, 0, 0.65);
+        color: #fff;
+        padding: 6px 8px;
+        border-radius: 10px;
+      }
+      .info-list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        width: 100%;
+      }
+      .info-row {
+        display: grid;
+        grid-template-columns: 160px 1fr auto;
+        align-items: center;
+        gap: 10px;
+      }
+      .info-row label {
+        font-weight: 600;
+        color: #4b5563;
+      }
+      .value {
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: #fff;
+        font-size: 16px;
+        width: 100%;
+      }
+      .input-lg,
+      .select-lg {
+        height: 48px;
+        padding: 0 14px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        font-size: 16px;
+        width: 100%;
+        background: #fff;
+        outline: none;
+      }
+      .icon-btn {
+        height: 36px;
+        padding: 0 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        border: 1px solid var(--border);
+        background: #fff;
+      }
+      .edit-group {
+        display: none;
+        gap: 8px;
+      }
+      .has-editing .edit-group {
+        display: flex;
+      }
+      .status {
+        margin-top: 8px;
+        color: var(--muted);
+      }
 
-    /* Ẩn/hiện per-field */
-    .info-row .edit-only{display:none}
-    .info-row.editing .edit-only{display:block}
-    .info-row.editing .view-only{display:none}
+      /* Ẩn/hiện per-field */
+      .info-row .edit-only {
+        display: none;
+      }
+      .info-row.editing .edit-only {
+        display: block;
+      }
+      .info-row.editing .view-only {
+        display: none;
+      }
 
-    /* Listings */
-    .listings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-    .listing{display:flex;gap:12px;border:1px solid var(--border);border-radius:12px;padding:12px}
-    .listing img{width:120px;height:90px;object-fit:cover;border-radius:10px;border:1px solid var(--border);background:#f3f4f6}
-    .chip{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--chip);color:var(--chip-text);font-size:12px}
-    .chip2{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--chip2);color:var(--chip2-text);font-size:12px}
+      /* Listings */
+      .listings {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .listing {
+        display: flex;
+        gap: 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+      }
+      .listing img {
+        width: 120px;
+        height: 90px;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: #f3f4f6;
+      }
+      .chip {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--chip);
+        color: var(--chip-text);
+        font-size: 12px;
+      }
+      .chip2 {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--chip2);
+        color: var(--chip2-text);
+        font-size: 12px;
+      }
 
-    /* Table */
-    .table{width:100%;border-collapse:separate;border-spacing:0 8px}
-    .table th{font-size:12px;color:#6b7280;text-align:left;padding:0 10px}
-    .table td{background:#fff;border:1px solid var(--border);border-left:none;border-right:none;padding:10px;border-radius:8px}
+      /* Table */
+      .table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 8px;
+      }
+      .table th {
+        font-size: 12px;
+        color: #6b7280;
+        text-align: left;
+        padding: 0 10px;
+      }
+      .table td {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-left: none;
+        border-right: none;
+        padding: 10px;
+        border-radius: 8px;
+      }
 
-    @media (max-width:980px){
-      .profile-section{flex-direction:column;align-items:center}
-      .avatar-wrap,.avatar{width:140px;height:140px}
-      .listings{grid-template-columns:1fr}
-      .info-row{grid-template-columns:120px 1fr auto}
-    }
-  </style>
-</head>
-<body
-  data-auth-base="/auth"
-  data-listings-base="/listings"
-  data-payments-base="/payments">
-  <div class="container">
-    <header>
-      <div>
-        <h1>Hồ sơ cá nhân</h1>
-        <p class="subtitle">Xem bài đăng, giao dịch và chỉnh sửa thông tin của bạn</p>
-      </div>
-    </header>
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="info">Thông tin cá nhân</button>
-      <button class="tab-btn" data-tab="listings">Bài đăng của tôi</button>
-      <button class="tab-btn" data-tab="transactions">Lịch sử giao dịch</button>
-    </div>
-    <section class="card tab-panel active" id="panel-info">
-      <div class="profile-section">
-        <div class="avatar-col">
-          <label class="avatar-wrap" for="avatarInput" title="Đổi ảnh đại diện">
-            <img id="avatarImg" alt="Avatar" class="avatar" />
-            <input id="avatarInput" type="file" accept="image/*" class="hidden" />
-            <span class="avatar-edit">Đổi ảnh</span>
-          </label>
+      @media (max-width: 980px) {
+        .profile-section {
+          flex-direction: column;
+          align-items: center;
+        }
+        .avatar-wrap,
+        .avatar {
+          width: 140px;
+          height: 140px;
+        }
+        .listings {
+          grid-template-columns: 1fr;
+        }
+        .info-row {
+          grid-template-columns: 120px 1fr auto;
+        }
+      }
+    </style>
+  </head>
+  <body
+    data-auth-base="/auth"
+    data-listings-base="/listings"
+    data-payments-base="/payments"
+  >
+    <div class="container">
+      <header>
+        <div>
+          <h1>Hồ sơ cá nhân</h1>
+          <p class="subtitle">
+            Xem bài đăng, giao dịch và chỉnh sửa thông tin của bạn
+          </p>
         </div>
-
-        <form id="profileForm" style="flex:1">
-          <div class="row" style="margin-bottom:10px">
-            <h3 style="margin:0">Thông tin cá nhân</h3>
-            <div class="edit-group" id="editGroup">
-              <button class="btn sm" type="submit" id="btnSave">Lưu thay đổi</button>
-              <button class="btn sm ghost" type="button" id="btnCancel">Hủy</button>
-            </div>
+      </header>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="info">
+          Thông tin cá nhân
+        </button>
+        <button class="tab-btn" data-tab="listings">Bài đăng của tôi</button>
+        <button class="tab-btn" data-tab="transactions">
+          Lịch sử giao dịch
+        </button>
+      </div>
+      <section class="card tab-panel active" id="panel-info">
+        <div class="profile-section">
+          <div class="avatar-col">
+            <label
+              class="avatar-wrap"
+              for="avatarInput"
+              title="Đổi ảnh đại diện"
+            >
+              <img id="avatarImg" alt="Avatar" class="avatar" />
+              <input
+                id="avatarInput"
+                type="file"
+                accept="image/*"
+                class="hidden"
+              />
+              <span class="avatar-edit">Đổi ảnh</span>
+            </label>
           </div>
 
-          <div class="info-list" id="infoList">
-            <div class="info-row" data-field="full_name" id="row_full_name">
-              <label>Họ tên</label>
-              <span id="full_name_view" class="value view-only"></span>
-              <input id="full_name" class="input-lg edit-only" type="text" placeholder="Nguyễn Văn A">
-              <button type="button" class="icon-btn edit-btn" title="Chỉnh sửa">✏️</button>
-            </div>
-            <div class="info-row" data-field="email" id="row_email">
-              <label>Email</label>
-              <span id="email_view" class="value view-only"></span>
-              <input id="email" class="input-lg edit-only" type="email" disabled>
-              <button type="button" class="icon-btn edit-btn" title="Chỉnh sửa">✏️</button>
-            </div>
-            <div class="info-row" data-field="address" id="row_address">
-              <label>Địa chỉ</label>
-              <span id="address_view" class="value view-only"></span>
-              <input id="address" class="input-lg edit-only" type="text" placeholder="Số nhà, đường, quận/huyện, tỉnh/thành">
-              <button type="button" class="icon-btn edit-btn" title="Chỉnh sửa">✏️</button>
-            </div>
-            <div class="info-row" data-field="birthdate" id="row_birthdate">
-              <label>Ngày sinh</label>
-              <span id="birthdate_view" class="value view-only"></span>
-              <input id="birthdate" class="input-lg edit-only" type="date">
-              <button type="button" class="icon-btn edit-btn" title="Chỉnh sửa">✏️</button>
-            </div>
-            <div class="info-row" data-field="gender" id="row_gender">
-              <label>Giới tính</label>
-              <span id="gender_view" class="value view-only"></span>
-              <select id="gender" class="select-lg edit-only">
-                <option value="">— Chọn —</option>
-                <option value="male">Nam</option>
-                <option value="female">Nữ</option>
-                <option value="other">Khác</option>
-              </select>
-              <button type="button" class="icon-btn edit-btn" title="Chỉnh sửa">✏️</button>
-            </div>
-          </div>
-          <p class="status" id="status"></p>
-        </form>
-      </div>
-    </section>
-    <section class="card tab-panel" id="panel-listings">
-      <div class="row" style="margin-bottom:8px">
-        <h3 style="margin:0">Bài đăng của tôi</h3>
-        <div class="row" style="gap:8px">
-          <button id="btnReloadListings" class="btn sm ghost">Tải lại</button>
-          <a href="/listings/new" class="btn sm">Đăng bài mới</a>
-        </div>
-      </div>
-      <div id="listingsWrap" class="listings"></div>
-      <p class="muted" id="listingsStatus"></p>
-    </section>
-    <section class="card tab-panel" id="panel-transactions">
-      <div class="row" style="margin-bottom:8px">
-        <h3 style="margin:0">Lịch sử giao dịch</h3>
-        <button id="btnReloadTx" class="btn sm ghost">Tải lại</button>
-      </div>
-      <div style="overflow-x:auto">
-        <table class="table" id="txTable">
-          <thead>
-            <tr>
-              <th>Thời gian</th>
-              <th>Mã đơn / Liên quan</th>
-              <th>Loại</th>
-              <th>Số tiền</th>
-              <th>Trạng thái</th>
-              <th>Chi tiết</th>
-            </tr>
-          </thead>
-          <tbody id="txTbody"></tbody>
-        </table>
-      </div>
-      <p class="muted" id="txStatus"></p>
-    </section>
-  </div>
-
-  <script>
-    const API = {
-      me: '/auth/me',
-      profile: '/auth/profile',
-      myListings: '/listings/mine',
-      myPayments: '/payments/mine'
-    };
-
-    const $ = s=>document.querySelector(s);
-    const $$ = s=>document.querySelectorAll(s);
-    const statusEl = $('#status');
-    const avatarImg = $('#avatarImg');
-    const fallbackAvatar = 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180"><rect width="100%" height="100%" fill="#f3f4f6"/><circle cx="90" cy="70" r="40" fill="#d1d5db"/><rect x="30" y="120" width="120" height="50" rx="12" fill="#d1d5db"/></svg>`);
-    const AUTH_BASE = document.body.getAttribute('data-auth-base') || '';
-
-    function resolveAvatar(src) {
-      if (!src) return null;
-      if (/^https?:\/\//i.test(src)) return src;    
-      if (src.startsWith('/')) return src;           
-      return `${AUTH_BASE ? AUTH_BASE : ''}/static/uploads/avatars/${src}`;
-    }
-
-    function setAvatar(src) {
-      const r = resolveAvatar(src);
-      avatarImg.src = r || fallbackAvatar;
-    }
-    function setAvatar(src){ avatarImg.src = src || fallbackAvatar; }
-    function setStatus(msg, ok=true){ statusEl.textContent = msg||''; statusEl.style.color = ok?'var(--ok)':'var(--err)' }
-    function fmtVND(n){ const x = Number(n||0); return x.toLocaleString('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}) }
-    function fmtDate(dt){ try{ const d=new Date(dt); if(isNaN(d)) return dt||''; return d.toLocaleString('vi-VN') }catch{ return dt||'' } }
-    function badge(text, kind='1'){ return `<span class="${kind==='2'?'chip2':'chip'}">${text}</span>` }
-
-    async function fetchWithAuth(url, init={}){ return fetch(url, { credentials:'include', ...init }); }
-    async function apiGet(url, params){
-      const q = params ? '?' + new URLSearchParams(params) : '';
-      const res = await fetchWithAuth(url+q);
-      if(res.status===401){ location.href = '/login?next='+encodeURIComponent(location.pathname); throw new Error('401') }
-      if(!res.ok) throw new Error(await res.text());
-      return res.json();
-    }
-    async function apiPut(url, body){
-      const res = await fetchWithAuth(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-      if(!res.ok) throw new Error(await res.text());
-      return res.json();
-    }
-    async function apiUpload(url, formData){
-      const res = await fetchWithAuth(url,{method:'POST',body:formData});
-      if(!res.ok) throw new Error(await res.text());
-      return res.json();
-    }
-    let state = { user:{}, profile:{}, listings:[], tx:[] };
-
-    const gTxt = v => ({male:'Nam', female:'Nữ', other:'Khác'})[v] || '';
-    function renderProfileView(){
-      const p = state.profile || {}, u = state.user || {};
-      $('#full_name_view').textContent = p.full_name || '';
-      $('#email_view').textContent = u.email || '';
-      $('#address_view').textContent = p.address || '';
-      $('#birthdate_view').textContent = (p.birthdate||'').slice(0,10);
-      $('#gender_view').textContent = gTxt(p.gender);
-
-      const raw = p.avatar_url || '';
-      if (!raw) setAvatar(fallbackAvatar);
-      else if (raw.startsWith('http') || raw.startsWith('/')) setAvatar(raw);
-      else setAvatar(`/static/uploads/avatars/${raw}`);
-    }
-    function renderProfileInputs(){
-      const p = state.profile || {}, u = state.user || {};
-      $('#full_name').value = p.full_name || '';
-      $('#email').value = u.email || '';
-      $('#address').value = p.address || '';
-      $('#birthdate').value = (p.birthdate||'').slice(0,10);
-      $('#gender').value = p.gender || '';
-    }
-
-    function anyEditing(){ return !!$('.info-row.editing') }
-    function updateEditGroup(){
-      $('#panel-info').classList.toggle('has-editing', anyEditing());
-      $('.avatar-edit').style.display = anyEditing() ? 'block' : 'none';
-      $('#avatarInput').classList.toggle('hidden', !anyEditing());
-    }
-
-    function startEditRow(row){
-      $$('.info-row.editing').forEach(r=>r.classList.remove('editing'));
-      renderProfileInputs();
-      row.classList.add('editing');
-      updateEditGroup();
-      const inp = row.querySelector('.input-lg,.select-lg');
-      if (inp) { inp.focus(); if (inp.select) inp.select(); }
-    }
-    function cancelAllEdits(){
-      $$('.info-row.editing').forEach(r=>r.classList.remove('editing'));
-      updateEditGroup();
-      renderProfileView();
-    }
-
-    function buildPayloadForRow(row){
-      const field = row.dataset.field;
-      const v = (row.querySelector('.input-lg,.select-lg')?.value ?? '').trim();
-      const payload = {};
-      if (field==='full_name') payload.full_name = v;
-      else if (field==='address') payload.address = v;
-      else if (field==='birthdate') payload.birthdate = v;
-      else if (field==='gender') payload.gender = v;
-      return payload;
-    }
-
-    $('#infoList').addEventListener('click', (e)=>{
-      const btn = e.target.closest('.edit-btn'); if (!btn) return;
-      const row = btn.closest('.info-row'); if (!row) return;
-      startEditRow(row);
-    });
-
-    $('#avatarInput').addEventListener('change', ev=>{
-      if (!anyEditing()) return;
-      const f = ev.target.files?.[0]; if(!f) return;
-      const rd = new FileReader(); rd.onload = ()=> setAvatar(rd.result); rd.readAsDataURL(f);
-    });
-
-    $('#btnCancel').addEventListener('click', cancelAllEdits);
-
-    $('#profileForm').addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      try{
-        setStatus('Đang lưu...', true);
-
-        const file = $('#avatarInput').files[0];
-        if (file){
-          const fd = new FormData();
-          fd.append('avatar', file);
-          const up = await apiUpload(API.profile, fd);
-          if (up?.profile) state.profile = up.profile;
-          if (up?.user) state.user = up.user;
-          if (up?.avatar_src) setAvatar(up.avatar_src);
-        }
-
-        const row = $('.info-row.editing');
-        if (row){
-          const payload = buildPayloadForRow(row);
-          if (Object.keys(payload).length){
-            const updated = await apiPut(API.profile, payload);
-            if (updated?.profile) state.profile = updated.profile;
-            if (updated?.user) state.user = updated.user;
-          }
-        }
-
-        cancelAllEdits();
-        renderProfileView();
-        setStatus('Đã lưu hồ sơ!', true);
-      }catch(err){
-        setStatus('Không thể lưu: ' + (err.message || err), false);
-      }
-    });
-
-    async function loadProfile(){
-      setStatus('Đang tải hồ sơ...', true);
-      const res = await apiGet(API.profile);
-      state.user    = res.user    || state.user || {};
-      state.profile = res.profile || res        || {};
-      renderProfileView();
-      setStatus('');
-    }
-
-    function renderListings(){
-      const wrap = $('#listingsWrap');
-      const list = state.listings || [];
-      if (!Array.isArray(list) || list.length===0){
-        wrap.innerHTML = `<div class="muted">Bạn chưa có bài đăng nào. <a href="/listings/new">Đăng bài ngay</a>.</div>`;
-        return;
-      }
-      wrap.innerHTML = list.map(item=>{
-        const cover = item.cover_url || item.image || '';
-        const imgSrc = cover ? (cover.startsWith('http')?cover:`${cover.startsWith('/')?cover:`/${cover}`}`) : '';
-        const typ = (item.type || item.category || '').toString().toLowerCase();
-        const isCar = typ.includes('car') || typ.includes('xe');
-        const chipType = isCar ? badge('Xe','1') : badge('Pin','2');
-        const status = item.status ? badge(item.status) : '';
-        const price = item.price!=null ? fmtVND(item.price) : '—';
-        const urlView = `/listings/${item.id}`;
-        const urlEdit = `/listings/${item.id}/edit`;
-        return `
-          <article class="listing">
-            <img alt="" src="${imgSrc || 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;120&quot; height=&quot;90&quot;><rect width=&quot;100%&quot; height=&quot;100%&quot; fill=&quot;#f3f4f6&quot;/></svg>')}" />
-            <div style="flex:1">
-              <div class="row">
-                <a href="${urlView}" style="font-weight:600">${item.title || item.name || 'Bài đăng'}</a>
-                <div style="display:flex;gap:6px">${chipType}${status}</div>
+          <form id="profileForm" style="flex: 1">
+            <div class="row" style="margin-bottom: 10px">
+              <h3 style="margin: 0">Thông tin cá nhân</h3>
+              <div class="edit-group" id="editGroup">
+                <button class="btn sm" type="submit" id="btnSave">
+                  Lưu thay đổi
+                </button>
+                <button class="btn sm ghost" type="button" id="btnCancel">
+                  Hủy
+                </button>
               </div>
-              <div class="muted" style="margin:6px 0">${item.location || ''}</div>
-              <div class="row">
-                <div style="font-weight:700">${price}</div>
-                <div class="row" style="gap:6px">
-                  <a class="btn sm ghost" href="${urlView}">Xem</a>
-                  <a class="btn sm" href="${urlEdit}">Sửa</a>
+            </div>
+
+            <div class="info-list" id="infoList">
+              <div class="info-row" data-field="full_name" id="row_full_name">
+                <label>Họ tên</label>
+                <span id="full_name_view" class="value view-only"></span>
+                <input
+                  id="full_name"
+                  class="input-lg edit-only"
+                  type="text"
+                  placeholder="Nguyễn Văn A"
+                />
+                <button
+                  type="button"
+                  class="icon-btn edit-btn"
+                  title="Chỉnh sửa"
+                >
+                  ✏️
+                </button>
+              </div>
+              <div class="info-row" data-field="email" id="row_email">
+                <label>Email</label>
+                <span id="email_view" class="value view-only"></span>
+                <input
+                  id="email"
+                  class="input-lg edit-only"
+                  type="email"
+                  disabled
+                />
+                <button
+                  type="button"
+                  class="icon-btn edit-btn"
+                  title="Chỉnh sửa"
+                >
+                  ✏️
+                </button>
+              </div>
+              <div class="info-row" data-field="address" id="row_address">
+                <label>Địa chỉ</label>
+                <span id="address_view" class="value view-only"></span>
+                <input
+                  id="address"
+                  class="input-lg edit-only"
+                  type="text"
+                  placeholder="Số nhà, đường, quận/huyện, tỉnh/thành"
+                />
+                <button
+                  type="button"
+                  class="icon-btn edit-btn"
+                  title="Chỉnh sửa"
+                >
+                  ✏️
+                </button>
+              </div>
+              <div class="info-row" data-field="birthdate" id="row_birthdate">
+                <label>Ngày sinh</label>
+                <span id="birthdate_view" class="value view-only"></span>
+                <input id="birthdate" class="input-lg edit-only" type="date" />
+                <button
+                  type="button"
+                  class="icon-btn edit-btn"
+                  title="Chỉnh sửa"
+                >
+                  ✏️
+                </button>
+              </div>
+              <div class="info-row" data-field="gender" id="row_gender">
+                <label>Giới tính</label>
+                <span id="gender_view" class="value view-only"></span>
+                <select id="gender" class="select-lg edit-only">
+                  <option value="">— Chọn —</option>
+                  <option value="male">Nam</option>
+                  <option value="female">Nữ</option>
+                  <option value="other">Khác</option>
+                </select>
+                <button
+                  type="button"
+                  class="icon-btn edit-btn"
+                  title="Chỉnh sửa"
+                >
+                  ✏️
+                </button>
+              </div>
+            </div>
+            <p class="status" id="status"></p>
+          </form>
+        </div>
+      </section>
+      <section class="card tab-panel" id="panel-listings">
+        <div class="row" style="margin-bottom: 8px">
+          <h3 style="margin: 0">Bài đăng của tôi</h3>
+          <div class="row" style="gap: 8px">
+            <button id="btnReloadListings" class="btn sm ghost">Tải lại</button>
+            <a href="/listings/new" class="btn sm">Đăng bài mới</a>
+          </div>
+        </div>
+        <div id="listingsWrap" class="listings"></div>
+        <p class="muted" id="listingsStatus"></p>
+      </section>
+      <section class="card tab-panel" id="panel-transactions">
+        <div class="row" style="margin-bottom: 8px">
+          <h3 style="margin: 0">Lịch sử giao dịch</h3>
+          <button id="btnReloadTx" class="btn sm ghost">Tải lại</button>
+        </div>
+        <div style="overflow-x: auto">
+          <table class="table" id="txTable">
+            <thead>
+              <tr>
+                <th>Thời gian</th>
+                <th>Mã đơn / Liên quan</th>
+                <th>Loại</th>
+                <th>Số tiền</th>
+                <th>Trạng thái</th>
+                <th>Chi tiết</th>
+              </tr>
+            </thead>
+            <tbody id="txTbody"></tbody>
+          </table>
+        </div>
+        <p class="muted" id="txStatus"></p>
+      </section>
+    </div>
+
+    <script>
+      const API = {
+        me: '/api/auth/me',
+        profile: '/api/profile',
+        myListings: '/api/listings/mine',
+        myPayments: '/api/payments/mine'
+      };
+
+      const $ = s=>document.querySelector(s);
+      const $$ = s=>document.querySelectorAll(s);
+      const statusEl = $('#status');
+      const avatarImg = $('#avatarImg');
+      const fallbackAvatar = 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180"><rect width="100%" height="100%" fill="#f3f4f6"/><circle cx="90" cy="70" r="40" fill="#d1d5db"/><rect x="30" y="120" width="120" height="50" rx="12" fill="#d1d5db"/></svg>`);
+      const AUTH_BASE = document.body.getAttribute('data-auth-base') || '';
+
+      function resolveAvatar(src) {
+        if (!src) return null;
+        if (/^https?:\/\//i.test(src)) return src;
+        if (src.startsWith('/')) return src;
+        return `${AUTH_BASE ? AUTH_BASE : ''}/static/uploads/avatars/${src}`;
+      }
+
+      function setAvatar(src) {
+        const r = resolveAvatar(src);
+        avatarImg.src = r || fallbackAvatar;
+      }
+      function setAvatar(src){ avatarImg.src = src || fallbackAvatar; }
+      function setStatus(msg, ok=true){ statusEl.textContent = msg||''; statusEl.style.color = ok?'var(--ok)':'var(--err)' }
+      function fmtVND(n){ const x = Number(n||0); return x.toLocaleString('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}) }
+      function fmtDate(dt){ try{ const d=new Date(dt); if(isNaN(d)) return dt||''; return d.toLocaleString('vi-VN') }catch{ return dt||'' } }
+      function badge(text, kind='1'){ return `<span class="${kind==='2'?'chip2':'chip'}">${text}</span>` }
+
+      async function fetchWithAuth(url, init={}){ return fetch(url, { credentials:'include', ...init }); }
+      async function apiGet(url, params){
+        const q = params ? '?' + new URLSearchParams(params) : '';
+        const res = await fetchWithAuth(url+q);
+        if(res.status===401){ location.href = '/login?next='+encodeURIComponent(location.pathname); throw new Error('401') }
+        if(!res.ok) throw new Error(await res.text());
+        return res.json();
+      }
+      async function apiPut(url, body){
+        const res = await fetchWithAuth(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        if(!res.ok) throw new Error(await res.text());
+        return res.json();
+      }
+      async function apiUpload(url, formData){
+        const res = await fetchWithAuth(url,{method:'POST',body:formData});
+        if(!res.ok) throw new Error(await res.text());
+        return res.json();
+      }
+      let state = { user:{}, profile:{}, listings:[], tx:[] };
+
+      const gTxt = v => ({male:'Nam', female:'Nữ', other:'Khác'})[v] || '';
+      function renderProfileView(){
+        const p = state.profile || {}, u = state.user || {};
+        $('#full_name_view').textContent = p.full_name || '';
+        $('#email_view').textContent = u.email || '';
+        $('#address_view').textContent = p.address || '';
+        $('#birthdate_view').textContent = (p.birthdate||'').slice(0,10);
+        $('#gender_view').textContent = gTxt(p.gender);
+
+        const raw = p.avatar_url || '';
+        if (!raw) setAvatar(fallbackAvatar);
+        else if (raw.startsWith('http') || raw.startsWith('/')) setAvatar(raw);
+        else setAvatar(`/static/uploads/avatars/${raw}`);
+      }
+      function renderProfileInputs(){
+        const p = state.profile || {}, u = state.user || {};
+        $('#full_name').value = p.full_name || '';
+        $('#email').value = u.email || '';
+        $('#address').value = p.address || '';
+        $('#birthdate').value = (p.birthdate||'').slice(0,10);
+        $('#gender').value = p.gender || '';
+      }
+
+      function anyEditing(){ return !!$('.info-row.editing') }
+      function updateEditGroup(){
+        $('#panel-info').classList.toggle('has-editing', anyEditing());
+        $('.avatar-edit').style.display = anyEditing() ? 'block' : 'none';
+        $('#avatarInput').classList.toggle('hidden', !anyEditing());
+      }
+
+      function startEditRow(row){
+        $$('.info-row.editing').forEach(r=>r.classList.remove('editing'));
+        renderProfileInputs();
+        row.classList.add('editing');
+        updateEditGroup();
+        const inp = row.querySelector('.input-lg,.select-lg');
+        if (inp) { inp.focus(); if (inp.select) inp.select(); }
+      }
+      function cancelAllEdits(){
+        $$('.info-row.editing').forEach(r=>r.classList.remove('editing'));
+        updateEditGroup();
+        renderProfileView();
+      }
+
+      function buildPayloadForRow(row){
+        const field = row.dataset.field;
+        const v = (row.querySelector('.input-lg,.select-lg')?.value ?? '').trim();
+        const payload = {};
+        if (field==='full_name') payload.full_name = v;
+        else if (field==='address') payload.address = v;
+        else if (field==='birthdate') payload.birthdate = v;
+        else if (field==='gender') payload.gender = v;
+        return payload;
+      }
+
+      $('#infoList').addEventListener('click', (e)=>{
+        const btn = e.target.closest('.edit-btn'); if (!btn) return;
+        const row = btn.closest('.info-row'); if (!row) return;
+        startEditRow(row);
+      });
+
+      $('#avatarInput').addEventListener('change', ev=>{
+        if (!anyEditing()) return;
+        const f = ev.target.files?.[0]; if(!f) return;
+        const rd = new FileReader(); rd.onload = ()=> setAvatar(rd.result); rd.readAsDataURL(f);
+      });
+
+      $('#btnCancel').addEventListener('click', cancelAllEdits);
+
+      $('#profileForm').addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        try{
+          setStatus('Đang lưu...', true);
+
+          const file = $('#avatarInput').files[0];
+          if (file){
+            const fd = new FormData();
+            fd.append('avatar', file);
+            const up = await apiUpload(API.profile, fd);
+            if (up?.profile) state.profile = up.profile;
+            if (up?.user) state.user = up.user;
+            if (up?.avatar_src) setAvatar(up.avatar_src);
+          }
+
+          const row = $('.info-row.editing');
+          if (row){
+            const payload = buildPayloadForRow(row);
+            if (Object.keys(payload).length){
+              const updated = await apiPut(API.profile, payload);
+              if (updated?.profile) state.profile = updated.profile;
+              if (updated?.user) state.user = updated.user;
+            }
+          }
+
+          cancelAllEdits();
+          renderProfileView();
+          setStatus('Đã lưu hồ sơ!', true);
+        }catch(err){
+          setStatus('Không thể lưu: ' + (err.message || err), false);
+        }
+      });
+
+      async function loadProfile(){
+        setStatus('Đang tải hồ sơ...', true);
+        const res = await apiGet(API.profile);
+        state.user    = res.user    || state.user || {};
+        state.profile = res.profile || res        || {};
+        renderProfileView();
+        setStatus('');
+      }
+
+      function renderListings(){
+        const wrap = $('#listingsWrap');
+        const list = state.listings || [];
+        if (!Array.isArray(list) || list.length===0){
+          wrap.innerHTML = `<div class="muted">Bạn chưa có bài đăng nào. <a href="/listings/new">Đăng bài ngay</a>.</div>`;
+          return;
+        }
+        wrap.innerHTML = list.map(item=>{
+          const cover = item.cover_url || item.image || '';
+          const imgSrc = cover ? (cover.startsWith('http')?cover:`${cover.startsWith('/')?cover:`/${cover}`}`) : '';
+          const typ = (item.type || item.category || '').toString().toLowerCase();
+          const isCar = typ.includes('car') || typ.includes('xe');
+          const chipType = isCar ? badge('Xe','1') : badge('Pin','2');
+          const status = item.status ? badge(item.status) : '';
+          const price = item.price!=null ? fmtVND(item.price) : '—';
+          const urlView = `/listings/${item.id}`;
+          const urlEdit = `/listings/${item.id}/edit`;
+          return `
+            <article class="listing">
+              <img alt="" src="${imgSrc || 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;120&quot; height=&quot;90&quot;><rect width=&quot;100%&quot; height=&quot;100%&quot; fill=&quot;#f3f4f6&quot;/></svg>')}" />
+              <div style="flex:1">
+                <div class="row">
+                  <a href="${urlView}" style="font-weight:600">${item.title || item.name || 'Bài đăng'}</a>
+                  <div style="display:flex;gap:6px">${chipType}${status}</div>
+                </div>
+                <div class="muted" style="margin:6px 0">${item.location || ''}</div>
+                <div class="row">
+                  <div style="font-weight:700">${price}</div>
+                  <div class="row" style="gap:6px">
+                    <a class="btn sm ghost" href="${urlView}">Xem</a>
+                    <a class="btn sm" href="${urlEdit}">Sửa</a>
+                  </div>
                 </div>
               </div>
-            </div>
-          </article>`;
-      }).join('');
-    }
-    async function loadListings(){
-      $('#listingsStatus').textContent='Đang tải bài đăng...';
-      try{
-        const res = await apiGet(API.myListings);
-        state.listings = Array.isArray(res.items)?res.items:(Array.isArray(res)?res:(res.data||[]));
-        renderListings(); $('#listingsStatus').textContent='';
-      }catch(e){ $('#listingsStatus').textContent='Không tải được bài đăng: '+e.message; }
-    }
+            </article>`;
+        }).join('');
+      }
+      async function loadListings(){
+        $('#listingsStatus').textContent='Đang tải bài đăng...';
+        try{
+          const res = await apiGet(API.myListings);
+          state.listings = Array.isArray(res.items)?res.items:(Array.isArray(res)?res:(res.data||[]));
+          renderListings(); $('#listingsStatus').textContent='';
+        }catch(e){ $('#listingsStatus').textContent='Không tải được bài đăng: '+e.message; }
+      }
 
-    function renderTx(){
-      const tb = $('#txTbody');
-      const rows = (state.tx||[]).map(tx=>{
-        const amount = fmtVND(tx.amount);
-        const status = badge(tx.status||'—','1');
-        const kind = badge((tx.method||tx.type||'—').toString().toUpperCase(),'2');
-        const order = tx.order_id || tx.reference || tx.id;
-        const who = tx.counterparty || tx.seller_name || tx.buyer_name || '';
-        const when = fmtDate(tx.created_at || tx.updated_at || tx.paid_at);
-        const view = tx.detail_url || (tx.contract_id?`/contracts/${tx.contract_id}`:`/payments/${tx.id}`);
-        return `<tr>
-          <td>${when}</td><td>#${order}${who?` — ${who}`:''}</td><td>${kind}</td>
-          <td style="font-weight:700">${amount}</td><td>${status}</td>
-          <td><a class="btn sm ghost" href="${view}">Xem</a></td></tr>`;
-      }).join('');
-      tb.innerHTML = rows || `<tr><td colspan="6" class="muted">Chưa có giao dịch nào.</td></tr>`;
-    }
-    async function loadTx(){
-      $('#txStatus').textContent='Đang tải giao dịch...';
-      try{
-        const res = await apiGet(API.myPayments);
-        state.tx = Array.isArray(res.items)?res.items:(Array.isArray(res)?res:(res.data||[]));
-        renderTx(); $('#txStatus').textContent='';
-      }catch(e){ $('#txStatus').textContent='Không tải được giao dịch: '+e.message; }
-    }
+      function renderTx(){
+        const tb = $('#txTbody');
+        const rows = (state.tx||[]).map(tx=>{
+          const amount = fmtVND(tx.amount);
+          const status = badge(tx.status||'—','1');
+          const kind = badge((tx.method||tx.type||'—').toString().toUpperCase(),'2');
+          const order = tx.order_id || tx.reference || tx.id;
+          const who = tx.counterparty || tx.seller_name || tx.buyer_name || '';
+          const when = fmtDate(tx.created_at || tx.updated_at || tx.paid_at);
+          const view = tx.detail_url || (tx.contract_id?`/contracts/${tx.contract_id}`:`/payments/${tx.id}`);
+          return `<tr>
+            <td>${when}</td><td>#${order}${who?` — ${who}`:''}</td><td>${kind}</td>
+            <td style="font-weight:700">${amount}</td><td>${status}</td>
+            <td><a class="btn sm ghost" href="${view}">Xem</a></td></tr>`;
+        }).join('');
+        tb.innerHTML = rows || `<tr><td colspan="6" class="muted">Chưa có giao dịch nào.</td></tr>`;
+      }
+      async function loadTx(){
+        $('#txStatus').textContent='Đang tải giao dịch...';
+        try{
+          const res = await apiGet(API.myPayments);
+          state.tx = Array.isArray(res.items)?res.items:(Array.isArray(res)?res:(res.data||[]));
+          renderTx(); $('#txStatus').textContent='';
+        }catch(e){ $('#txStatus').textContent='Không tải được giao dịch: '+e.message; }
+      }
 
-    $$('.tab-btn').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        $$('.tab-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
-        const tab = btn.dataset.tab; $$('.tab-panel').forEach(p=>p.classList.remove('active')); $('#panel-'+tab).classList.add('active');
-        if (tab==='listings' && !state._loadedListings){ state._loadedListings=true; loadListings(); }
-        if (tab==='transactions' && !state._loadedTx){ state._loadedTx=true; loadTx(); }
+      $$('.tab-btn').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          $$('.tab-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+          const tab = btn.dataset.tab; $$('.tab-panel').forEach(p=>p.classList.remove('active')); $('#panel-'+tab).classList.add('active');
+          if (tab==='listings' && !state._loadedListings){ state._loadedListings=true; loadListings(); }
+          if (tab==='transactions' && !state._loadedTx){ state._loadedTx=true; loadTx(); }
+        });
       });
-    });
 
-    (async function(){
-      setAvatar(fallbackAvatar);
-      try{ await apiGet(API.me); }catch{ return; }  
-      await loadProfile();
-      renderProfileInputs();
-      updateEditGroup();
-    })();
-  </script>
-</body>
+      (async function(){
+        setAvatar(fallbackAvatar);
+
+        // Check if user is logged in via session
+        {% if not session.get('user') %}
+        window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+        return;
+        {% endif %}
+
+        // Set user info from session
+        state.user = {
+          id: {{ session.get('user', {}).get('sub', 0) }},
+          email: "{{ session.get('user', {}).get('username', '') }}@example.com",
+          username: "{{ session.get('user', {}).get('username', '') }}",
+          role: "{{ session.get('user', {}).get('role', 'member') }}"
+        };
+
+        await loadProfile();
+        renderProfileInputs();
+        updateEditGroup();
+      })();
+    </script>
+  </body>
 </html>
