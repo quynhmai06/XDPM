@@ -2,11 +2,19 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 import os, requests, jwt, time, json
 from werkzeug.utils import secure_filename
+import re
+
+def _num(x):
+    if x is None: 
+        return None
+    m = re.search(r"\d+(?:\.\d+)?", str(x))
+    return float(m.group(0)) if m else None
+
 
 # ==== Config các service ====
-AUTH_URL    = os.getenv("AUTH_URL", "http://127.0.0.1:5001")
-LISTING_URL = os.getenv("LISTING_URL", "http://127.0.0.1:5002")
-PRICING_URL = os.getenv("PRICING_URL", "http://127.0.0.1:5003")
+AUTH_URL    = os.getenv("AUTH_URL",    "http://auth_service:5001")
+LISTING_URL = os.getenv("LISTING_URL", "http://listing_service:5002")
+PRICING_URL = os.getenv("PRICING_URL", "http://pricing_service:5003")
 
 JWT_SECRET = os.getenv("JWT_SECRET", "devsecret")
 JWT_ALGOS  = ["HS256"]
@@ -404,31 +412,67 @@ def delete_user(user_id):
     return redirect(url_for("admin_page"))
 
 # ---------- AI Price Suggest ----------
+
 @app.post("/ai/price_suggest")
 def price_suggest():
-    # Lấy dữ liệu từ form multipart (hoặc JSON)
+    # 1) Nhận JSON hoặc form
     if request.content_type and request.content_type.startswith("application/json"):
-        payload = request.get_json(silent=True) or {}
+        raw = request.get_json(silent=True) or {}
     else:
-        payload = {
-            "product_type": request.form.get("product_type", "car"),
-            "name": request.form.get("name", ""),
-            "brand": request.form.get("brand", ""),
-            "province": request.form.get("province", ""),
-            "year": request.form.get("year", ""),
-            "mileage": request.form.get("mileage", ""),
-            "battery_capacity": request.form.get("battery_capacity", ""),
-            "description": request.form.get("description", ""),
-        }
+        raw = request.form.to_dict()
 
+    # 2) Chuẩn hóa trường & ép kiểu số
+    product_type = (raw.get("product_type") or "car").strip().lower()
+    name         = (raw.get("name") or "").strip()
+    brand        = (raw.get("brand") or "").strip()
+    province     = (raw.get("province") or "").strip()
+    year         = _num(raw.get("year"))
+    mileage      = _num(raw.get("mileage"))
+    cap_kwh      = _num(raw.get("battery_capacity_kwh") or raw.get("battery_capacity"))
+    description  = (raw.get("description") or "").strip()
+
+    payload = {
+        "product_type": product_type,
+        "name": name,
+        "brand": brand,
+        "province": province,
+        "year": int(year) if year is not None else None,
+        "mileage": int(mileage) if mileage is not None else None,
+        "battery_capacity_kwh": float(cap_kwh) if cap_kwh is not None else None,
+        "description": description,
+    }
+
+    # 3) Gọi pricing_service với timeout kép (connect=5s, read=90s)
     try:
-        # tăng timeout (model đôi khi >5s)
-        r = requests.post(f"{PRICING_URL}/predict", json=payload, timeout=25)
-        return (r.text, r.status_code, {"Content-Type": "application/json"})
-    except requests.RequestException as e:
-        # log lỗi để xem trong `docker logs xdpm-web_gateway-1`
+        r = requests.post(f"{PRICING_URL}/predict", json=payload, timeout=(5, 90))
+    except requests.exceptions.ReadTimeout as e:
+        app.logger.exception("pricing-service read timeout")
+        return jsonify(error="pricing-service quá thời gian phản hồi", detail=str(e)), 504
+    except requests.exceptions.RequestException as e:
         app.logger.exception("price_suggest failed: %s", e)
-        return jsonify(error="Không kết nối được pricing-service"), 502
+        return jsonify(error="Không kết nối được pricing-service", detail=str(e)), 502
+
+    # 4) Trả đúng JSON/Status của pricing_service
+    ct = r.headers.get("content-type", "")
+    if ct.startswith("application/json"):
+        try:
+            return jsonify(r.json()), r.status_code
+        except Exception:
+            pass
+    return (r.text, r.status_code, {"Content-Type": ct or "text/plain"})
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}, 200
+
+@app.get("/__routes")
+def __routes():
+    out=[]
+    for rule in app.url_map.iter_rules():
+        methods=",".join(sorted(rule.methods - {"HEAD","OPTIONS"}))
+        out.append({"rule": str(rule), "methods": methods})
+    return {"routes": out}, 200
+
 
 
 if __name__ == "__main__":

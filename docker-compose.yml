@@ -26,14 +26,28 @@ services:
     
   pricing_service:
     build: ./pricing-service
+    env_file:
+      - .env
     environment:
       PROVIDER: ${PROVIDER}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
       GEMINI_MODEL: ${GEMINI_MODEL}
-      # Dự phòng OpenAI (không dùng khi PROVIDER=gemini)
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OPENAI_MODEL: ${OPENAI_MODEL}
-    ports: ["5003:5003"]
+      SOFT_TIMEOUT: ${SOFT_TIMEOUT:-8}
+      HARD_TIMEOUT: ${HARD_TIMEOUT:-15}
+      CACHE_TTL: ${CACHE_TTL:-600}
+    ports:
+      - "5003:5003"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5003/').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+
 
 
 
@@ -43,12 +57,20 @@ services:
       AUTH_URL: http://auth_service:5001
       LISTING_URL: http://listing_service:5002
       PRICING_URL: http://pricing_service:5003
-      JWT_SECRET: supersecret         
+      JWT_SECRET: supersecret
       GATEWAY_SECRET: dev
-    depends_on: [auth_service, listing_service, pricing_service]
-    ports: ["8000:8000"]
+    depends_on:
+      auth_service:
+        condition: service_started
+      listing_service:
+        condition: service_started
+      pricing_service:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
     volumes:
-      - ./gateway/static/uploads:/app/static/uploads  
+      - ./gateway/static/uploads:/app/static/uploads
+  
 
 volumes:
   dbdata:
