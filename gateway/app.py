@@ -362,6 +362,114 @@ def logout_page():
     flash("Đã đăng xuất!", "success")
     return redirect(url_for("admin_page") if was_admin else url_for("home"))
 
+@app.get("/admin/logout", endpoint="admin_logout")
+def admin_logout():
+    session.clear()
+    flash("Đã đăng xuất admin!", "success")
+    return redirect(url_for("admin_page"))
+
+@app.get("/profile", endpoint="profile_page_gateway")
+def profile_page_gateway():
+    user = get_current_user()
+    if not user:
+        session["next_after_login"] = url_for("profile_page_gateway")
+        return redirect(url_for("login_page"))
+    
+    # Fetch profile from auth service
+    profile_data = {}
+    try:
+        headers = {"Authorization": f"Bearer {session.get('access_token')}"}
+        r = requests.get(f"{AUTH_URL}/auth/profile", headers=headers, timeout=5)
+        if r.ok:
+            profile_data = r.json()
+    except requests.RequestException:
+        flash("Không lấy được thông tin profile.", "error")
+    
+    return render_template("profile.html", user=user, profile=profile_data)
+
+@app.route("/profile/edit", methods=["GET", "POST"], endpoint="profile_edit_page")
+def profile_edit_page():
+    user = get_current_user()
+    if not user:
+        session["next_after_login"] = url_for("profile_edit_page")
+        return redirect(url_for("login_page"))
+    
+    if request.method == "POST":
+        # Handle form data + avatar upload
+        files_data = {}
+        if 'avatar' in request.files:
+            avatar = request.files['avatar']
+            if avatar and avatar.filename:
+                files_data['avatar'] = (avatar.filename, avatar.stream, avatar.content_type)
+        
+        form_data = {
+            'full_name': request.form.get('full_name', ''),
+            'address': request.form.get('address', ''),
+            'gender': request.form.get('gender', ''),
+            'birthdate': request.form.get('birthdate', ''),
+            'vehicle_info': request.form.get('vehicle_info', ''),
+            'battery_info': request.form.get('battery_info', '')
+        }
+        
+        try:
+            headers = {"Authorization": f"Bearer {session.get('access_token')}"}
+            if files_data:
+                r = requests.put(f"{AUTH_URL}/auth/profile", data=form_data, files=files_data, headers=headers, timeout=10)
+            else:
+                r = requests.put(f"{AUTH_URL}/auth/profile", json=form_data, headers=headers, timeout=10)
+            
+            if r.ok:
+                flash("Cập nhật profile thành công!", "success")
+                return redirect(url_for("profile_page_gateway"))
+            else:
+                flash("Cập nhật profile thất bại.", "error")
+        except requests.RequestException:
+            flash("Không kết nối được auth service.", "error")
+    
+    # GET - fetch current profile
+    profile_data = {}
+    try:
+        headers = {"Authorization": f"Bearer {session.get('access_token')}"}
+        r = requests.get(f"{AUTH_URL}/auth/profile", headers=headers, timeout=5)
+        if r.ok:
+            profile_data = r.json()
+    except requests.RequestException:
+        flash("Không lấy được thông tin profile.", "error")
+    
+    return render_template("profile_edit.html", user=user, profile=profile_data)
+
+@app.route("/add", methods=["GET"], endpoint="add_listing_page")
+def add_listing_page():
+    """Trang đăng tin (xe điện hoặc pin)"""
+    user = get_current_user()
+    if not user:
+        session["next_after_login"] = url_for("add_listing_page")
+        return redirect(url_for("login_page"))
+    
+    # Render form cho người dùng chọn loại (xe/pin) và nhập thông tin
+    # Tạm thời redirect về trang chủ với thông báo
+    flash("Tính năng đăng tin đang được phát triển.", "info")
+    return redirect(url_for("home"))
+
+@app.route("/policy", methods=["GET"], endpoint="policy_page")
+def policy_page():
+    """Trang chính sách"""
+    return render_template("policy.html")
+
+@app.route("/auctions", methods=["GET"], endpoint="auctions_page")
+def auctions_list_page():
+    """Trang danh sách đấu giá"""
+    return render_template("auctions.html")
+
+@app.route("/auctions/create", methods=["GET"], endpoint="create_auction_page")
+def create_auction_page():
+    """Trang tạo phiên đấu giá"""
+    user = get_current_user()
+    if not user:
+        session["next_after_login"] = url_for("create_auction_page")
+        return redirect(url_for("login_page"))
+    return render_template("create_auction.html", user=user)
+
 @app.route("/admin", methods=["GET"], endpoint="admin_page")
 def admin_page():
     users = []
