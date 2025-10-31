@@ -532,9 +532,20 @@
         $('#gender_view').textContent = gTxt(p.gender);
 
         const raw = p.avatar_url || '';
-        if (!raw) setAvatar(fallbackAvatar);
-        else if (raw.startsWith('http') || raw.startsWith('/')) setAvatar(raw);
-        else setAvatar(`/static/uploads/avatars/${raw}`);
+        console.log('Profile avatar_url:', raw); // Debug
+        console.log('Full profile:', p); // Debug
+
+        if (!raw) {
+          console.log('No avatar, using fallback');
+          avatarImg.src = fallbackAvatar;
+        } else if (raw.startsWith('http') || raw.startsWith('/')) {
+          console.log('Using absolute URL:', raw);
+          avatarImg.src = raw;
+        } else {
+          const url = `/static/uploads/avatars/${raw}`;
+          console.log('Using relative URL:', url);
+          avatarImg.src = url;
+        }
       }
       function renderProfileInputs(){
         const p = state.profile || {}, u = state.user || {};
@@ -740,8 +751,6 @@
       });
 
       (async function(){
-        setAvatar(fallbackAvatar);
-
         // Check if user is logged in via session
         {% if not session.get('user') %}
         window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
@@ -756,6 +765,7 @@
           role: "{{ session.get('user', {}).get('role', 'member') }}"
         };
 
+        // Load profile data - this will set the avatar
         await loadProfile();
         renderProfileInputs();
         updateEditGroup();
