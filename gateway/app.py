@@ -1,9 +1,7 @@
-# app.py (gateway) — FIXED
 from flask import Flask, render_template, redirect, url_for, request, session, flash, Response, jsonify
 import os, requests, jwt
 from functools import wraps
 
-# DÙNG DNS DOCKER LÀM MẶC ĐỊNH (khi chạy trong container)
 AUTH_URL  = os.getenv("AUTH_URL",  "http://auth_service:5001")
 ADMIN_URL = os.getenv("ADMIN_URL", "http://admin_service:5003")
 JWT_SECRET = os.getenv("JWT_SECRET", "devsecret")
@@ -13,12 +11,27 @@ app = Flask(__name__, template_folder="templates", static_folder="static", stati
 app.secret_key = os.getenv("GATEWAY_SECRET", "dev")
 app.config.update(SESSION_COOKIE_SAMESITE="Lax")
 
-# --------- health for docker-compose ----------
+def _update_display_name_from_payload(obj):
+    """
+    Cập nhật session['display_name'] và session['user']['full_name'] từ response JSON.
+    Chấp nhận cả dạng {"profile": {...}} hoặc {...} tùy Auth trả về.
+    """
+    if not isinstance(obj, dict):
+        return
+    prof = obj.get("profile") if "profile" in obj else obj
+    if isinstance(prof, dict):
+        dn = prof.get("full_name") or prof.get("display_name")
+        if dn:
+            session["display_name"] = dn
+            u = session.get("user") or {}
+            u["full_name"] = dn
+            session["user"] = u
+            session.modified = True
+
 @app.get("/health")
 def health():
     return "ok", 200
 
-# --------- helpers ----------
 def decode_token(token: str):
     return jwt.decode(token, JWT_SECRET, algorithms=JWT_ALGOS)
 
@@ -45,7 +58,6 @@ def login_required(next_endpoint_name="login_page"):
         return inner
     return _wrap
 
-# --------- pages ----------
 @app.route("/", endpoint="home")
 def home():
     return render_template("index.html")
@@ -88,7 +100,6 @@ def login_page():
                 return redirect(next_url or url_for("admin_page"))
             return redirect(next_url or url_for("home"))
 
-        # lỗi đăng nhập
         msg = "Đăng nhập thất bại."
         ctype = r.headers.get("content-type", "")
         if ctype.startswith("application/json"):
@@ -148,7 +159,6 @@ def logout_page():
     flash("Đã đăng xuất!", "success")
     return redirect(url_for("home"))
 
-# --------- admin ----------
 @app.route("/admin", methods=["GET"], endpoint="admin_page")
 def admin_page():
     users, products, transactions = [], [], []
@@ -274,12 +284,10 @@ def admin_logout():
     flash("Đã đăng xuất khỏi Admin!", "success")
     return redirect(url_for("admin_page"))
 
-# --------- policy ----------
 @app.route("/policy", methods=["GET"], endpoint="policy_page")
 def policy_page():
     return render_template("policy.html")
 
-# --------- password change ---------
 @app.post("/change-password")
 @login_required()
 def change_password_gateway():
@@ -311,12 +319,11 @@ def change_password_gateway():
 
     return redirect(url_for("profile"))
 
-# --------- profile page ---------
 @app.get("/profile", endpoint="profile")
 def profile_page():
     return render_template("profile.html")
 
-# --------- proxies to auth-service ---------
+
 @app.route("/auth/me")
 def proxy_me():
     token = session.get("access_token")
@@ -340,18 +347,44 @@ def proxy_profile():
         if request.method == "GET":
             r = requests.get(f"{AUTH_URL}/auth/profile", headers=headers, timeout=8)
 
-        elif request.method == "PUT":
-            r = requests.put(f"{AUTH_URL}/auth/profile", headers={**headers, "Content-Type":"application/json"},
-                             json=request.json, timeout=12)
+            # đồng bộ tên hiển thị nếu GET ok và là JSON
+            if r.ok and (r.headers.get("content-type","").startswith("application/json")):
+                try:
+                    _update_display_name_from_payload(r.json())
+                except Exception:
+                    pass
 
-        else:  # POST upload avatar (multipart/form-data)
+        elif request.method == "PUT":
+            r = requests.put(
+                f"{AUTH_URL}/auth/profile",
+                headers={**headers, "Content-Type": "application/json"},
+                json=request.json, timeout=12
+            )
+
+            # CẬP NHẬT SESSION sau khi PUT ok
+            if r.ok and (r.headers.get("content-type","").startswith("application/json")):
+                try:
+                    _update_display_name_from_payload(r.json())
+                except Exception:
+                    pass
+
+        else:  # POST (upload avatar + form fields)
             files = {}
             for name, storage in request.files.items():
-                # map FileStorage -> (filename, bytes, mimetype)
                 files[name] = (storage.filename, storage.read(), storage.mimetype or "application/octet-stream")
-            r = requests.post(f"{AUTH_URL}/auth/profile",
-                              headers=headers,  # requests sẽ tự set multipart
-                              files=files, data=request.form, timeout=20)
+
+            r = requests.post(
+                f"{AUTH_URL}/auth/profile",
+                headers=headers,  # KHÔNG tự set Content-Type khi gửi multipart
+                files=files, data=request.form, timeout=20
+            )
+
+            # CẬP NHẬT SESSION sau khi POST ok
+            if r.ok and (r.headers.get("content-type","").startswith("application/json")):
+                try:
+                    _update_display_name_from_payload(r.json())
+                except Exception:
+                    pass
 
         ctype = r.headers.get("content-type") or "application/json"
         return Response(r.content, status=r.status_code, content_type=ctype)
@@ -359,7 +392,30 @@ def proxy_profile():
     except requests.RequestException:
         return Response("Auth service unreachable", status=502)
 
-# --------- run ---------
+@app.get("/auth/avatar/<path:name>")
+def proxy_avatar(name):
+    token = session.get("access_token")  # nếu cần xác thực
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    try:
+        r = requests.get(f"{AUTH_URL}/auth/avatar/{name}", headers=headers, timeout=12, stream=True)
+    except requests.RequestException:
+        return Response("Auth service unreachable", status=502)
+
+    # Trả về đúng content-type ảnh từ Auth service
+    ctype = r.headers.get("content-type", "image/jpeg")
+    if not r.ok:
+        return Response(r.content, status=r.status_code, content_type=ctype)
+
+    # Stream ảnh về client
+    data = r.content
+    resp = Response(data, status=200, content_type=ctype)
+    # Tuỳ chọn: tránh cache cứng
+    resp.headers["Cache-Control"] = "private, max-age=60"
+    return resp
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
     app.run(host="0.0.0.0", port=port, debug=True)

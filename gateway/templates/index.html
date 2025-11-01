@@ -21,18 +21,23 @@
         <a href="#" class="user-menu-item"><i class="far fa-bell"></i> Thông báo</a>
 
         {% if session.get('user') %}
+          {% set display_name = session.get('display_name')
+                                or session.get('user', {}).get('full_name')
+                                or session.get('user', {}).get('username')
+                                or 'User' %}
+          {% set avatar_initial = (display_name[:1] if display_name else 'U') | upper %}
+
           <div class="user-avatar-wrap">
             <button class="avatar-btn" onclick="toggleUserMenu(event)">
-              <span class="avatar-circle">
-                {{ (session['user'].get('username') or 'U')[:1] | upper }}
-              </span>
+              <span class="avatar-circle">{{ avatar_initial }}</span>
             </button>
             <div id="userDropdown" class="user-dropdown" style="display:none">
-              <div class="dropdown-name">{{ session['user'].get('username') }}</div>
+              <div class="dropdown-name">{{ display_name }}</div>
               <a href="{{ url_for('profile') }}" class="dropdown-item">Quản lý hồ sơ</a>
               <a href="{{ url_for('logout_page') }}" class="dropdown-item">Đăng xuất</a>
             </div>
           </div>
+
           <a href="/add" class="post-button">Đăng tin</a>
         {% else %}
           <a href="{{ url_for('login_page') }}" class="user-menu-item">Đăng nhập</a>
@@ -100,17 +105,18 @@
       </div>
       <div id="loginTab" class="tab-content">
         <form id="loginForm" method="POST" action="{{ url_for('login_page') }}">
-          <input type="email" name="email" placeholder="Email" required/>
+          <input type="text" name="username" placeholder="Tên đăng nhập hoặc email" required/>
           <input type="password" name="password" placeholder="Mật khẩu" required/>
           <button type="submit">Đăng nhập</button>
         </form>
       </div>
       <div id="registerTab" class="tab-content" style="display:none">
         <form id="registerForm" method="POST" action="{{ url_for('register_page') }}">
-          <input type="email" name="email" placeholder="Email" required/>
-          <input type="text" name="phone" placeholder="Số điện thoại" required/>
-          <input type="password" name="password" placeholder="Mật khẩu" required/>
-          <input type="password" name="confirmPassword" placeholder="Xác nhận mật khẩu" required/>
+          <input type="text"  name="username" placeholder="Tên đăng nhập" required/>
+          <input type="email" name="email"    placeholder="Email" required/>
+          <input type="text"  name="phone"    placeholder="Số điện thoại"/>
+          <input type="password" name="password"         placeholder="Mật khẩu" required/>
+          <input type="password" name="confirm_password" placeholder="Xác nhận mật khẩu" required/>
           <button type="submit">Đăng ký</button>
         </form>
       </div>

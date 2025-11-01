@@ -2,6 +2,7 @@ from sqlalchemy import or_
 import os
 import re
 import jwt
+from flask import send_from_directory
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, session, render_template, url_for, current_app, flash, redirect
 from types import SimpleNamespace
@@ -330,9 +331,11 @@ def update_profile_form():
         "ok": True,
         "profile": p.to_dict(),
         "user": u.to_dict_basic(),
-        "avatar_src": url_for("static", filename=f"{AVATAR_DIR}/{p.avatar_url}")
-        if p.avatar_url
-        else url_for("static", filename="img/avatar-placeholder.png"),
+        "avatar_src": (
+            url_for("auth.get_avatar", name=p.avatar_url)
+            if p.avatar_url
+            else url_for("static", filename="img/avatar-placeholder.png")
+        ),
     }
 
 @bp.get("/profile-page", endpoint="profile_html")
@@ -363,3 +366,12 @@ def profile_page():
     else:
         avatar_src = url_for("static", filename="img/avatar-placeholder.png")
     return render_template("profile.html", user=user, profile=prof, avatar_src=avatar_src)
+
+@bp.get("/avatar/<path:name>")
+def get_avatar(name):
+    """Trả ảnh đại diện"""
+    avatar_dir = Path(current_app.static_folder) / AVATAR_DIR
+    file_path = avatar_dir / name
+    if not file_path.exists():
+        return {"error": "not_found"}, 404
+    return send_from_directory(avatar_dir, name)
