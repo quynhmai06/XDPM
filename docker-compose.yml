@@ -24,8 +24,8 @@ services:
     depends_on: [db]
     ports: ["5002:5002"]   
 
-  listings_service:
-    build: ./listings-service
+  search_service:
+    build: ./search-service
     environment:
       DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
     depends_on: [db]
@@ -71,7 +71,7 @@ services:
     environment:
       AUTH_URL:  http://auth_service:5001   
       ADMIN_URL: http://admin_service:5002
-      LISTINGS_URL: http://listings_service:5003
+      SEARCH_URL: http://search_service:5003
       FAVORITES_URL: http://favorites_service:5004
       ORDERS_URL: http://orders_service:5005
       AUCTIONS_URL: http://auctions_service:5006
@@ -79,7 +79,7 @@ services:
       TRANSACTIONS_URL: http://transactions_service:5008
       GATEWAY_SECRET: dev
       JWT_SECRET: supersecret
-    depends_on: [auth_service, admin_service, listings_service, favorites_service, orders_service, auctions_service, reviews_service, transactions_service]
+    depends_on: [auth_service, admin_service, search_service, favorites_service, orders_service, auctions_service, reviews_service, transactions_service]
     ports: ["8000:8000"]
 
 volumes:

@@ -4,7 +4,7 @@ from flask import jsonify
 
 AUTH_URL = os.getenv("AUTH_URL", "http://127.0.0.1:5001")
 ADMIN_URL = os.getenv("ADMIN_URL", "http://127.0.0.1:5002")
-LISTINGS_URL = os.getenv("LISTINGS_URL", "http://127.0.0.1:5003")
+SEARCH_URL = os.getenv("SEARCH_URL", "http://127.0.0.1:5003")
 FAVORITES_URL = os.getenv("FAVORITES_URL", "http://127.0.0.1:5004")
 ORDERS_URL = os.getenv("ORDERS_URL", "http://127.0.0.1:5005")
 AUCTIONS_URL = os.getenv("AUCTIONS_URL", "http://127.0.0.1:5006")
@@ -208,11 +208,11 @@ def _enrich_item(it):
     item = None
     try:
         if it.get('item_type') == 'vehicle':
-            ir = requests.get(f"{LISTINGS_URL}/listings/vehicles/{it.get('item_id')}", timeout=5)
+            ir = requests.get(f"{SEARCH_URL}/listings/vehicles/{it.get('item_id')}", timeout=5)
             if ir.ok:
                 item = ir.json()
         elif it.get('item_type') == 'battery':
-            ir = requests.get(f"{LISTINGS_URL}/listings/batteries/{it.get('item_id')}", timeout=5)
+            ir = requests.get(f"{SEARCH_URL}/listings/batteries/{it.get('item_id')}", timeout=5)
             if ir.ok:
                 item = ir.json()
     except requests.RequestException:
@@ -421,6 +421,22 @@ def api_update_profile():
         headers = {"Authorization": f"Bearer {session.get('access_token')}"}
         r = requests.put(f"{AUTH_URL}/auth/profile", json=request.get_json(), headers=headers, timeout=5)
         if r.ok:
+            # If auth service returned updated user info, refresh session copy
+            try:
+                data = r.json()
+                updated_user = data.get('user') if isinstance(data, dict) else None
+                profile_obj = data.get('profile') if isinstance(data, dict) else None
+                if updated_user:
+                    session['user'] = updated_user
+                elif profile_obj and isinstance(profile_obj, dict):
+                    su = session.get('user', {}) or {}
+                    if profile_obj.get('full_name'):
+                        su['username'] = profile_obj.get('full_name')
+                    if profile_obj.get('avatar_url'):
+                        su['avatar_url'] = profile_obj.get('avatar_url')
+                    session['user'] = su
+            except Exception:
+                pass
             return (r.json(), 200)
         return (r.json() if r.headers.get("content-type", "").startswith("application/json") else {"error": "update_failed"}, r.status_code)
     except requests.RequestException as e:
@@ -452,6 +468,22 @@ def api_upload_avatar():
             timeout=10
         )
         if r.ok:
+            # Refresh session user if auth returned updated user info
+            try:
+                data = r.json()
+                updated_user = data.get('user') if isinstance(data, dict) else None
+                profile_obj = data.get('profile') if isinstance(data, dict) else None
+                if updated_user:
+                    session['user'] = updated_user
+                elif profile_obj and isinstance(profile_obj, dict):
+                    su = session.get('user', {}) or {}
+                    if profile_obj.get('full_name'):
+                        su['username'] = profile_obj.get('full_name')
+                    if profile_obj.get('avatar_url'):
+                        su['avatar_url'] = profile_obj.get('avatar_url')
+                    session['user'] = su
+            except Exception:
+                pass
             return (r.json(), 200)
         return (r.json() if r.headers.get("content-type", "").startswith("application/json") else {"error": "upload_failed"}, r.status_code)
     except requests.RequestException as e:
@@ -465,7 +497,7 @@ def api_my_listings():
         return {"error": "unauthenticated"}, 401
     
     try:
-        r = requests.get(f"{LISTINGS_URL}/listings/user/{user['sub']}", timeout=5)
+        r = requests.get(f"{SEARCH_URL}/listings/user/{user['sub']}", timeout=5)
         if r.ok:
             return (r.json(), 200)
         return {"items": []}, 200
@@ -510,8 +542,29 @@ def profile_edit_page():
                 headers=headers,
                 timeout=10
             )
-            
+
             if r.ok:
+                # Try to refresh session user info so header reflects changes immediately
+                try:
+                    pr = requests.get(f"{AUTH_URL}/auth/profile", headers=headers, timeout=3)
+                    if pr.ok and pr.headers.get('content-type','').startswith('application/json'):
+                        pdata = pr.json()
+                        new_user = pdata.get('user')
+                        profile_obj = pdata.get('profile')
+                        if new_user:
+                            session['user'] = new_user
+                        elif profile_obj and isinstance(profile_obj, dict):
+                            # Fallback: merge some profile fields into session user
+                            su = session.get('user', {}) or {}
+                            if profile_obj.get('full_name'):
+                                su['username'] = profile_obj.get('full_name')
+                            if profile_obj.get('avatar_url'):
+                                su['avatar_url'] = profile_obj.get('avatar_url')
+                            session['user'] = su
+                except Exception:
+                    # ignore - we'll still redirect and profile page will fetch fresh data
+                    pass
+
                 flash("Cập nhật profile thành công!", "success")
                 return redirect(url_for("profile_page_gateway"))
             else:
@@ -687,7 +740,7 @@ if __name__ == "__main__":
 @app.get('/api/search/vehicles')
 def api_search_vehicles():
     try:
-        r = requests.get(f"{LISTINGS_URL}/listings/vehicles", params=request.args, timeout=5)
+        r = requests.get(f"{SEARCH_URL}/listings/vehicles", params=request.args, timeout=5)
         return (r.json(), r.status_code)
     except requests.RequestException:
         return {"error": "listings_unavailable"}, 503
@@ -695,7 +748,7 @@ def api_search_vehicles():
 @app.get('/api/listings/vehicles/<int:id>')
 def api_get_vehicle(id):
     try:
-        r = requests.get(f"{LISTINGS_URL}/listings/vehicles/{id}", timeout=5)
+        r = requests.get(f"{SEARCH_URL}/listings/vehicles/{id}", timeout=5)
         return (r.json(), r.status_code)
     except requests.RequestException:
         return {"error": "listings_unavailable"}, 503
@@ -703,7 +756,7 @@ def api_get_vehicle(id):
 @app.get('/api/search/batteries')
 def api_search_batteries():
     try:
-        r = requests.get(f"{LISTINGS_URL}/listings/batteries", params=request.args, timeout=5)
+        r = requests.get(f"{SEARCH_URL}/listings/batteries", params=request.args, timeout=5)
         return (r.json(), r.status_code)
     except requests.RequestException:
         return {"error": "listings_unavailable"}, 503
@@ -711,7 +764,7 @@ def api_search_batteries():
 @app.get('/api/listings/batteries/<int:id>')
 def api_get_battery(id):
     try:
-        r = requests.get(f"{LISTINGS_URL}/listings/batteries/{id}", timeout=5)
+        r = requests.get(f"{SEARCH_URL}/listings/batteries/{id}", timeout=5)
         return (r.json(), r.status_code)
     except requests.RequestException:
         return {"error": "listings_unavailable"}, 503
@@ -731,11 +784,11 @@ def api_favorites_list():
             item = None
             try:
                 if f.get('item_type') == 'vehicle':
-                    ir = requests.get(f"{LISTINGS_URL}/listings/vehicles/{f.get('item_id')}", timeout=5)
+                    ir = requests.get(f"{SEARCH_URL}/listings/vehicles/{f.get('item_id')}", timeout=5)
                     if ir.ok:
                         item = ir.json()
                 elif f.get('item_type') == 'battery':
-                    ir = requests.get(f"{LISTINGS_URL}/listings/batteries/{f.get('item_id')}", timeout=5)
+                    ir = requests.get(f"{SEARCH_URL}/listings/batteries/{f.get('item_id')}", timeout=5)
                     if ir.ok:
                         item = ir.json()
             except requests.RequestException:

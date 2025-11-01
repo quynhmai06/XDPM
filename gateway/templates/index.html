@@ -173,6 +173,43 @@
           opacity: 0;
         }
       }
+
+      /* Search highlight animations */
+      mark {
+        animation: highlightFade 0.3s ease;
+      }
+
+      @keyframes highlightFade {
+        0% {
+          background: #fff;
+        }
+        100% {
+          background: #ffeb3b;
+        }
+      }
+
+      /* Enhanced search input styling */
+      .location-search:focus {
+        border-color: #ff6f00 !important;
+        box-shadow: 0 0 0 3px rgba(255, 111, 0, 0.1);
+      }
+
+      /* Search result counter */
+      .search-result-count {
+        padding: 8px 12px;
+        font-size: 12px;
+        color: #666;
+        background: #f5f5f5;
+        border-radius: 6px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .search-result-count i {
+        color: #ff6f00;
+      }
     </style>
   </head>
   <body>
@@ -201,12 +238,12 @@
           {% if session.get('user') %}
           <div class="user-avatar-wrap">
             <button class="avatar-btn" onclick="toggleUserMenu(event)">
-              <span class="avatar-circle">
+              <span class="avatar-circle" id="headerAvatarCircle">
                 {{ (session['user'].get('username') or 'U')[:1] | upper }}
               </span>
             </button>
             <div id="userDropdown" class="user-dropdown" style="display: none">
-              <div class="dropdown-name">
+              <div class="dropdown-name" id="headerUsername">
                 {{ session['user'].get('username') }}
               </div>
               <a href="/profile" class="dropdown-item"
@@ -239,32 +276,707 @@
         <h2 class="search-subtitle">
           Nền tảng giao dịch pin và xe điện qua sử dụng
         </h2>
-        <div class="search-box">
-          <input
-            id="qBrand"
-            type="text"
-            class="search-input"
-            placeholder="Hãng (VD: VinFast, Tesla)"
-          />
-          <input
-            id="qModel"
-            type="text"
-            class="search-input"
-            placeholder="Đời / Model"
-          />
-          <input
-            id="qYear"
-            type="number"
-            class="search-input"
-            placeholder="Năm"
-          />
-          <input
-            id="qPrice"
-            type="number"
-            class="search-input"
-            placeholder="Giá tối đa"
-          />
-          <button class="search-button" onclick="doSearch()">Tìm kiếm</button>
+        <div class="search-box-wrapper">
+          <div class="search-box-unified">
+            <!-- Search Icon -->
+            <div class="search-icon">
+              <i class="fas fa-search"></i>
+            </div>
+
+            <!-- Main Search Input -->
+            <input
+              id="qSearch"
+              type="text"
+              class="search-input-main"
+              placeholder="Tìm xe cộ..."
+            />
+
+            <!-- Divider -->
+            <div class="search-divider"></div>
+
+            <!-- Location Dropdown -->
+            <div class="search-dropdown-wrapper">
+              <button
+                class="search-dropdown-btn"
+                id="locationBtn"
+                onclick="toggleLocationDropdown()"
+              >
+                <i class="fas fa-map-marker-alt"></i>
+                <span id="locationText">Hà Nội</span>
+                <i class="fas fa-chevron-down"></i>
+              </button>
+              <div
+                class="search-dropdown-menu"
+                id="locationDropdown"
+                style="display: none"
+              >
+                <div class="dropdown-header">
+                  <h3>Khu vực</h3>
+                </div>
+                <div class="dropdown-content" style="padding-top: 8px">
+                  <input
+                    type="text"
+                    class="location-search"
+                    placeholder="Tìm tỉnh thành..."
+                    id="locationSearchInput"
+                    oninput="filterLocations()"
+                  />
+                  <div class="location-options" id="locationList">
+                    <label class="location-option selected">
+                      <input type="radio" name="location" value="all" checked />
+                      <span><i class="fas fa-check-circle"></i> Toàn quốc</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="hanoi" />
+                      <span>Hà Nội</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="hochiminh" />
+                      <span>TP. Hồ Chí Minh</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="danang" />
+                      <span>Đà Nẵng</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="haiphong" />
+                      <span>Hải Phòng</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="cantho" />
+                      <span>Cần Thơ</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="binhduong" />
+                      <span>Bình Dương</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="dongnai" />
+                      <span>Đồng Nai</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="khanhhoa" />
+                      <span>Khánh Hòa</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="haiduong" />
+                      <span>Hải Dương</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="nghean" />
+                      <span>Nghệ An</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="bacninh" />
+                      <span>Bắc Ninh</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="thanhhoa" />
+                      <span>Thanh Hóa</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="thaibinh" />
+                      <span>Thái Bình</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="namdinh" />
+                      <span>Nam Định</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="quangninh" />
+                      <span>Quảng Ninh</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="hungyen" />
+                      <span>Hưng Yên</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="vinhphuc" />
+                      <span>Vĩnh Phúc</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="phutho" />
+                      <span>Phú Thọ</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="quangnam" />
+                      <span>Quảng Nam</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="baria" />
+                      <span>Bà Rịa - Vũng Tàu</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="tiengiang" />
+                      <span>Tiền Giang</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="bentre" />
+                      <span>Bến Tre</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="thainguyen" />
+                      <span>Thái Nguyên</span>
+                    </label>
+                    <label class="location-option">
+                      <input type="radio" name="location" value="longan" />
+                      <span>Long An</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="dropdown-footer">
+                  <button class="dropdown-clear-btn" onclick="clearLocation()">
+                    Xóa lọc
+                  </button>
+                  <button class="dropdown-apply-btn" onclick="applyLocation()">
+                    Áp dụng
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Divider -->
+            <div class="search-divider"></div>
+
+            <!-- Product Type Dropdown -->
+            <div class="search-dropdown-wrapper">
+              <button
+                class="search-dropdown-btn"
+                id="typeBtn"
+                onclick="toggleTypeDropdown()"
+              >
+                <i class="fas fa-car"></i>
+                <span id="typeText">Tất cả Xe cộ</span>
+                <i class="fas fa-chevron-down"></i>
+              </button>
+              <div
+                class="search-dropdown-menu"
+                id="typeDropdown"
+                style="display: none"
+              >
+                <div class="dropdown-header">
+                  <h3>Chọn loại & hãng</h3>
+                </div>
+                <div class="dropdown-content brands-grid-layout">
+                  <!-- Loại sản phẩm Section -->
+                  <div class="product-type-section">
+                    <div class="section-title">📋 Loại sản phẩm</div>
+                    <div class="location-options horizontal-options">
+                      <label class="location-option selected">
+                        <input
+                          type="radio"
+                          name="productType"
+                          value="all"
+                          checked
+                        />
+                        <span><i class="fas fa-check-circle"></i> Tất cả</span>
+                      </label>
+                      <label class="location-option">
+                        <input
+                          type="radio"
+                          name="productType"
+                          value="vehicle"
+                        />
+                        <span><i class="fas fa-check-circle"></i> Xe</span>
+                      </label>
+                      <label class="location-option">
+                        <input
+                          type="radio"
+                          name="productType"
+                          value="battery"
+                        />
+                        <span><i class="fas fa-check-circle"></i> Pin</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Brands Two Columns -->
+                  <div class="brands-two-columns">
+                    <!-- Hãng xe Column -->
+                    <div class="brand-column">
+                      <div class="section-title">🚗 Hãng xe</div>
+                      <input
+                        type="text"
+                        class="location-search"
+                        placeholder="Tìm hãng xe..."
+                        id="vehicleBrandInput"
+                        oninput="filterVehicleBrands()"
+                      />
+                      <div class="brand-count-info">
+                        <i class="fas fa-car"></i> 10 hãng xe có sẵn
+                      </div>
+                      <div class="location-options" id="vehicleBrandList">
+                        <label class="location-option brand-option">
+                          <input
+                            type="radio"
+                            name="vehicleBrand"
+                            value="vinfast"
+                          />
+                          <span
+                            ><i class="fas fa-check-circle"></i> VinFast</span
+                          >
+                        </label>
+                        <label class="location-option brand-option">
+                          <input
+                            type="radio"
+                            name="vehicleBrand"
+                            value="tesla"
+                          />
+                          <span><i class="fas fa-check-circle"></i> Tesla</span>
+                        </label>
+                        <label class="location-option brand-option">
+                          <input type="radio" name="vehicleBrand" value="byd" />
+                          <span><i class="fas fa-check-circle"></i> BYD</span>
+                        </label>
+                        <label class="location-option brand-option">
+                          <input type="radio" name="vehicleBrand" value="bmw" />
+                          <span><i class="fas fa-check-circle"></i> BMW</span>
+                        </label>
+                        <label class="location-option brand-option">
+                          <input
+                            type="radio"
+                            name="vehicleBrand"
+                            value="mercedes"
+                          />
+                          <span
+                            ><i class="fas fa-check-circle"></i>
+                            Mercedes-Benz</span
+                          >
+                        </label>
+                        <label class="location-option brand-option">
+                          <input
+                            type="radio"
+                            name="vehicleBrand"
+                            value="audi"
+                          />
+                          <span><i class="fas fa-check-circle"></i> Audi</span>
+                        </label>
+                        <label class="location-option brand-option">
+                          <input
+                            type="radio"
+                            name="vehicleBrand"
+                            value="nissan"
+                          />
+                          <span
+                            ><i class="fas fa-check-circle"></i> Nissan</span
+                          >
+                        </label>
+                        <label class="location-option brand-option">
+                          <input
+                            type="radio"
+                            name="vehicleBrand"
+                            value="hyundai"
+                          />
+                          <span
+                            ><i class="fas fa-check-circle"></i> Hyundai</span
+                          >
+                        </label>
+                        <label class="location-option brand-option">
+                          <input type="radio" name="vehicleBrand" value="kia" />
+                          <span><i class="fas fa-check-circle"></i> Kia</span>
+                        </label>
+                        <label class="location-option brand-option">
+                          <input
+                            type="radio"
+                            name="vehicleBrand"
+                            value="chevrolet"
+                          />
+                          <span
+                            ><i class="fas fa-check-circle"></i> Chevrolet</span
+                          >
+                        </label>
+                      </div>
+                    </div>
+
+                    <!-- Hãng pin Column -->
+                    <div class="brand-column">
+                      <div class="section-title">🔋 Hãng pin</div>
+                      <input
+                        type="text"
+                        class="location-search"
+                        placeholder="Tìm hãng pin..."
+                        id="batteryBrandInput"
+                        oninput="filterBatteryBrands()"
+                      />
+                      <div class="brand-count-info">
+                        <i class="fas fa-battery-full"></i> 10 hãng pin có sẵn
+                      </div>
+                      <div class="location-options" id="batteryBrandList">
+                        <label class="location-option brand-option">
+                          <input
+                            type="radio"
+                            name="batteryBrand"
+                            value="catl"
+                          />
+                          <span><i class="fas fa-check-circle"></i> CATL</span>
+                        </label>
+                        <label class="location-option brand-option">
+                          <input type="radio" name="batteryBrand" value="lg" />
+                          <span
+                            ><i class="fas fa-check-circle"></i> LG Energy
+                            Solution</span
+                          >
+                        </label>
+                        <label class="location-option brand-option">
+                          <input
+                            type="radio"
+                            name="batteryBrand"
+                            value="panasonic"
+                          />
+                          <span
+                            ><i class="fas fa-check-circle"></i> Panasonic</span
+                          >
+                        </label>
+                        <label class="location-option brand-option">
+                          <input
+                            type="radio"
+                            name="batteryBrand"
+                            value="samsung"
+                          />
+                          <span
+                            ><i class="fas fa-check-circle"></i> Samsung
+                            SDI</span
+                          >
+                        </label>
+                        <label class="location-option brand-option">
+                          <input type="radio" name="batteryBrand" value="byd" />
+                          <span
+                            ><i class="fas fa-check-circle"></i> BYD
+                            Battery</span
+                          >
+                        </label>
+                        <label class="location-option brand-option">
+                          <input type="radio" name="batteryBrand" value="sk" />
+                          <span
+                            ><i class="fas fa-check-circle"></i> SK
+                            Innovation</span
+                          >
+                        </label>
+                        <label class="location-option brand-option">
+                          <input
+                            type="radio"
+                            name="batteryBrand"
+                            value="tesla"
+                          />
+                          <span
+                            ><i class="fas fa-check-circle"></i> Tesla
+                            Battery</span
+                          >
+                        </label>
+                        <label class="location-option brand-option">
+                          <input
+                            type="radio"
+                            name="batteryBrand"
+                            value="envision"
+                          />
+                          <span
+                            ><i class="fas fa-check-circle"></i> Envision
+                            AESC</span
+                          >
+                        </label>
+                        <label class="location-option brand-option">
+                          <input
+                            type="radio"
+                            name="batteryBrand"
+                            value="svolt"
+                          />
+                          <span><i class="fas fa-check-circle"></i> SVOLT</span>
+                        </label>
+                        <label class="location-option brand-option">
+                          <input
+                            type="radio"
+                            name="batteryBrand"
+                            value="gotion"
+                          />
+                          <span
+                            ><i class="fas fa-check-circle"></i> Gotion
+                            High-Tech</span
+                          >
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="dropdown-footer">
+                  <button class="dropdown-clear-btn" onclick="clearType()">
+                    Xóa lọc
+                  </button>
+                  <button class="dropdown-apply-btn" onclick="applyType()">
+                    Áp dụng
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Search Button -->
+            <button class="search-button-unified" onclick="doSearch()">
+              Tìm xe
+            </button>
+          </div>
+
+          <!-- Advanced Filters -->
+          <div class="advanced-filters" id="advancedFilters">
+            <button
+              class="toggle-filters-btn"
+              onclick="toggleAdvancedFilters()"
+            >
+              <i class="fas fa-sliders-h"></i> Bộ lọc nâng cao
+              <i class="fas fa-chevron-down filter-chevron"></i>
+            </button>
+
+            <div
+              class="filters-content"
+              id="filtersContent"
+              style="display: none"
+            >
+              <!-- Vehicle Filters -->
+              <div class="filter-group vehicle-filters">
+                <div class="filter-group-title">
+                  <i class="fas fa-car"></i> Bộ lọc xe điện
+                </div>
+                <div class="filter-row">
+                  <div class="filter-item">
+                    <label>Năm sản xuất</label>
+                    <div class="filter-range">
+                      <select id="yearFrom">
+                        <option value="">Từ năm</option>
+                        <option value="2020">2020</option>
+                        <option value="2021">2021</option>
+                        <option value="2022">2022</option>
+                        <option value="2023">2023</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                      </select>
+                      <span class="range-separator">-</span>
+                      <select id="yearTo">
+                        <option value="">Đến năm</option>
+                        <option value="2020">2020</option>
+                        <option value="2021">2021</option>
+                        <option value="2022">2022</option>
+                        <option value="2023">2023</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="filter-item">
+                    <label>Số km đã đi</label>
+                    <div class="filter-range">
+                      <input
+                        type="number"
+                        id="kmFrom"
+                        placeholder="Từ km"
+                        min="0"
+                        step="1000"
+                      />
+                      <span class="range-separator">-</span>
+                      <input
+                        type="number"
+                        id="kmTo"
+                        placeholder="Đến km"
+                        min="0"
+                        step="1000"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="filter-item">
+                    <label>Giá xe (triệu VNĐ)</label>
+                    <div class="filter-range">
+                      <input
+                        type="number"
+                        id="vehiclePriceFrom"
+                        placeholder="Từ"
+                        min="0"
+                        step="10"
+                      />
+                      <span class="range-separator">-</span>
+                      <input
+                        type="number"
+                        id="vehiclePriceTo"
+                        placeholder="Đến"
+                        min="0"
+                        step="10"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="filter-item">
+                    <label>Dung lượng pin (kWh)</label>
+                    <div class="filter-range">
+                      <input
+                        type="number"
+                        id="batteryCapacityFrom"
+                        placeholder="Từ"
+                        min="0"
+                        step="5"
+                      />
+                      <span class="range-separator">-</span>
+                      <input
+                        type="number"
+                        id="batteryCapacityTo"
+                        placeholder="Đến"
+                        min="0"
+                        step="5"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div class="filter-row single-row">
+                  <div class="filter-item">
+                    <label>Tình trạng xe</label>
+                    <select id="vehicleCondition">
+                      <option value="">Tất cả</option>
+                      <option value="new">Mới</option>
+                      <option value="like_new">Như mới</option>
+                      <option value="good">Tốt</option>
+                      <option value="fair">Khá</option>
+                      <option value="poor">Cần sửa chữa</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Battery Filters -->
+              <div class="filter-group battery-filters">
+                <div class="filter-group-title">
+                  <i class="fas fa-battery-full"></i> Bộ lọc pin điện
+                </div>
+                <div class="filter-row">
+                  <div class="filter-item">
+                    <label>Dung lượng pin (kWh)</label>
+                    <div class="filter-range">
+                      <input
+                        type="number"
+                        id="battOnlyCapacityFrom"
+                        placeholder="Từ"
+                        min="0"
+                        step="5"
+                      />
+                      <span class="range-separator">-</span>
+                      <input
+                        type="number"
+                        id="battOnlyCapacityTo"
+                        placeholder="Đến"
+                        min="0"
+                        step="5"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="filter-item">
+                    <label>Giá pin (triệu VNĐ)</label>
+                    <div class="filter-range">
+                      <input
+                        type="number"
+                        id="batteryPriceFrom"
+                        placeholder="Từ"
+                        min="0"
+                        step="5"
+                      />
+                      <span class="range-separator">-</span>
+                      <input
+                        type="number"
+                        id="batteryPriceTo"
+                        placeholder="Đến"
+                        min="0"
+                        step="5"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="filter-item">
+                    <label>Sức khỏe pin (%)</label>
+                    <div class="filter-range">
+                      <input
+                        type="number"
+                        id="healthFrom"
+                        placeholder="Từ %"
+                        min="0"
+                        max="100"
+                        step="5"
+                      />
+                      <span class="range-separator">-</span>
+                      <input
+                        type="number"
+                        id="healthTo"
+                        placeholder="Đến %"
+                        min="0"
+                        max="100"
+                        step="5"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="filter-item">
+                    <label>Số chu kỳ sạc</label>
+                    <div class="filter-range">
+                      <input
+                        type="number"
+                        id="cyclesFrom"
+                        placeholder="Từ"
+                        min="0"
+                        step="50"
+                      />
+                      <span class="range-separator">-</span>
+                      <input
+                        type="number"
+                        id="cyclesTo"
+                        placeholder="Đến"
+                        min="0"
+                        step="50"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="filter-item">
+                    <label>Năm sản xuất pin</label>
+                    <div class="filter-range">
+                      <select id="batteryYearFrom">
+                        <option value="">Từ năm</option>
+                        <option value="2018">2018</option>
+                        <option value="2019">2019</option>
+                        <option value="2020">2020</option>
+                        <option value="2021">2021</option>
+                        <option value="2022">2022</option>
+                        <option value="2023">2023</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                      </select>
+                      <span class="range-separator">-</span>
+                      <select id="batteryYearTo">
+                        <option value="">Đến năm</option>
+                        <option value="2018">2018</option>
+                        <option value="2019">2019</option>
+                        <option value="2020">2020</option>
+                        <option value="2021">2021</option>
+                        <option value="2022">2022</option>
+                        <option value="2023">2023</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="filters-actions">
+                <button
+                  class="clear-filters-btn"
+                  onclick="clearAdvancedFilters()"
+                >
+                  <i class="fas fa-redo"></i> Xóa bộ lọc
+                </button>
+                <button
+                  class="apply-filters-btn"
+                  onclick="applyAdvancedFilters()"
+                >
+                  <i class="fas fa-search"></i> Áp dụng
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -402,11 +1114,332 @@
         if (!wrap.contains(ev.target)) dd.style.display = "none";
       });
 
+      // Dropdown toggle functions
+      let currentLocation = { province: null, district: null };
+      let currentType = 'all';
+
+      function toggleLocationDropdown() {
+        const dropdown = document.getElementById('locationDropdown');
+        const typeDropdown = document.getElementById('typeDropdown');
+        typeDropdown.style.display = 'none';
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+      }
+
+      function toggleTypeDropdown() {
+        const dropdown = document.getElementById('typeDropdown');
+        const locationDropdown = document.getElementById('locationDropdown');
+        locationDropdown.style.display = 'none';
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+      }
+
+      // Filter functions for search inputs - Google-style instant search
+      function filterLocations() {
+        const input = document.getElementById('locationSearchInput');
+        const searchTerm = input.value.toLowerCase().trim();
+        const options = document.querySelectorAll('#locationList .location-option');
+        let visibleCount = 0;
+
+        options.forEach(opt => {
+          const span = opt.querySelector('span');
+          const originalText = span.getAttribute('data-original') || span.textContent;
+
+          // Store original text first time
+          if (!span.getAttribute('data-original')) {
+            span.setAttribute('data-original', span.textContent);
+          }
+
+          // Remove any existing highlights
+          const textOnly = originalText.replace(/(<mark>|<\/mark>)/g, '');
+
+          if (!searchTerm || textOnly.toLowerCase().includes(searchTerm)) {
+            opt.style.display = 'flex';
+            visibleCount++;
+
+            // Highlight matching text
+            if (searchTerm) {
+              const regex = new RegExp(`(${searchTerm})`, 'gi');
+              const highlighted = textOnly.replace(regex, '<mark style="background:#ffeb3b;padding:2px 4px;border-radius:3px;font-weight:600">$1</mark>');
+
+              // Preserve icon if exists
+              const icon = span.querySelector('i');
+              span.innerHTML = highlighted;
+              if (icon) span.insertBefore(icon, span.firstChild);
+            } else {
+              span.textContent = textOnly;
+              // Restore icon if exists
+              if (originalText.includes('✓') || opt.classList.contains('selected')) {
+                span.innerHTML = '<i class="fas fa-check-circle"></i> ' + textOnly;
+              }
+            }
+          } else {
+            opt.style.display = 'none';
+          }
+        });
+
+        // Show "no results" message
+        showNoResults('locationList', visibleCount, 'tỉnh thành');
+      }
+
+      function filterProducts() {
+        const input = document.getElementById('productSearchInput');
+        const searchTerm = input.value.toLowerCase().trim();
+        const options = document.querySelectorAll('#productList .location-option');
+        let visibleCount = 0;
+
+        options.forEach(opt => {
+          const span = opt.querySelector('span');
+          const originalText = span.getAttribute('data-original') || span.textContent;
+
+          if (!span.getAttribute('data-original')) {
+            span.setAttribute('data-original', span.textContent);
+          }
+
+          const textOnly = originalText.replace(/(<mark>|<\/mark>)/g, '');
+
+          if (!searchTerm || textOnly.toLowerCase().includes(searchTerm)) {
+            opt.style.display = 'flex';
+            visibleCount++;
+
+            if (searchTerm) {
+              const regex = new RegExp(`(${searchTerm})`, 'gi');
+              const highlighted = textOnly.replace(regex, '<mark style="background:#ffeb3b;padding:2px 4px;border-radius:3px;font-weight:600">$1</mark>');
+              const icon = span.querySelector('i');
+              span.innerHTML = highlighted;
+              if (icon) span.insertBefore(icon, span.firstChild);
+            } else {
+              span.textContent = textOnly;
+              if (originalText.includes('✓') || opt.classList.contains('selected')) {
+                span.innerHTML = '<i class="fas fa-check-circle"></i> ' + textOnly;
+              }
+            }
+          } else {
+            opt.style.display = 'none';
+          }
+        });
+
+        showNoResults('productList', visibleCount, 'loại sản phẩm');
+      }
+
+      function filterVehicleBrands() {
+        const input = document.getElementById('vehicleBrandInput');
+        const searchTerm = input.value.toLowerCase().trim();
+        const options = document.querySelectorAll('#vehicleBrandList .location-option');
+        let visibleCount = 0;
+
+        options.forEach(opt => {
+          const span = opt.querySelector('span');
+          const originalText = span.getAttribute('data-original') || span.textContent;
+
+          if (!span.getAttribute('data-original')) {
+            span.setAttribute('data-original', span.textContent);
+          }
+
+          const textOnly = originalText.replace(/(<mark>|<\/mark>)/g, '');
+
+          if (!searchTerm || textOnly.toLowerCase().includes(searchTerm)) {
+            opt.style.display = 'flex';
+            visibleCount++;
+
+            if (searchTerm) {
+              const regex = new RegExp(`(${searchTerm})`, 'gi');
+              const highlighted = textOnly.replace(regex, '<mark style="background:#ffeb3b;padding:2px 4px;border-radius:3px;font-weight:600">$1</mark>');
+              span.innerHTML = highlighted;
+            } else {
+              span.textContent = textOnly;
+            }
+          } else {
+            opt.style.display = 'none';
+          }
+        });
+
+        showNoResults('vehicleBrandList', visibleCount, 'hãng xe');
+      }
+
+      function filterBatteryBrands() {
+        const input = document.getElementById('batteryBrandInput');
+        const searchTerm = input.value.toLowerCase().trim();
+        const options = document.querySelectorAll('#batteryBrandList .location-option');
+        let visibleCount = 0;
+
+        options.forEach(opt => {
+          const span = opt.querySelector('span');
+          const originalText = span.getAttribute('data-original') || span.textContent;
+
+          if (!span.getAttribute('data-original')) {
+            span.setAttribute('data-original', span.textContent);
+          }
+
+          const textOnly = originalText.replace(/(<mark>|<\/mark>)/g, '');
+
+          if (!searchTerm || textOnly.toLowerCase().includes(searchTerm)) {
+            opt.style.display = 'flex';
+            visibleCount++;
+
+            if (searchTerm) {
+              const regex = new RegExp(`(${searchTerm})`, 'gi');
+              const highlighted = textOnly.replace(regex, '<mark style="background:#ffeb3b;padding:2px 4px;border-radius:3px;font-weight:600">$1</mark>');
+              span.innerHTML = highlighted;
+            } else {
+              span.textContent = textOnly;
+            }
+          } else {
+            opt.style.display = 'none';
+          }
+        });
+
+        showNoResults('batteryBrandList', visibleCount, 'hãng pin');
+      }
+
+      // Helper function to show/hide "no results" message and update counter
+      function showNoResults(listId, count, type) {
+        const list = document.getElementById(listId);
+        const container = list.parentElement;
+        let noResultsDiv = list.querySelector('.no-results-message');
+        let counterDiv = container.querySelector('.search-result-count');
+
+        // Update or create counter
+        if (count > 0) {
+          if (!counterDiv) {
+            counterDiv = document.createElement('div');
+            counterDiv.className = 'search-result-count';
+            container.insertBefore(counterDiv, list);
+          }
+          counterDiv.innerHTML = `
+            <i class="fas fa-check-circle"></i>
+            <span>Tìm thấy <strong>${count}</strong> ${type}</span>
+          `;
+          counterDiv.style.display = 'flex';
+        } else if (counterDiv) {
+          counterDiv.style.display = 'none';
+        }
+
+        // Show/hide no results message
+        if (count === 0) {
+          if (!noResultsDiv) {
+            noResultsDiv = document.createElement('div');
+            noResultsDiv.className = 'no-results-message';
+            noResultsDiv.style.cssText = 'padding:20px;text-align:center;color:#999;font-size:14px;';
+            noResultsDiv.innerHTML = `
+              <i class="fas fa-search" style="font-size:32px;color:#ddd;margin-bottom:8px;display:block;"></i>
+              <div>Không tìm thấy ${type} phù hợp</div>
+              <div style="font-size:12px;margin-top:8px;color:#bbb;">Thử từ khóa khác</div>
+            `;
+            list.appendChild(noResultsDiv);
+          }
+          noResultsDiv.style.display = 'block';
+        } else {
+          if (noResultsDiv) {
+            noResultsDiv.style.display = 'none';
+          }
+        }
+      }
+
+      function showTypeTab(tab) {
+        document.querySelectorAll('.type-tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('#typeDropdown .dropdown-tab').forEach(t => t.classList.remove('active'));
+
+        if (tab === 'product') {
+          document.getElementById('productTypeTab').classList.add('active');
+          document.querySelectorAll('#typeDropdown .dropdown-tab')[0].classList.add('active');
+        } else if (tab === 'vehicle') {
+          document.getElementById('vehicleTypeTab').classList.add('active');
+          document.querySelectorAll('#typeDropdown .dropdown-tab')[1].classList.add('active');
+        } else if (tab === 'battery') {
+          document.getElementById('batteryTypeTab').classList.add('active');
+          document.querySelectorAll('#typeDropdown .dropdown-tab')[2].classList.add('active');
+        }
+      }
+
+      function clearLocation() {
+        document.querySelector('input[name="location"][value="all"]').checked = true;
+        document.querySelector('input[name="location"][value="all"]').closest('.location-option').classList.add('selected');
+        document.getElementById('locationText').textContent = 'Toàn quốc';
+        document.getElementById('locationDropdown').style.display = 'none';
+      }
+
+      function applyLocation() {
+        const selected = document.querySelector('input[name="location"]:checked');
+        if (selected) {
+          const label = selected.parentElement.querySelector('span').textContent;
+          document.getElementById('locationText').textContent = label.replace('✓ ', '').trim();
+        }
+        document.getElementById('locationDropdown').style.display = 'none';
+      }
+
+      function clearType() {
+        // Clear all radio buttons
+        document.querySelectorAll('input[name="productType"]').forEach(r => r.checked = false);
+        document.querySelectorAll('input[name="vehicleBrand"]').forEach(r => r.checked = false);
+        document.querySelectorAll('input[name="batteryBrand"]').forEach(r => r.checked = false);
+
+        // Set default
+        const allRadio = document.querySelector('input[name="productType"][value="all"]');
+        if (allRadio) {
+          allRadio.checked = true;
+          allRadio.closest('.location-option').classList.add('selected');
+        }
+
+        document.getElementById('typeText').textContent = 'Tất cả Xe & Pin';
+        document.getElementById('typeDropdown').style.display = 'none';
+      }
+
+      function applyType() {
+        let selectedText = 'Tất cả Xe & Pin';
+
+        // Check product type
+        const productType = document.querySelector('input[name="productType"]:checked');
+        if (productType) {
+          selectedText = productType.parentElement.querySelector('span').textContent.replace('✓ ', '').trim();
+        }
+
+        // Check vehicle brand
+        const vehicleBrand = document.querySelector('input[name="vehicleBrand"]:checked');
+        if (vehicleBrand) {
+          selectedText = vehicleBrand.parentElement.querySelector('span').textContent.trim();
+        }
+
+        // Check battery brand
+        const batteryBrand = document.querySelector('input[name="batteryBrand"]:checked');
+        if (batteryBrand) {
+          selectedText = batteryBrand.parentElement.querySelector('span').textContent.trim();
+        }
+
+        document.getElementById('typeText').textContent = selectedText;
+        document.getElementById('typeDropdown').style.display = 'none';
+      }
+
+      // Close dropdowns when clicking outside
+      document.addEventListener('click', function(e) {
+        const locationWrapper = document.querySelector('.search-dropdown-wrapper');
+        const locationDropdown = document.getElementById('locationDropdown');
+        const typeDropdown = document.getElementById('typeDropdown');
+
+        if (!e.target.closest('.search-dropdown-wrapper')) {
+          if (locationDropdown) locationDropdown.style.display = 'none';
+          if (typeDropdown) typeDropdown.style.display = 'none';
+        }
+      });
+
+      // Handle radio button selection styling
+      document.addEventListener('change', function(e) {
+        if (e.target.type === 'radio' && (e.target.name === 'productType' || e.target.name === 'location' || e.target.name === 'vehicleBrand' || e.target.name === 'batteryBrand')) {
+          const container = e.target.closest('.location-options');
+          if (container) {
+            container.querySelectorAll('.location-option').forEach(opt => opt.classList.remove('selected'));
+            e.target.closest('.location-option').classList.add('selected');
+          }
+        }
+      });
+
       async function doSearch() {
-        const brand = document.getElementById("qBrand").value.trim();
-        const model = document.getElementById("qModel").value.trim();
-        const year = document.getElementById("qYear").value.trim();
-        const price = document.getElementById("qPrice").value.trim();
+        const searchText = document.getElementById("qSearch")?.value.trim() || "";
+
+        // Get selected filters from dropdowns
+        const productType = document.querySelector('input[name="productType"]:checked')?.value || 'all';
+        const vehicleBrand = document.querySelector('input[name="vehicleBrand"]:checked')?.parentElement.querySelector('span')?.textContent.trim() || '';
+        const batteryBrand = document.querySelector('input[name="batteryBrand"]:checked')?.parentElement.querySelector('span')?.textContent.trim() || '';
+        const location = document.querySelector('input[name="location"]:checked')?.value || 'all';
+
         // load active auctions first
         auctionsMap = {};
         activeAuctions = [];
@@ -422,23 +1455,116 @@
         } catch (e) {}
         // render dedicated auctions section (independent of search results)
         renderActiveAuctions(activeAuctions);
-        // vehicles
-        const vUrl = new URL("/api/search/vehicles", window.location.origin);
-        if (brand) vUrl.searchParams.set("brand", brand);
-        if (model) vUrl.searchParams.set("model", model);
-        if (year) vUrl.searchParams.set("year", year);
-        if (price) vUrl.searchParams.set("price_max", price);
-        const vRes = await fetch(vUrl)
-          .then((r) => r.json())
-          .catch(() => ({ items: [] }));
-        renderVehicles(vRes.items || []);
-        // batteries
-        const bUrl = new URL("/api/search/batteries", window.location.origin);
-        if (brand) bUrl.searchParams.set("brand", brand);
-        const bRes = await fetch(bUrl)
-          .then((r) => r.json())
-          .catch(() => ({ items: [] }));
-        renderBatteries(bRes.items || []);
+
+        // Build search params based on filters
+        let shouldShowVehicles = productType === 'all' || productType === 'vehicle';
+        let shouldShowBatteries = productType === 'all' || productType === 'battery';
+
+        // If vehicle brand is selected, only show vehicles
+        if (vehicleBrand) {
+          shouldShowVehicles = true;
+          shouldShowBatteries = false;
+        }
+
+        // If battery brand is selected, only show batteries
+        if (batteryBrand) {
+          shouldShowVehicles = false;
+          shouldShowBatteries = true;
+        }
+
+        // Vehicles search
+        if (shouldShowVehicles) {
+          const vUrl = new URL("/api/search/vehicles", window.location.origin);
+
+          // Add search text - only if no brand filter selected
+          if (searchText && !vehicleBrand) {
+            vUrl.searchParams.set("brand", searchText);
+          }
+
+          // Add brand filter from dropdown
+          if (vehicleBrand) {
+            vUrl.searchParams.set("brand", vehicleBrand);
+          }
+
+          // Add advanced filters
+          const yearFrom = document.getElementById('yearFrom')?.value;
+          const yearTo = document.getElementById('yearTo')?.value;
+          const kmFrom = document.getElementById('kmFrom')?.value;
+          const kmTo = document.getElementById('kmTo')?.value;
+          const vehiclePriceFrom = document.getElementById('vehiclePriceFrom')?.value;
+          const vehiclePriceTo = document.getElementById('vehiclePriceTo')?.value;
+          const batteryCapacityFrom = document.getElementById('batteryCapacityFrom')?.value;
+          const batteryCapacityTo = document.getElementById('batteryCapacityTo')?.value;
+          const vehicleCondition = document.getElementById('vehicleCondition')?.value;
+
+          if (yearFrom) vUrl.searchParams.set("year_min", yearFrom);
+          if (yearTo) vUrl.searchParams.set("year_max", yearTo);
+          if (kmFrom) vUrl.searchParams.set("km_min", kmFrom);
+          if (kmTo) vUrl.searchParams.set("km_max", kmTo);
+          if (vehiclePriceFrom) vUrl.searchParams.set("price_min", parseFloat(vehiclePriceFrom) * 1000000);
+          if (vehiclePriceTo) vUrl.searchParams.set("price_max", parseFloat(vehiclePriceTo) * 1000000);
+          if (batteryCapacityFrom) vUrl.searchParams.set("battery_capacity_min", batteryCapacityFrom);
+          if (batteryCapacityTo) vUrl.searchParams.set("battery_capacity_max", batteryCapacityTo);
+          if (vehicleCondition) vUrl.searchParams.set("condition", vehicleCondition);
+
+          console.log('Vehicle search URL:', vUrl.toString());
+
+          const vRes = await fetch(vUrl)
+            .then((r) => r.json())
+            .catch(() => ({ items: [] }));
+          console.log('Vehicle results:', vRes.items?.length || 0, 'items');
+          renderVehicles(vRes.items || []);
+        } else {
+          renderVehicles([]);
+        }
+
+        // Batteries search
+        if (shouldShowBatteries) {
+          const bUrl = new URL("/api/search/batteries", window.location.origin);
+
+          // Add search text - only if no brand filter selected
+          if (searchText && !batteryBrand) {
+            bUrl.searchParams.set("brand", searchText);
+          }
+
+          // Add brand filter from dropdown
+          if (batteryBrand) {
+            bUrl.searchParams.set("brand", batteryBrand);
+          }
+
+          // Add advanced filters
+          const battOnlyCapacityFrom = document.getElementById('battOnlyCapacityFrom')?.value;
+          const battOnlyCapacityTo = document.getElementById('battOnlyCapacityTo')?.value;
+          const batteryPriceFrom = document.getElementById('batteryPriceFrom')?.value;
+          const batteryPriceTo = document.getElementById('batteryPriceTo')?.value;
+          const healthFrom = document.getElementById('healthFrom')?.value;
+          const healthTo = document.getElementById('healthTo')?.value;
+          const cyclesFrom = document.getElementById('cyclesFrom')?.value;
+          const cyclesTo = document.getElementById('cyclesTo')?.value;
+          const batteryYearFrom = document.getElementById('batteryYearFrom')?.value;
+          const batteryYearTo = document.getElementById('batteryYearTo')?.value;
+
+          if (battOnlyCapacityFrom) bUrl.searchParams.set("capacity_min", battOnlyCapacityFrom);
+          if (battOnlyCapacityTo) bUrl.searchParams.set("capacity_max", battOnlyCapacityTo);
+          if (batteryPriceFrom) bUrl.searchParams.set("price_min", parseFloat(batteryPriceFrom) * 1000000);
+          if (batteryPriceTo) bUrl.searchParams.set("price_max", parseFloat(batteryPriceTo) * 1000000);
+          if (healthFrom) bUrl.searchParams.set("health_min", healthFrom);
+          if (healthTo) bUrl.searchParams.set("health_max", healthTo);
+          if (cyclesFrom) bUrl.searchParams.set("cycles_min", cyclesFrom);
+          if (cyclesTo) bUrl.searchParams.set("cycles_max", cyclesTo);
+          if (batteryYearFrom) bUrl.searchParams.set("year_min", batteryYearFrom);
+          if (batteryYearTo) bUrl.searchParams.set("year_max", batteryYearTo);
+
+          console.log('Battery search URL:', bUrl.toString());
+
+          const bRes = await fetch(bUrl)
+            .then((r) => r.json())
+            .catch(() => ({ items: [] }));
+          console.log('Battery results:', bRes.items?.length || 0, 'items');
+          renderBatteries(bRes.items || []);
+        } else {
+          renderBatteries([]);
+        }
       }
 
       /*
@@ -942,8 +2068,148 @@
         }
       }
 
-      // auto-load on first paint
-      doSearch();
+      // Handle product type selection to show/hide brand columns
+      function handleProductTypeChange() {
+        const selectedType = document.querySelector('input[name="productType"]:checked')?.value || 'all';
+        const vehicleColumn = document.querySelector('.brands-two-columns .brand-column:first-child');
+        const batteryColumn = document.querySelector('.brands-two-columns .brand-column:last-child');
+        const vehicleFilters = document.querySelector('.vehicle-filters');
+        const batteryFilters = document.querySelector('.battery-filters');
+
+        if (selectedType === 'all') {
+          // Show both columns and filters
+          if (vehicleColumn) vehicleColumn.style.display = 'flex';
+          if (batteryColumn) batteryColumn.style.display = 'flex';
+          if (vehicleFilters) vehicleFilters.style.display = 'block';
+          if (batteryFilters) batteryFilters.style.display = 'block';
+        } else if (selectedType === 'vehicle') {
+          // Show only vehicle column and filters
+          if (vehicleColumn) vehicleColumn.style.display = 'flex';
+          if (batteryColumn) batteryColumn.style.display = 'none';
+          if (vehicleFilters) vehicleFilters.style.display = 'block';
+          if (batteryFilters) batteryFilters.style.display = 'none';
+        } else if (selectedType === 'battery') {
+          // Show only battery column and filters
+          if (vehicleColumn) vehicleColumn.style.display = 'none';
+          if (batteryColumn) batteryColumn.style.display = 'flex';
+          if (vehicleFilters) vehicleFilters.style.display = 'none';
+          if (batteryFilters) batteryFilters.style.display = 'block';
+        }
+      }
+
+      // Add event listeners to product type radio buttons
+      document.querySelectorAll('input[name="productType"]').forEach(radio => {
+        radio.addEventListener('change', handleProductTypeChange);
+      });
+
+      // Toggle advanced filters
+      function toggleAdvancedFilters() {
+        const content = document.getElementById('filtersContent');
+        const btn = document.querySelector('.toggle-filters-btn');
+
+        if (content.style.display === 'none') {
+          content.style.display = 'block';
+          btn.classList.add('active');
+        } else {
+          content.style.display = 'none';
+          btn.classList.remove('active');
+        }
+      }
+
+      // Clear advanced filters
+      function clearAdvancedFilters() {
+        // Vehicle filters
+        document.getElementById('yearFrom').value = '';
+        document.getElementById('yearTo').value = '';
+        document.getElementById('kmFrom').value = '';
+        document.getElementById('kmTo').value = '';
+        document.getElementById('vehiclePriceFrom').value = '';
+        document.getElementById('vehiclePriceTo').value = '';
+        document.getElementById('batteryCapacityFrom').value = '';
+        document.getElementById('batteryCapacityTo').value = '';
+        document.getElementById('vehicleCondition').value = '';
+
+        // Battery filters
+        document.getElementById('battOnlyCapacityFrom').value = '';
+        document.getElementById('battOnlyCapacityTo').value = '';
+        document.getElementById('batteryPriceFrom').value = '';
+        document.getElementById('batteryPriceTo').value = '';
+        document.getElementById('healthFrom').value = '';
+        document.getElementById('healthTo').value = '';
+        document.getElementById('cyclesFrom').value = '';
+        document.getElementById('cyclesTo').value = '';
+        document.getElementById('batteryYearFrom').value = '';
+        document.getElementById('batteryYearTo').value = '';
+      }
+
+      // Apply advanced filters
+      function applyAdvancedFilters() {
+        doSearch();
+      }
+
+      // Load fresh user profile data and update header
+      async function refreshUserHeader() {
+        try {
+          const res = await fetch('/api/profile', {
+            credentials: 'include'
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const profile = data.profile || {};
+            const user = data.user || {};
+
+            // Update username in dropdown
+            const usernameEl = document.getElementById('headerUsername');
+            if (usernameEl) {
+              const displayName = profile.full_name || user.username || user.email || 'User';
+              usernameEl.textContent = displayName;
+            }
+
+            // Update avatar circle with first letter of name
+            const avatarCircle = document.getElementById('headerAvatarCircle');
+            if (avatarCircle) {
+              const displayName = profile.full_name || user.username || user.email || 'U';
+              avatarCircle.textContent = displayName.charAt(0).toUpperCase();
+
+              // If avatar_url exists, show image instead of letter
+              if (profile.avatar_url) {
+                const avatarUrl = profile.avatar_url.startsWith('http') || profile.avatar_url.startsWith('/')
+                  ? profile.avatar_url
+                  : `/static/uploads/avatars/${profile.avatar_url}`;
+
+                // Replace text with image
+                avatarCircle.style.backgroundImage = `url('${avatarUrl}')`;
+                avatarCircle.style.backgroundSize = 'cover';
+                avatarCircle.style.backgroundPosition = 'center';
+                avatarCircle.textContent = '';
+              }
+            }
+
+            console.log('Header refreshed with latest profile data');
+          }
+        } catch (err) {
+          console.warn('Could not refresh user header:', err);
+        }
+      }
+
+      // auto-load on first paint - wait for DOM to be ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+          console.log('DOM loaded, executing initial search...');
+          doSearch();
+          // Refresh user header to show latest profile data
+          {% if session.get('user') %}
+          refreshUserHeader();
+          {% endif %}
+        });
+      } else {
+        console.log('DOM already loaded, executing initial search...');
+        doSearch();
+        // Refresh user header to show latest profile data
+        {% if session.get('user') %}
+        refreshUserHeader();
+        {% endif %}
+      }
     </script>
   </body>
 </html>

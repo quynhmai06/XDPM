@@ -12,7 +12,7 @@ def create_app():
 
     @app.get("/")
     def root():
-        return jsonify(service="listings", status="ok", prefix="/listings")
+        return jsonify(service="search", status="ok", prefix="/listings")
 
     return app
 
