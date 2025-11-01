@@ -205,16 +205,15 @@
 
     function resolveAvatar(src) {
       if (!src) return null;
-      if (/^https?:\/\//i.test(src)) return src;    
-      if (src.startsWith('/')) return src;           
-      return `${AUTH_BASE ? AUTH_BASE : ''}/static/uploads/avatars/${src}`;
+      if (/^https?:\/\//i.test(src)) return src;
+      if (src.startsWith('/')) return src;
+      return `/static/uploads/avatars/${src}`;
     }
 
     function setAvatar(src) {
       const r = resolveAvatar(src);
       avatarImg.src = r || fallbackAvatar;
     }
-    function setAvatar(src){ avatarImg.src = src || fallbackAvatar; }
     function setStatus(msg, ok=true){ statusEl.textContent = msg||''; statusEl.style.color = ok?'var(--ok)':'var(--err)' }
     function fmtVND(n){ const x = Number(n||0); return x.toLocaleString('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}) }
     function fmtDate(dt){ try{ const d=new Date(dt); if(isNaN(d)) return dt||''; return d.toLocaleString('vi-VN') }catch{ return dt||'' } }
@@ -250,9 +249,8 @@
       $('#gender_view').textContent = gTxt(p.gender);
 
       const raw = p.avatar_url || '';
-      if (!raw) setAvatar(fallbackAvatar);
-      else if (raw.startsWith('http') || raw.startsWith('/')) setAvatar(raw);
-      else setAvatar(`/static/uploads/avatars/${raw}`);
+        if (!raw) setAvatar(null);
+        else setAvatar(raw);
     }
     function renderProfileInputs(){
       const p = state.profile || {}, u = state.user || {};
@@ -337,6 +335,7 @@
         cancelAllEdits();
         renderProfileView();
         setStatus('Đã lưu hồ sơ!', true);
+        setTimeout(() => location.reload(), 400);  // reload để navbar cập nhật tên mới
       }catch(err){
         setStatus('Không thể lưu: ' + (err.message || err), false);
       }
