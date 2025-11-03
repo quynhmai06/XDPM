@@ -1,8 +1,44 @@
+# Environment variables
 .env
 *.env
 .env.*.local
+
+# Python bytecode and cache
 **/__pycache__/
 **/*.pyc
+**/*.pyo
+**/*.pyd
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+**/.venv/
+**/venv/
+**/ENV/
+**/env/
+
+# Flask instance folders and databases
+**/instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads
 gateway/static/uploads/
+auth-service/static/uploads/
+
+# IDEs
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
 
