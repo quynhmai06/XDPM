@@ -219,27 +219,31 @@
     bindSizeCheck(document.getElementById('sub_images'));
 
    // === Gợi ý giá AI (gửi JSON ổn định) ===
+
 async function callAISuggest(){
   const aiDiv = document.getElementById('aiResult');
   const btn   = document.getElementById('aiSuggestBtn');
   if(!aiDiv || !btn) return;
 
-  // helper rút số từ "78kWh" -> 78
   const toNum = (v) => {
     const m = (v ?? '').toString().match(/\d+(?:\.\d+)?/);
     return m ? Number(m[0]) : null;
   };
 
+  // ---- đọc field từ form
+  const rawType = (document.getElementById('product_type')?.value || 'car').trim();
+  const product_type = (rawType === 'battery') ? 'pin xe điện' : 'xe';   // ✅ map đúng chuỗi backend
 
-  // đọc các field cần cho AI
-  const product_type = (document.getElementById('product_type')?.value || 'car').trim();
   const name         = (document.getElementById('name')?.value || '').trim();
   const brand        = (document.getElementById('brand')?.value || '').trim();
   const province     = (document.getElementById('province')?.value || '').trim();
   const year         = toNum(document.getElementById('year')?.value);
   const mileage      = toNum(document.getElementById('mileage')?.value);
+
   const capRaw       = (document.getElementById('battery_capacity')?.value || '').trim();
-  const battery_capacity_kwh = toNum(capRaw);
+  const battery_capacity_kwh = toNum(capRaw);               // số (nếu người dùng gõ "42 kWh")
+  const battery_capacity     = capRaw;                      // ✅ text để backend parse "60V 95Ah"
+
   const description  = (document.getElementById('description')?.value || '').trim();
 
   aiDiv.className = 'ai-msg muted';
@@ -247,29 +251,38 @@ async function callAISuggest(){
   btn.disabled = true;
 
   try{
-    const resp = await fetch('/ai/price_suggest', {
-      method : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body   : JSON.stringify({
-        product_type, name, brand, province,
-        year, mileage, battery_capacity_kwh, description
-      })
-    });
+    const payload = {
+      product_type, name, brand, province,
+      year, mileage, battery_capacity_kwh, battery_capacity, description
+    };
+    console.log("[AI PAYLOAD]", payload);
+
+  const resp = await fetch('http://127.0.0.1:5003/predict', {
+    method : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body   : JSON.stringify({
+      product_type, name, brand, province,
+      year, mileage, battery_capacity_kwh, battery_capacity,
+      description
+  })
+});
+
 
     const ct = resp.headers.get('content-type') || '';
     const data = ct.includes('application/json') ? await resp.json() : { error: await resp.text() };
 
-    if (resp.ok && data.suggested_price){
-      const priceEl = document.getElementById('price');
-      if (priceEl) priceEl.value = data.suggested_price;
+    if (resp.ok && (data.suggested_price || data.suggestedPrice)) {
+      const priceVal = data.suggested_price ?? data.suggestedPrice;
+      const low  = data?.range?.low ?? data?.rangeLow ?? null;
+      const high = data?.range?.high ?? data?.rangeHigh ?? null;
 
-      const low  = data?.range?.low ?? null;
-      const high = data?.range?.high ?? null;
+      const priceEl = document.getElementById('price');
+      if (priceEl) priceEl.value = priceVal;
 
       aiDiv.className = 'ai-msg ok';
       aiDiv.textContent =
-        `💡 AI gợi ý: ${data.suggested_price.toLocaleString('vi-VN')} đ`
-        + (low!=null && high!=null ? ` (khung ${low.toLocaleString('vi-VN')}–${high.toLocaleString('vi-VN')})` : '')
+        `💡 AI gợi ý: ${Number(priceVal).toLocaleString('vi-VN')} đ`
+        + (low!=null && high!=null ? ` (khung ${Number(low).toLocaleString('vi-VN')}–${Number(high).toLocaleString('vi-VN')})` : '')
         + (data.explanation ? ` — ${data.explanation}` : '');
     } else {
       throw new Error(data.detail || data.error || 'AI trả về lỗi');
@@ -282,7 +295,7 @@ async function callAISuggest(){
     btn.disabled = false;
   }
 }
-(function () {
+(() => {
   const btn = document.getElementById('aiSuggestBtn');
   if (!btn) return;
   btn.addEventListener('click', (e) => {
@@ -291,12 +304,6 @@ async function callAISuggest(){
     callAISuggest();
   });
 })();
-
-    // Thay đổi dữ liệu chính → reset dòng gợi ý
-    ['product_type','name','brand','province','year','mileage','battery_capacity','description'].forEach(n=>{
-      const el = document.querySelector(`[name="${n}"]`);
-      if(el) el.addEventListener('input', ()=>{ const d=document.getElementById('aiResult'); if(d) d.textContent=''; });
-    });
-  </script>
+</script>
 </body>
 </html>

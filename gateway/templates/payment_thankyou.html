@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cảm ơn - EV Trading</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      .thankyou-container {
+        max-width: 700px;
+        margin: 60px auto;
+        padding: 0 20px;
+      }
+      .thankyou-card {
+        background: white;
+        border-radius: 16px;
+        padding: 50px 40px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        text-align: center;
+      }
+      .success-icon {
+        width: 120px;
+        height: 120px;
+        background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 30px;
+        animation: scaleIn 0.5s ease-out;
+      }
+      .success-icon i {
+        font-size: 60px;
+        color: white;
+      }
+      @keyframes scaleIn {
+        from {
+          transform: scale(0);
+          opacity: 0;
+        }
+        to {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+      .thankyou-title {
+        font-size: 32px;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 15px;
+      }
+      .thankyou-message {
+        font-size: 16px;
+        color: #666;
+        line-height: 1.8;
+        margin-bottom: 30px;
+        padding: 0 20px;
+      }
+      .order-summary {
+        background: #f9f9f9;
+        padding: 25px;
+        border-radius: 12px;
+        margin: 30px 0;
+        border: 2px dashed #e0e0e0;
+      }
+      .order-summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        font-size: 15px;
+      }
+      .order-summary-label {
+        color: #666;
+      }
+      .order-summary-value {
+        font-weight: 600;
+        color: #333;
+      }
+      .info-box {
+        background: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 25px 0;
+        text-align: left;
+      }
+      .info-box h4 {
+        color: #1976d2;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .info-box p {
+        margin: 8px 0;
+        line-height: 1.6;
+        color: #555;
+      }
+      .action-buttons {
+        display: flex;
+        gap: 15px;
+        margin-top: 35px;
+      }
+      .btn {
+        flex: 1;
+        padding: 16px 24px;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        text-decoration: none;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+      }
+      .btn-secondary {
+        background: white;
+        color: #667eea;
+        border: 2px solid #667eea;
+      }
+      .btn-secondary:hover {
+        background: #f8f9ff;
+        transform: translateY(-2px);
+      }
+      .payment-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-size: 14px;
+        font-weight: 600;
+        margin-top: 20px;
+      }
+      .status-pending {
+        background: #fff3cd;
+        color: #856404;
+      }
+      .status-verified {
+        background: #d4edda;
+        color: #155724;
+      }
+      @media (max-width: 600px) {
+        .action-buttons {
+          flex-direction: column;
+        }
+        .thankyou-card {
+          padding: 40px 25px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div
+        class="header-container"
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        "
+      >
+        <a href="/" class="logo">EV Trading</a>
+        {% if user %}
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: #374151;
+          "
+        >
+          <span
+            >Đang đăng nhập:
+            <strong>{{ user.username or user.email }}</strong></span
+          >
+          <a
+            href="{{ url_for('logout_page') }}"
+            class="btn btn-ghost"
+            style="height: 32px; line-height: 32px"
+            >Đăng xuất</a
+          >
+        </div>
+        {% endif %}
+      </div>
+    </header>
+
+    <div class="thankyou-container">
+      <div class="thankyou-card">
+        <div class="success-icon">
+          <i class="fas fa-check"></i>
+        </div>
+
+        <h1 class="thankyou-title">Cảm ơn quý khách!</h1>
+
+        <p class="thankyou-message">
+          Cảm ơn quý khách đã thanh toán trên Nền tảng giao dịch pin và xe điện
+          qua sử dụng. Nhân viên bên chúng tôi sẽ kiểm tra số tiền và xác nhận
+          cho quý khách, đồng thời vận chuyển sản phẩm đến địa chỉ quý khách
+          trong thời gian sớm nhất.
+        </p>
+
+        <div class="order-summary">
+          <div class="order-summary-row">
+            <span class="order-summary-label"
+              ><i class="fas fa-hashtag"></i> Mã đơn hàng:</span
+            >
+            <span class="order-summary-value" id="orderId">...</span>
+          </div>
+          <div class="order-summary-row">
+            <span class="order-summary-label"
+              ><i class="fas fa-file-contract"></i> Mã hợp đồng:</span
+            >
+            <span class="order-summary-value" id="contractCode">...</span>
+          </div>
+          <div class="order-summary-row">
+            <span class="order-summary-label"
+              ><i class="fas fa-money-bill-wave"></i> Số tiền:</span
+            >
+            <span class="order-summary-value" id="amountValue">...</span>
+          </div>
+        </div>
+
+        <div id="paymentStatusBox">
+          <span class="payment-status status-pending">
+            <i class="fas fa-hourglass-half"></i>
+            Đang chờ xác nhận thanh toán
+          </span>
+        </div>
+
+        <div class="info-box">
+          <h4><i class="fas fa-info-circle"></i> Thông tin quan trọng</h4>
+          <p><strong>✓</strong> Đơn hàng của bạn đã được ghi nhận</p>
+          <p>
+            <strong>✓</strong> Chúng tôi sẽ xác minh giao dịch trong vòng 5-10
+            phút
+          </p>
+          <p>
+            <strong>✓</strong> Bạn sẽ nhận được email/SMS xác nhận khi thanh
+            toán được xác minh
+          </p>
+          <p>
+            <strong>✓</strong> Sản phẩm sẽ được giao trong 3-5 ngày làm việc
+          </p>
+        </div>
+
+        <div class="action-buttons">
+          <a href="/" class="btn btn-secondary">
+            <i class="fas fa-home"></i>
+            Quay về trang chủ
+          </a>
+          <a
+            href="{{ url_for('profile_page_gateway') }}"
+            class="btn btn-secondary"
+          >
+            <i class="fas fa-user"></i>
+            Về hồ sơ của tôi
+          </a>
+          <button class="btn btn-primary" onclick="checkPaymentStatus()">
+            <i class="fas fa-sync-alt"></i>
+            Kiểm tra trạng thái
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const paymentId = {{ payment_id }};
+      let paymentData = null;
+
+      async function loadPaymentInfo() {
+          try {
+              const res = await fetch(`/api/payment/status/${paymentId}`);
+              const data = await res.json();
+
+              if (res.ok) {
+                  paymentData = data;
+                  displayPaymentInfo(data);
+          // Best-effort: if payment already completed, trigger callback to create orders/transactions
+          if (data.status === 'paid' || data.status === 'completed') {
+            try { await fetch(`/api/payment/callback/${paymentId}`, { method: 'POST' }); } catch (e) {}
+          }
+              } else {
+                  console.error('Failed to load payment info');
+              }
+          } catch (error) {
+              console.error('Load payment error:', error);
+          }
+      }
+
+      function displayPaymentInfo(data) {
+          const amount = data.amount || 0;
+          const orderId = data.order_id || 'N/A';
+          const contractCode = data.contract_code || `HD${paymentId}`;
+
+          document.getElementById('orderId').textContent = orderId;
+          document.getElementById('contractCode').textContent = contractCode;
+          document.getElementById('amountValue').textContent =
+              new Intl.NumberFormat('vi-VN').format(amount) + ' đ';
+
+          // Update payment status
+          if (data.status === 'paid' || data.status === 'completed') {
+              document.getElementById('paymentStatusBox').innerHTML = `
+                  <span class="payment-status status-verified">
+                      <i class="fas fa-check-circle"></i>
+                      Thanh toán đã được xác nhận
+                  </span>
+              `;
+          }
+      }
+
+      async function checkPaymentStatus() {
+          const btn = event.target;
+          const originalHTML = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang kiểm tra...';
+
+          try {
+              const res = await fetch(`/api/payment/status/${paymentId}`);
+              const data = await res.json();
+
+              if (res.ok) {
+                  paymentData = data;
+
+                  if (data.status === 'paid' || data.status === 'completed') {
+                      document.getElementById('paymentStatusBox').innerHTML = `
+                          <span class="payment-status status-verified">
+                              <i class="fas fa-check-circle"></i>
+                              Thanh toán đã được xác nhận!
+                          </span>
+                      `;
+                      alert('✓ Thanh toán của bạn đã được xác nhận thành công!\nChúng tôi sẽ tiến hành giao hàng sớm nhất.');
+                  } else {
+                      alert('Thanh toán chưa được xác nhận.\nVui lòng đợi thêm vài phút và thử lại.');
+                  }
+              } else {
+                  alert('Không thể kiểm tra trạng thái thanh toán');
+              }
+          } catch (error) {
+              console.error('Check status error:', error);
+              alert('Lỗi kết nối đến server');
+          } finally {
+              btn.disabled = false;
+              btn.innerHTML = originalHTML;
+          }
+      }
+
+      // Load payment info on page load
+      loadPaymentInfo();
+
+      // Auto-check status every 30 seconds
+      setInterval(loadPaymentInfo, 30000);
+    </script>
+  </body>
+</html>

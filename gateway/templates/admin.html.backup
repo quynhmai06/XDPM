@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin • EV & Battery Platform</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+      }
+      .admin-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .admin-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 32px;
+        border-radius: 16px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4);
+        color: white;
+      }
+      .admin-header h1 {
+        margin: 0 0 8px 0;
+        font-size: 32px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .admin-header p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 16px;
+      }
+      .admin-tabs {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+      }
+      .tab-btn {
+        padding: 14px 28px;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 12px;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 15px;
+      }
+      .tab-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateY(-2px);
+      }
+      .tab-btn.active {
+        background: white;
+        color: #667eea;
+        border-color: white;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      }
+      .tab-content {
+        display: none;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        padding: 32px;
+        animation: fadeIn 0.3s ease;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .tab-content.active { display: block; }
+      .tab-content h2 {
+        margin: 0 0 24px 0;
+        font-size: 24px;
+        color: #1a202c;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-top: 16px;
+      }
+      th, td {
+        padding: 16px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 13px;
+        letter-spacing: 0.5px;
+      }
+      th:first-child { border-top-left-radius: 12px; }
+      th:last-child { border-top-right-radius: 12px; }
+      tbody tr {
+        transition: all 0.2s ease;
+      }
+      tbody tr:hover {
+        background: #f7fafc;
+        transform: scale(1.01);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      }
+      tbody tr:last-child td:first-child { border-bottom-left-radius: 12px; }
+      tbody tr:last-child td:last-child { border-bottom-right-radius: 12px; }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .badge-success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+      }
+      .badge-warning {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+      }
+      .btn-ghost {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: 8px;
+        border: 2px solid;
+        background: transparent;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        margin: 2px;
+      }
+      .btn-ghost:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
+      .btn-ghost.success { border-color: #10b981; color: #059669; }
+      .btn-ghost.success:hover { background: #10b981; color: white; }
+      .btn-ghost.danger { border-color: #ef4444; color: #dc2626; }
+      .btn-ghost.danger:hover { background: #ef4444; color: white; }
+      .btn-ghost.info { border-color: #3b82f6; color: #2563eb; }
+      .btn-ghost.info:hover { background: #3b82f6; color: white; }
+      .login-card {
+        max-width: 440px;
+        margin: 100px auto;
+        background: white;
+        border-radius: 20px;
+        padding: 48px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        text-align: center;
+      }
+      .login-card i {
+        font-size: 48px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 16px;
+      }
+      .login-card h2 {
+        margin: 16px 0 8px;
+        font-size: 28px;
+        color: #1a202c;
+      }
+      .login-card p {
+        color: #718096;
+        margin-bottom: 32px;
+      }
+      .login-card input {
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+        margin: 10px 0;
+        font-size: 15px;
+        transition: all 0.2s ease;
+      }
+      .login-card input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+      .login-card button {
+        width: 100%;
+        padding: 14px;
+        border-radius: 12px;
+        border: none;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 8px;
+      }
+      .login-card button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+      }
+      .product-thumb {
+        width: 64px;
+        height: 64px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(4px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1200;
+      }
+      .modal-content {
+        background: white;
+        border-radius: 20px;
+        padding: 32px;
+        position: relative;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        max-width: 440px;
+        width: 90%;
+      }
+      .close {
+        position: absolute;
+        top: 16px;
+        right: 20px;
+        font-size: 24px;
+        cursor: pointer;
+        color: #718096;
+        transition: all 0.2s ease;
+      }
+      .close:hover {
+        color: #1a202c;
+        transform: rotate(90deg);
+      }
+      .header {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+      .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 24px;
+        border-radius: 16px;
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+      }
+      .stat-card h3 {
+        margin: 0 0 8px 0;
+        font-size: 14px;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .stat-card .stat-value {
+        font-size: 32px;
+        font-weight: 700;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-container">
+        <div class="logo-section">
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <a href="{{ url_for('home') }}">
+            <img src="/static/images/logo.png" alt="EV Trading" class="logo" />
+          </a>
+        </div>
+        <div class="user-menu">
+          {% if session.get('user') and session['user'].get('role') == 'admin' %}
+            <span class="user-menu-item"><i class="fas fa-user-shield"></i> {{ session['user'].get('username') }}</span>
+            <a href="{{ url_for('logout_page') }}" class="user-menu-item"><i class="fas fa-sign-out-alt"></i> Dang xuat</a>
+          {% else %}
+            <a href="{{ url_for('home') }}" class="user-menu-item"><i class="fas fa-home"></i> Trang chu</a>
+          {% endif %}
+        </div>
+      </div>
+    </header>
+
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              <div class="flash-wrap">
+                {% for category, message in messages %}
+                  <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          {% endwith %}
+
+    <div class="admin-container">
+      {% if not is_admin %}
+        <div class="login-card">
+          <i class="fas fa-shield-alt"></i>
+          <h2>Dang nhap quan tri</h2>
+          <p>Su dung tai khoan admin de truy cap bang dieu khien</p>
+          <form method="POST" action="{{ url_for('admin_login') }}">
+            <input type="text" name="username" placeholder="Ten dang nhap" required />
+            <input type="password" name="password" placeholder="Mat khau" required />
+            <button type="submit"><i class="fas fa-sign-in-alt"></i> Dang nhap</button>
+          </form>
+        </div>
+      {% else %}
+        <div class="admin-header">
+          <h1><i class="fas fa-shield-alt"></i> Bang dieu khien quan tri</h1>
+          <p>Quan ly nguoi dung, bai dang va giao dich tren nen tang EV Trading</p>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <h3><i class="fas fa-users"></i> Nguoi dung</h3>
+            <p class="stat-value">{{ users|length }}</p>
+          </div>
+          <div class="stat-card">
+            <h3><i class="fas fa-box"></i> Bai dang</h3>
+            <p class="stat-value">{{ products|length }}</p>
+          </div>
+          <div class="stat-card">
+            <h3><i class="fas fa-receipt"></i> Giao dich</h3>
+            <p class="stat-value">{{ transactions|length }}</p>
+          </div>
+        </div>
+
+        <div class="admin-tabs">
+          <button class="tab-btn active" data-target="users"><i class="fas fa-users"></i> Nguoi dung</button>
+          <button class="tab-btn" data-target="products"><i class="fas fa-box"></i> Bai dang</button>
+          <button class="tab-btn" data-target="transactions"><i class="fas fa-receipt"></i> Giao dich</button>
+        </div>
+
+        <section id="users" class="tab-content active">
+          <h2><i class="fas fa-users-cog"></i> Quan ly nguoi dung</h2>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Username</th>
+                      <th>Email</th>
+                      <th>Vai tro</th>
+                      <th>Trang thai</th>
+                      <th>Thao tac</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% if users %}
+                      {% for user in users %}
+                      <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>{{ user.role or (user.is_admin and 'admin' or 'member') }}</td>
+                        <td>
+                          {% if user.approved %}
+                            <span class="badge badge-success"><i class="fas fa-check-circle"></i> Da duyet</span>
+                          {% else %}
+                            <span class="badge badge-warning"><i class="fas fa-clock"></i> Cho duyet</span>
+                          {% endif %}
+                        </td>
+                        <td>
+                          {% if not user.approved %}
+                            <a class="btn-ghost success" href="{{ url_for('approve_user', user_id=user.id) }}" onclick="return confirm('Xac nhan duyet tai khoan?')">
+                              <i class="fas fa-check-circle"></i> Duyet
+                            </a>
+                          {% endif %}
+                          <a class="btn-ghost danger" href="{{ url_for('delete_user', user_id=user.id) }}" onclick="return confirm('Khoa tai khoan nay?')">
+                            <i class="fas fa-user-lock"></i> Khoa
+                          </a>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    {% else %}
+                      <tr><td colspan="6">Chua co du lieu nguoi dung.</td></tr>
+                    {% endif %}
+                  </tbody>
+                </table>
+              </section>
+
+        <section id="products" class="tab-content">
+          <h2><i class="fas fa-clipboard-check"></i> Duyet bai dang</h2>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Anh</th>
+                      <th>Ten san pham</th>
+                      <th>Loai</th>
+                      <th>Gia</th>
+                      <th>Trang thai</th>
+                      <th>Thao tac</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% if products %}
+                      {% for item in products %}
+                      <tr>
+                        <td>{{ item.id }}</td>
+                        <td><img src="{{ item.image_url or item.main_image_url or '/static/images/placeholder.png' }}" alt="{{ item.name }}" class="product-thumb" onerror="this.onerror=null;this.src='/static/images/placeholder.png'" /></td>
+                        <td>{{ item.name }}</td>
+                        <td>{{ item.product_type or 'Khac' }}</td>
+                        <td>{{ "{:,.0f}".format(item.price) }} d</td>
+                        <td>
+                          {% if item.approved %}
+                            <span class="badge badge-success"><i class="fas fa-check-circle"></i> Da duyet</span>
+                          {% else %}
+                            <span class="badge badge-warning"><i class="fas fa-clock"></i> Cho duyet</span>
+                          {% endif %}
+                        </td>
+                        <td>
+                          {% if not item.approved %}
+                            <a class="btn-ghost success" href="{{ url_for('approve_product', pid=item.id) }}">
+                              <i class="fas fa-check-circle"></i> Duyet
+                            </a>
+                          {% endif %}
+                          <a class="btn-ghost info" href="{{ url_for('product_detail', pid=item.id) }}">
+                            <i class="fas fa-eye"></i> Chi tiet
+                          </a>
+                          <a class="btn-ghost danger" href="{{ url_for('delete_product', pid=item.id) }}" onclick="return confirm('Xoa bai dang nay?')">
+                            <i class="fas fa-trash"></i> Xoa
+                          </a>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    {% else %}
+        <section id="transactions" class="tab-content">
+          <h2><i class="fas fa-chart-line"></i> Giao dich gan day</h2>
+                  </tbody>
+                </table>
+              </section>
+
+              <section id="transactions" class="tab-content">
+                <h2>Giao dich gan day</h2>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Loai</th>
+                      <th>Nguoi dung</th>
+                      <th>So tien</th>
+                      <th>Trang thai</th>
+                      <th>Thoi gian</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% if transactions %}
+                      {% for tx in transactions %}
+                      <tr>
+                        <td>{{ tx.get('id') or tx.get('transaction_code') }}</td>
+                        <td>{{ tx.get('transaction_type') or tx.get('type') }}</td>
+                        <td>{{ tx.get('user_id') or tx.get('buyer_id') or '-' }}</td>
+                        <td>{{ "{:,.0f}".format(tx.get('amount', 0)) }} d</td>
+                        <td>{{ tx.get('status') or 'Unknown' }}</td>
+                        <td>{{ tx.get('created_at') or tx.get('updated_at') or '' }}</td>
+                      </tr>
+                      {% endfor %}
+                    {% else %}
+                      <tr><td colspan="6">Chua co giao dich duoc ghi nhan.</td></tr>
+                    {% endif %}
+                  </tbody>
+                </table>
+              </section>
+            {% endif %}
+          </div>
+
+          <div id="adminLoginModal" class="modal" style="display:none;">
+            <div class="modal-content">
+              <span class="close" onclick="document.getElementById('adminLoginModal').style.display='none'">&times;</span>
+              <div style="text-align:center;">
+                <i class="fas fa-shield-alt" style="font-size:48px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;"></i>
+                <h2 style="margin:16px 0 8px;">Dang nhap quan tri</h2>
+                <p style="color:#718096;margin-bottom:24px;">Su dung tai khoan admin de truy cap</p>
+              </div>
+              <form method="POST" action="{{ url_for('admin_login') }}">
+                <input type="text" name="username" placeholder="Ten dang nhap" required style="width:100%;padding:14px;border-radius:12px;border:2px solid #e2e8f0;margin:8px 0;font-size:15px;" />
+                <input type="password" name="password" placeholder="Mat khau" required style="width:100%;padding:14px;border-radius:12px;border:2px solid #e2e8f0;margin:8px 0;font-size:15px;" />
+                <button type="submit" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;font-weight:600;font-size:16px;cursor:pointer;margin-top:8px;">
+    <footer class="footer" style="background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);">
+      <p>© 2025 EV Trading Platform. Tat ca quyen duoc bao luu.</p>
+    </footer>m>
+            </div>
+          </div>
+
+          <footer class="footer">
+            <p>© 2025 EV Trading Platform. Tat ca quyen duoc bao luu.</p>
+          </footer>
+
+    <script>
+      // Tab switching
+      document.querySelectorAll('.tab-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          const target = e.currentTarget.getAttribute('data-target');
+          document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+          e.currentTarget.classList.add('active');
+          const pane = document.getElementById(target);
+          if (pane) pane.classList.add('active');
+        });
+      });
+
+      // Modal handling
+      window.addEventListener('click', function(ev) {
+        const modal = document.getElementById('adminLoginModal');
+        if (ev.target === modal) {
+          modal.style.display = 'none';
+        }
+      });
+
+      // Flash messages auto-hide
+      setTimeout(function() {
+        const flashes = document.querySelectorAll('.flash');
+        flashes.forEach(function(flash) {
+          flash.style.opacity = '0';
+          flash.style.transform = 'translateY(-20px)';
+          setTimeout(function() { flash.remove(); }, 300);
+        });
+      }, 5000);
+    </script>
+  </body>
+</html>

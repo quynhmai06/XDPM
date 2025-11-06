@@ -25,5 +25,8 @@ class Product(db.Model):
     approved_at      = db.Column(db.DateTime)
     approved_by      = db.Column(db.String(80))
 
+    sold             = db.Column(db.Boolean, default=False, index=True)  # Đánh dấu đã bán
+    sold_at          = db.Column(db.DateTime)  # Thời gian bán
+
     created_at       = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     updated_at       = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

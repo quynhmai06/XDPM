@@ -53,6 +53,8 @@ def to_json(p: Product):
         "approved": p.approved,
         "approved_at": p.approved_at.isoformat() if p.approved_at else None,
         "approved_by": p.approved_by,
+        "sold": getattr(p, "sold", False),
+        "sold_at": p.sold_at.isoformat() if getattr(p, "sold_at", None) else None,
         "created_at": p.created_at.isoformat(),
         "updated_at": p.updated_at.isoformat() if p.updated_at else None,
     }
@@ -71,21 +73,10 @@ def parse_int(v, default=None, minv=None, maxv=None):
 
 @bp.get("/")
 def list_products():
+    """Danh sách tin đăng đơn giản - dùng search-service cho tìm kiếm nâng cao"""
     q = Product.query
 
-    # Filters
-    kw = request.args.get("q", "").strip()
-    if kw:
-        like = f"%{kw}%"
-        q = q.filter(db.or_(Product.name.ilike(like), Product.description.ilike(like)))
-
-    brand = request.args.get("brand")
-    if brand: q = q.filter(Product.brand == brand)
-
-    province = request.args.get("province")
-    if province: q = q.filter(Product.province == province)
-
-    # lọc theo loại sản phẩm nếu có
+    # Chỉ giữ lại các filter cơ bản cho homepage
     product_type = request.args.get("product_type")
     if product_type:
         q = q.filter(Product.product_type == product_type)
@@ -96,26 +87,11 @@ def list_products():
     approved = request.args.get("approved")
     if approved is not None:
         q = q.filter(Product.approved == (approved in ["1","true","True"]))
-
-    min_price = parse_int(request.args.get("min_price"), None, 0)
-    if min_price is not None:
-        q = q.filter(Product.price >= min_price)
-
-    max_price = parse_int(request.args.get("max_price"), None, 0)
-    if max_price is not None:
-        q = q.filter(Product.price <= max_price)
-
-    year_from = parse_int(request.args.get("year_from"))
-    if year_from is not None:
-        q = q.filter(Product.year >= year_from)
-
-    year_to = parse_int(request.args.get("year_to"))
-    if year_to is not None:
-        q = q.filter(Product.year <= year_to)
-
-    mileage_max = parse_int(request.args.get("mileage_max"))
-    if mileage_max is not None:
-        q = q.filter(Product.mileage <= mileage_max)
+    
+    # Ẩn sản phẩm đã bán khỏi tìm kiếm công khai (trừ khi owner xem lịch sử của mình)
+    show_sold = request.args.get("show_sold")
+    if show_sold not in ["1", "true", "True"]:
+        q = q.filter(Product.sold == False)
 
     # Sort
     sort = request.args.get("sort", "created_desc")
@@ -267,3 +243,16 @@ def delete_product(pid):
     db.session.delete(p)
     db.session.commit()
     return jsonify(message="Đã xoá.")
+
+@bp.put("/<int:pid>/mark-sold")
+def mark_sold(pid:int):
+    """Đánh dấu tin đã bán - giữ nguyên trạng thái duyệt, chỉ set sold=True để ẩn khỏi tìm kiếm nhưng vẫn lưu trong lịch sử.
+    Tạm thời không ràng buộc quyền để phục vụ demo/flow tự động. TODO: siết quyền (owner/admin/internal).
+    """
+    p = Product.query.get_or_404(pid)
+    # Đánh dấu đã bán, không thay đổi approved
+    p.sold = True
+    p.sold_at = datetime.utcnow()
+    p.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify(message="Đã đánh dấu đã bán.", item=to_json(p))

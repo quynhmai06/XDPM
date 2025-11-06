@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Đấu giá - EV Trading</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      body {
+        background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+        min-height: 100vh;
+      }
+      .auctions-wrap {
+        max-width: 1400px;
+        margin: 40px auto;
+        padding: 0 24px;
+      }
+      .page-hero {
+        background: linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%);
+        color: white;
+        padding: 48px 32px;
+        border-radius: 20px;
+        margin-bottom: 32px;
+        box-shadow: 0 8px 32px rgba(255, 111, 0, 0.3);
+        text-align: center;
+      }
+      .page-hero h1 {
+        font-size: 42px;
+        margin: 0 0 12px 0;
+        font-weight: 700;
+                      <div class="product-meta" style="font-size:13px;color:#78909c;margin-top:8px;">
+                        Bước giá tối thiểu: ${fmtMoney(minInc)}
+                      </div>
+
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+      }
+      .page-hero p {
+        font-size: 18px;
+        opacity: 0.95;
+        margin: 0;
+      }
+      .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 32px 0 24px;
+        padding-bottom: 16px;
+        border-bottom: 3px solid #ff6f00;
+        color: #2c3e50;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .section-header h2 i {
+        color: #ff6f00;
+        font-size: 32px;
+      }
+      .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 28px;
+        margin-top: 24px;
+      }
+      .product-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        border: 2px solid transparent;
+      }
+      .product-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 12px 40px rgba(255, 111, 0, 0.25);
+        border-color: #ff6f00;
+      }
+      .auction-badge {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        background: linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 700;
+        z-index: 10;
+        box-shadow: 0 4px 12px rgba(255, 111, 0, 0.4);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .auction-badge i {
+        animation: swing 1s ease-in-out infinite;
+      }
+      @keyframes swing {
+        0%,
+        100% {
+          transform: rotate(-10deg);
+        }
+        50% {
+          transform: rotate(10deg);
+        }
+      }
+      .product-image-wrapper {
+        position: relative;
+        overflow: hidden;
+        height: 220px;
+        background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+      }
+      .product-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.4s ease;
+        cursor: pointer;
+      }
+      .product-card:hover .product-image {
+        transform: scale(1.1);
+      }
+      .product-info {
+        padding: 20px;
+      }
+      .product-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 0 0 12px 0;
+        cursor: pointer;
+        transition: color 0.2s;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        min-height: 48px;
+      }
+      .product-title:hover {
+        color: #ff6f00;
+      }
+      .price-section {
+        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+      }
+      .product-price {
+        font-size: 28px;
+        font-weight: 700;
+        color: #ff6f00;
+        margin: 0 0 8px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .product-price i {
+        font-size: 24px;
+      }
+      .price-label {
+        font-size: 13px;
+        color: #666;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+      }
+      .countdown-timer {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        margin-bottom: 16px;
+        border-left: 4px solid #ff6f00;
+      }
+      .countdown-timer i {
+        font-size: 20px;
+        color: #ff6f00;
+      }
+      .timer-text {
+        flex: 1;
+        font-size: 14px;
+        color: #666;
+        font-weight: 500;
+      }
+      .timer-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #e53935;
+        font-family: "Courier New", monospace;
+        letter-spacing: 1px;
+      }
+      .product-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+      }
+      .btn {
+        flex: 1;
+        padding: 14px 20px;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+      }
+      .btn:active {
+        transform: translateY(0);
+      }
+      .btn-bid {
+        background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+        color: white;
+      }
+      .btn-bid:hover {
+        background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%);
+        color: white;
+      }
+      .btn-primary:hover {
+        background: linear-gradient(135deg, #ff8f00 0%, #ffa726 100%);
+      }
+      .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      }
+      .empty-state i {
+        font-size: 80px;
+        color: #e0e0e0;
+        margin-bottom: 24px;
+      }
+      .empty-state h3 {
+        font-size: 24px;
+        color: #666;
+        margin: 0 0 12px 0;
+      }
+      .empty-state p {
+        color: #999;
+        font-size: 16px;
+        margin: 0;
+      }
+      .actions-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin: 24px 0;
+      }
+      .action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 20px;
+        border-radius: 12px;
+        border: none;
+        background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 6px 20px rgba(21, 101, 192, 0.25);
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 28px rgba(21, 101, 192, 0.3);
+      }
+      .create-card {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        display: none;
+      }
+      .create-card.active {
+        display: block;
+      }
+      .create-card h3 {
+        margin-top: 0;
+        margin-bottom: 16px;
+        color: #2c3e50;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .form-group label {
+        font-weight: 600;
+        color: #555;
+      }
+      .form-group input,
+      .form-group select,
+      .form-group textarea {
+        border: 1px solid #d0d7de;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 14px;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      .form-group input:focus,
+      .form-group select:focus,
+      .form-group textarea:focus {
+        outline: none;
+        border-color: #1e88e5;
+        box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.15);
+      }
+      .form-group small {
+        color: #888;
+        font-size: 12px;
+      }
+      .form-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 20px;
+      }
+      .secondary-btn {
+        background: transparent;
+        border: 1px solid #cfd8dc;
+        color: #607d8b;
+        padding: 12px 18px;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .secondary-btn:hover {
+        background: #eceff1;
+        border-color: #90a4ae;
+      }
+      .primary-btn {
+        background: linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%);
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 6px 18px rgba(255, 111, 0, 0.25);
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      .primary-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 26px rgba(255, 111, 0, 0.3);
+      }
+      .role-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      .role-table th,
+      .role-table td {
+        border: 1px solid #e0e0e0;
+        padding: 12px;
+        text-align: left;
+        font-size: 14px;
+      }
+      .role-table th {
+        background: #fafbfc;
+        color: #37474f;
+      }
+      .request-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+        padding: 20px;
+        position: relative;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      .request-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+      }
+      .request-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+      }
+      .request-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 0;
+      }
+      .deadline-pill {
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: #e8f5e9;
+        color: #2e7d32;
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .request-body {
+        margin-top: 16px;
+        color: #546e7a;
+        line-height: 1.5;
+        font-size: 14px;
+      }
+      .offer-list {
+        margin-top: 18px;
+        border-top: 1px solid #eceff1;
+        padding-top: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .offer-item {
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 12px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        background: #fafafa;
+      }
+      .offer-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 14px;
+        color: #37474f;
+      }
+      .offer-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+      .offer-note {
+        font-size: 13px;
+        color: #607d8b;
+        margin: 0;
+      }
+      .submit-offer {
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px dashed #cfd8dc;
+      }
+      @media (max-width: 768px) {
+        .request-header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .form-footer {
+          flex-direction: column;
+          align-items: stretch;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-container">
+        <div class="logo-section">
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <img src="/static/images/logo.png" alt="EV Trading" class="logo" />
+        </div>
+        <div class="user-menu">
+          <a href="/" class="user-menu-item">Trang chủ</a>
+          <a href="/favorites" class="user-menu-item">Yêu thích</a>
+          <a href="/reviews" class="user-menu-item">Đánh giá</a>
+          <a href="/cart" class="user-menu-item">Giỏ hàng</a>
+          <a href="/admin" class="user-menu-item">Admin</a>
+          {% if session.get('user') %}
+          <a href="{{ url_for('logout_page') }}" class="user-menu-item"
+            >Đăng xuất</a
+          >
+          {% else %}
+          <a href="{{ url_for('login_page') }}" class="user-menu-item"
+            >Đăng nhập</a
+          >
+          {% endif %}
+        </div>
+      </div>
+    </header>
+
+    <div class="auctions-wrap">
+      <div class="page-hero">
+        <h1><i class="fas fa-gavel"></i> Phiên Đấu Giá EV</h1>
+        <p>Tìm kiếm và đấu giá xe điện, pin xe điện với giá tốt nhất</p>
+      </div>
+
+      <div class="actions-bar">
+        <button class="action-btn" onclick="toggleCreator('seller')">
+          <i class="fas fa-plus-circle"></i>
+          Tạo phiên đấu giá (Chủ sở hữu)
+        </button>
+        <button class="action-btn" onclick="toggleCreator('buyer')">
+          <i class="fas fa-handshake"></i>
+          Tạo yêu cầu mua (Khách mua)
+        </button>
+      </div>
+
+      <div id="sellerCreator" class="create-card">
+        <h3>
+          <i class="fas fa-gavel"></i> Tạo phiên đấu giá cho sản phẩm của bạn
+        </h3>
+        <form id="sellerAuctionForm">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Loại sản phẩm</label>
+              <select name="item_type" required>
+                <option value="car">Xe điện</option>
+                <option value="battery">Pin xe điện</option>
+              </select>
+              <small>Chọn đúng loại sản phẩm bạn sở hữu.</small>
+            </div>
+            <div class="form-group">
+              <label>ID sản phẩm</label>
+              <input
+                type="number"
+                name="item_id"
+                min="1"
+                required
+                placeholder="Ví dụ: 101"
+              />
+              <small>Lấy ID từ trang quản lý tin đăng của bạn.</small>
+            </div>
+            <div class="form-group">
+              <label>Giá khởi điểm (VND)</label>
+              <input
+                type="number"
+                name="starting_price"
+                min="1000000"
+                step="500000"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>Bước giá tối thiểu (VND)</label>
+              <input
+                type="number"
+                name="min_increment"
+                min="100000"
+                step="50000"
+                value="1000000"
+              />
+            </div>
+            <div class="form-group">
+              <label>Giá mua ngay (VND)</label>
+              <input
+                type="number"
+                name="buy_now_price"
+                min="0"
+                step="500000"
+                placeholder="Tùy chọn"
+              />
+            </div>
+            <div class="form-group">
+              <label>Thời gian bắt đầu</label>
+              <input type="datetime-local" name="start_time" />
+              <small>Bỏ trống để bắt đầu ngay.</small>
+            </div>
+            <div class="form-group">
+              <label>Thời gian kết thúc</label>
+              <input type="datetime-local" name="end_time" required />
+            </div>
+          </div>
+          <div class="form-footer">
+            <button
+              type="button"
+              class="secondary-btn"
+              onclick="toggleCreator('seller')"
+            >
+              Huỷ
+            </button>
+            <button type="submit" class="primary-btn">Tạo phiên</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="buyerCreator" class="create-card">
+        <h3><i class="fas fa-exchange-alt"></i> Tạo yêu cầu đấu giá ngược</h3>
+        <form id="buyerRequestForm">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Loại sản phẩm</label>
+              <select name="desired_type">
+                <option value="car">Xe điện</option>
+                <option value="battery">Pin xe điện</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Mẫu xe / Pin mong muốn</label>
+              <input
+                type="text"
+                name="desired_model"
+                required
+                placeholder="Ví dụ: VinFast VF8"
+              />
+            </div>
+            <div class="form-group">
+              <label>Giá tối đa (VND)</label>
+              <input
+                type="number"
+                name="max_price"
+                min="1000000"
+                step="500000"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>Hạn nhận báo giá</label>
+              <input type="datetime-local" name="deadline" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Ghi chú chi tiết</label>
+            <textarea
+              name="notes"
+              rows="3"
+              placeholder="Mô tả nhu cầu, thông số ưu tiên..."
+            ></textarea>
+          </div>
+          <div class="form-footer">
+            <button
+              type="button"
+              class="secondary-btn"
+              onclick="toggleCreator('buyer')"
+            >
+              Huỷ
+            </button>
+            <button type="submit" class="primary-btn">Gửi yêu cầu</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="create-card">
+        <h3><i class="fas fa-user-shield"></i> Phân quyền</h3>
+        <table class="role-table">
+          <thead>
+            <tr>
+              <th>Vai trò</th>
+              <th>Hành động</th>
+              <th>Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Chủ sở hữu</td>
+              <td>Tạo đấu giá, đặt thời gian & giá, chốt sớm, huỷ</td>
+              <td>Tương ứng "đấu giá xuôi"</td>
+            </tr>
+            <tr>
+              <td>Khách hàng (tham gia)</td>
+              <td>Đặt giá trong phiên, theo dõi trạng thái</td>
+              <td>Không được tạo phiên</td>
+            </tr>
+            <tr>
+              <td>Khách mua</td>
+              <td>Tạo yêu cầu mua, xem báo giá, chọn người bán</td>
+              <td>Đấu giá ngược</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section-header">
+        <h2><i class="fas fa-fire"></i> Đang diễn ra</h2>
+      </div>
+      <div id="auctionsGrid" class="product-grid"></div>
+
+      <div class="section-header" style="margin-top: 48px">
+        <h2><i class="fas fa-sync-alt"></i> Yêu cầu đấu giá ngược</h2>
+      </div>
+      <div id="buyerRequestsGrid" class="product-grid"></div>
+    </div>
+
+    <script>
+      const currentUser = {{ (user or {}) | tojson }};
+      const currentUserId = currentUser && (currentUser.sub || currentUser.id) ? currentUser.sub || currentUser.id : null;
+          const fmtMoney = (v) => (v || 0).toLocaleString("vi-VN") + " đ";
+          const escapeHtml = (value) =>
+            value
+              ? String(value)
+                  .replace(/&/g, "&amp;")
+                  .replace(/</g, "&lt;")
+                  .replace(/>/g, "&gt;")
+                  .replace(/"/g, "&quot;")
+                  .replace(/'/g, "&#39;")
+              : "";
+              function toggleCreator(type) {
+          if (!currentUserId) {
+                  alert("Vui lòng đăng nhập để sử dụng tính năng này.");
+                  window.location.href = "/login";
+                  return;
+                }
+                const seller = document.getElementById("sellerCreator");
+                const buyer = document.getElementById("buyerCreator");
+                if (type === "seller") {
+                  seller.classList.toggle("active");
+                  if (seller.classList.contains("active")) {
+                    buyer.classList.remove("active");
+                  }
+                } else if (type === "buyer") {
+                  buyer.classList.toggle("active");
+                  if (buyer.classList.contains("active")) {
+                    seller.classList.remove("active");
+                  }
+                }
+              }
+
+              function isoFromInput(value) {
+                if (!value) return null;
+                const dt = new Date(value);
+                if (Number.isNaN(dt.getTime())) return null;
+                return dt.toISOString();
+              }
+
+              async function submitSellerAuction(event) {
+                event.preventDefault();
+          if (!currentUserId) {
+                  alert("Vui lòng đăng nhập trước.");
+                  window.location.href = "/login";
+                  return;
+                }
+                const form = event.target;
+                const payload = {
+                  item_type: (form.item_type.value || "car").toLowerCase(),
+                  item_id: Number(form.item_id.value),
+                  start_price: Number(form.starting_price.value),
+                  min_increment: Number(form.min_increment.value || 0) || 1,
+                  buy_now_price: form.buy_now_price.value ? Number(form.buy_now_price.value) : null,
+                  start_time: isoFromInput(form.start_time.value),
+                  end_time: isoFromInput(form.end_time.value),
+                };
+                if (!payload.min_increment || payload.min_increment <= 0) {
+                  payload.min_increment = 1;
+                }
+                if (!payload.item_id || payload.item_id <= 0 || payload.start_price <= 0 || !payload.end_time) {
+                  alert("Vui lòng nhập đầy đủ thông tin.");
+                  return;
+                }
+                if (payload.start_time && payload.end_time && payload.end_time <= payload.start_time) {
+                  alert("Thời gian kết thúc phải sau thời gian bắt đầu.");
+                  return;
+                }
+                const res = await fetch("/api/auctions", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(payload),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                  alert("Tạo phiên đấu giá thành công!");
+                  form.reset();
+                  document.getElementById("sellerCreator").classList.remove("active");
+                  loadAuctions();
+                } else {
+                  alert("Không thể tạo phiên: " + (data.error || "unknown"));
+                }
+              }
+
+              async function submitBuyerRequest(event) {
+                event.preventDefault();
+          if (!currentUserId) {
+                  alert("Vui lòng đăng nhập trước.");
+                  window.location.href = "/login";
+                  return;
+                }
+                const form = event.target;
+                const payload = {
+                  desired_model: form.desired_model.value,
+                  desired_type: form.desired_type.value || "car",
+                  max_price: Number(form.max_price.value),
+                  deadline: isoFromInput(form.deadline.value),
+                  notes: form.notes.value ? form.notes.value.trim() : null,
+                };
+                if (!payload.desired_model || !payload.max_price || !payload.deadline) {
+                  alert("Vui lòng nhập đầy đủ thông tin.");
+                  return;
+                }
+                const res = await fetch("/api/auction-requests", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(payload),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                  alert("Đã tạo yêu cầu đấu giá ngược!");
+                  form.reset();
+                  document.getElementById("buyerCreator").classList.remove("active");
+                  loadBuyerRequests();
+                } else {
+                  alert("Không thể tạo yêu cầu: " + (data.error || "unknown"));
+                }
+              }
+
+              async function loadAuctions() {
+                const grid = document.getElementById("auctionsGrid");
+                grid.innerHTML = "";
+                let data = [];
+                try {
+                  const r = await fetch("/api/auctions/active");
+                  if (r.ok) {
+                    const j = await r.json();
+                    data = j.data || [];
+                  }
+                } catch (e) {}
+                if (data.length === 0) {
+                  grid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                      <i class="fas fa-gavel"></i>
+                      <h3>Chưa có phiên đấu giá nào</h3>
+                      <p>Các phiên đấu giá mới sẽ xuất hiện ở đây</p>
+                    </div>`;
+                  return;
+                }
+                for (const a of data) {
+                  let info = null;
+                  try {
+                    const r = await fetch(`/api/listings/${a.item_id}`);
+                    if (r.ok) info = await r.json();
+                  } catch (e) {}
+                  const ends = a ? new Date(a.ends_at) : null;
+                  const starts = a.start_time ? new Date(a.start_time) : null;
+                  const now = new Date();
+                  let remStr = "--:--:--";
+                  let remaining = 0;
+                  if (a && ends) {
+                    remaining = Math.max(0, Math.floor((ends - now) / 1000));
+                    const hours = Math.floor(remaining / 3600);
+                    const mins = Math.floor((remaining % 3600) / 60);
+                    const secs = remaining % 60;
+                    remStr = `${String(hours).padStart(2, "0")}:${String(mins).padStart(
+                      2,
+                      "0"
+                    )}:${String(secs).padStart(2, "0")}`;
+                  }
+
+                  const isVehicle = a.item_type === "car" || a.item_type === "vehicle";
+                  const card = document.createElement("div");
+                  card.className = "product-card";
+                  const title =
+                    isVehicle
+                      ? info
+                        ? `${info.brand || ""} ${info.model || ""} ${info.year || ""}`
+                        : `Xe #${a.item_id}`
+                      : info
+                      ? `${info.brand || ""} ${info.year || ""} - ${
+                          info.capacity_kwh || ""
+                        } kWh`
+                      : `Pin #${a.item_id}`;
+                  const safeTitle = escapeHtml(title);
+                  const img =
+                    isVehicle
+                      ? info && info.main_image_url
+                        ? info.main_image_url
+                        : "/static/images/v1.jpg"
+                      : info && info.main_image_url
+                      ? info.main_image_url
+                      : "/static/images/v3.jpg";
+                  const currentPrice =
+                    a.highest_bid != null ? a.highest_bid : a.starting_price;
+                  const priceLabel =
+                    a.highest_bid != null ? "Giá cao nhất" : "Giá khởi điểm";
+                  const minInc = a.min_increment || 1;
+                  const statusBadge =
+                    starts && now < starts
+                      ? `<span class="deadline-pill" style="background:#fff3e0;color:#e65100">Chưa bắt đầu</span>`
+                      : "";
+
+                  card.innerHTML = `
+                    <div class="auction-badge">
+                      <i class="fas fa-gavel"></i>
+                      <span>ĐANG ĐẤU GIÁ</span>
+                    </div>
+                    <div class="product-image-wrapper">
+                      <img src="${img}" alt="auction" class="product-image" onclick="window.location.href='/auctions/${a.id}'" onerror="this.onerror=null;this.src='/static/images/placeholder.png'"/>
+                    </div>
+                    <div class="product-info">
+                      <h3 class="product-title" onclick="window.location.href='/auctions/${a.id}'">${safeTitle}</h3>
+                      ${statusBadge}
+
+                      <div class="price-section">
+                        <div class="price-label">${priceLabel}</div>
+                        <div class="product-price">
+                          <i class="fas fa-tag"></i>
+                          ${fmtMoney(currentPrice)}
+                        </div>
+                      </div>
+
+                      <div class="countdown-timer">
+                        <i class="fas fa-clock"></i>
+                        <div style="flex:1">
+                          <div class="timer-text">Thời gian còn lại</div>
+                          <div class="timer-value" id="timer-${a.id}">${remStr}</div>
+                        </div>
+                      </div>
+
+                      <div class="product-actions">
+                        <button class="btn btn-bid" onclick="event.stopPropagation();placeBid(${
+                          a.id
+                        })">
+                          <i class='fas fa-gavel'></i> Đấu giá
+                        </button>
+                        ${
+                          a.buy_now_price
+                            ? `<button class="btn btn-primary" onclick="event.stopPropagation();buyNowAuction(${a.id})">
+                                <i class='fas fa-bolt'></i> Mua ngay
+                              </button>`
+                            : ""
+                        }
+                      </div>
+                    </div>`;
+                      <div class="product-meta" style="font-size:13px;color:#78909c;margin-top:8px;">
+                        Bước giá tối thiểu: ${fmtMoney(minInc)}
+                      </div>
+                  grid.appendChild(card);
+
+                  // Start countdown timer for this card
+                  if (remaining > 0) {
+                    const timerEl = card.querySelector(`#timer-${a.id}`);
+                    let timeLeft = remaining;
+                    const interval = setInterval(() => {
+                      timeLeft--;
+                      if (timeLeft <= 0) {
+                        clearInterval(interval);
+                        timerEl.textContent = "00:00:00";
+                        timerEl.style.color = "#999";
+                        return;
+                      }
+                      const h = Math.floor(timeLeft / 3600);
+                      const m = Math.floor((timeLeft % 3600) / 60);
+                      const s = timeLeft % 60;
+                      timerEl.textContent = `${String(h).padStart(2, "0")}:${String(
+                        m
+                      ).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+
+                      // Change color when time is running out
+                      if (timeLeft < 300) {
+                        // less than 5 minutes
+                        timerEl.style.color = "#e53935";
+                      } else if (timeLeft < 3600) {
+                        // less than 1 hour
+                        timerEl.style.color = "#ff9800";
+                      }
+                    }, 1000);
+                  }
+                }
+              }
+              async function placeBid(aid) {
+                const val = prompt("Nhập giá bạn muốn đặt (đ)");
+                if (!val) return;
+                const amount = parseInt(val.replace(/\D/g, ""), 10) || 0;
+                if (amount <= 0) return alert("Giá không hợp lệ");
+                const res = await fetch(`/api/auctions/${aid}/bid`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ amount }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                  alert("Đã đặt giá thành công!");
+                  loadAuctions();
+                } else if (data && data.error === "low_bid") {
+                  alert("Giá quá thấp. Tối thiểu: " + fmtMoney(data.min || 0));
+                } else if (res.status === 401) {
+                  alert("Vui lòng đăng nhập để đấu giá.");
+                  window.location.href = "/login";
+                } else {
+                  alert("Không thể đặt giá lúc này.");
+                }
+              }
+              async function buyNowAuction(aid) {
+                if (!confirm("Xác nhận Mua ngay và kết thúc phiên đấu giá?")) return;
+                const res = await fetch(`/api/auctions/${aid}/buy-now`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({}),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                  const price = (data && (data.final_price ?? data.buy_now_price)) || 0;
+                  if (data && data.item_type && data.item_id) {
+                    const add = await fetch("/cart/add", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        item_type: data.item_type,
+                        item_id: data.item_id,
+                        seller_id: data.seller_id,
+                        price,
+                        qty: 1,
+                      }),
+                    });
+                    if (add.ok) {
+                      alert(
+                        "Phiên đấu giá đã kết thúc. Sản phẩm đã được đưa vào giỏ hàng."
+                      );
+                      window.location.href = "/cart";
+                      return;
+                    }
+                    if (add.status === 401) {
+                      alert("Vui lòng đăng nhập để hoàn tất Mua ngay.");
+                      window.location.href = "/login";
+                      return;
+                    }
+                  }
+                  alert("Phiên đấu giá đã kết thúc.");
+                  loadAuctions();
+                } else if (res.status === 401) {
+                  alert("Vui lòng đăng nhập để Mua ngay.");
+                  window.location.href = "/login";
+                } else {
+                  alert("Không thể Mua ngay lúc này.");
+                }
+              }
+              async function loadBuyerRequests() {
+                const grid = document.getElementById("buyerRequestsGrid");
+                grid.innerHTML = "";
+                let data = [];
+                try {
+                  const r = await fetch("/api/auction-requests/active");
+                  if (r.ok) {
+                    const j = await r.json();
+                    data = j.data || [];
+                  }
+                } catch (e) {}
+                if (data.length === 0) {
+                  grid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                      <i class="fas fa-box-open"></i>
+                      <h3>Chưa có yêu cầu đấu giá ngược</h3>
+                      <p>Khách mua có thể tạo yêu cầu để người bán báo giá.</p>
+                    </div>`;
+                  return;
+                }
+                for (const req of data) {
+                  const card = document.createElement("div");
+                  card.className = "request-card";
+                  const deadline = req.deadline ? new Date(req.deadline) : null;
+                  const deadlineText = deadline
+                    ? deadline.toLocaleString("vi-VN")
+                    : "--";
+                  const offers = req.offers || [];
+                  const requestTitle = escapeHtml(req.desired_model);
+                  const requestNotes = escapeHtml(req.notes);
+                  const itemType = req.desired_type || "car";
+                  const offerMarkup =
+                    offers.length === 0
+                      ? `<p class="offer-note">Chưa có báo giá nào.</p>`
+                      : offers
+                          .map((off) => {
+                            const canSelect = currentUserId === req.requester_id && off.status === "open";
+                            const offerNote = escapeHtml(off.note);
+                            return `
+                          <div class="offer-item">
+                            <div class="offer-meta">
+                              <span><strong>Người bán #${off.seller_id}</strong></span>
+                              <span>${fmtMoney(off.offer_price)}</span>
+                            </div>
+                            ${off.note ? `<p class="offer-note">${offerNote}</p>` : ""}
+                            <div class="offer-meta" style="font-size:12px;color:#90a4ae;">
+                              Gửi lúc: ${new Date(off.created_at).toLocaleString("vi-VN")}
+                              <span>Trạng thái: ${off.status}</span>
+                            </div>
+                            ${
+                              canSelect
+                                ? `<div class="offer-actions">
+                                    <button class="primary-btn" style="padding:10px 16px" onclick="selectOffer(${req.id}, ${off.id}, ${JSON.stringify(itemType)})">Chốt người bán</button>
+                                  </div>`
+                                : ""
+                            }
+                          </div>`;
+                          })
+                          .join("");
+                  const canOffer = currentUserId && currentUserId !== req.requester_id;
+                  const offerForm = canOffer
+                    ? `
+                    <div class="submit-offer">
+                      <h4 style="margin:0 0 10px 0;color:#2c3e50;font-size:16px;">Gửi báo giá</h4>
+                      <div class="form-grid" style="margin-bottom:12px;">
+                        <div class="form-group">
+                          <label>Giá chào bán</label>
+                          <input type="number" min="100000" step="50000" id="offer-price-${req.id}" placeholder="<= ${req.max_price.toLocaleString()}" />
+                        </div>
+                        <div class="form-group">
+                          <label>Ghi chú</label>
+                          <textarea id="offer-note-${req.id}" rows="2" placeholder="Điểm mạnh sản phẩm, bảo hành..."></textarea>
+                        </div>
+                      </div>
+                      <div class="form-footer" style="justify-content:flex-start;">
+                        <button class="primary-btn" style="padding:10px 18px" onclick="submitOffer(${req.id})">Gửi báo giá</button>
+                      </div>
+                    </div>`
+                    : "";
+                  card.innerHTML = `
+                    <div class="request-header">
+                      <h3 class="request-title">${requestTitle}</h3>
+                      <span class="deadline-pill">Hạn: ${deadlineText}</span>
+                    </div>
+                    <div class="request-body">
+                      <div><strong>Giá tối đa:</strong> ${fmtMoney(req.max_price)}</div>
+                      <div><strong>Loại:</strong> ${itemType === "battery" ? "Pin xe điện" : "Xe điện"}</div>
+                      ${req.notes ? `<div style="margin-top:6px;">${requestNotes}</div>` : ""}
+                    </div>
+                    <div class="offer-list">${offerMarkup}</div>
+                    ${offerForm}
+                  `;
+                  grid.appendChild(card);
+                }
+              }
+
+              async function submitOffer(requestId) {
+                if (!currentUserId) {
+                  alert("Vui lòng đăng nhập để gửi báo giá.");
+                  window.location.href = "/login";
+                  return;
+                }
+                const priceInput = document.getElementById(`offer-price-${requestId}`);
+                const noteInput = document.getElementById(`offer-note-${requestId}`);
+                const price = Number(priceInput.value);
+                const note = noteInput.value ? noteInput.value.trim() : null;
+                if (!price || price <= 0) {
+                  alert("Giá chào bán không hợp lệ.");
+                  return;
+                }
+                const res = await fetch(`/api/auction-requests/${requestId}/offers`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ offer_price: price, note }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                  alert("Đã gửi báo giá!");
+                  if (priceInput) priceInput.value = "";
+                  if (noteInput) noteInput.value = "";
+                  loadBuyerRequests();
+                } else if (data && data.error === "invalid_price") {
+                  alert("Giá chào vượt mức cho phép (<= " + fmtMoney(data.max || 0) + ").");
+                } else if (res.status === 400 && data.error === "request_closed") {
+                  alert("Yêu cầu đã kết thúc.");
+                  loadBuyerRequests();
+                } else if (res.status === 401) {
+                  alert("Vui lòng đăng nhập để gửi báo giá.");
+                  window.location.href = "/login";
+                } else {
+                  alert("Không thể gửi báo giá: " + (data.error || "unknown"));
+                }
+              }
+
+              async function selectOffer(requestId, offerId, itemType) {
+                const confirmSelect = confirm("Xác nhận chọn người bán này?");
+                if (!confirmSelect) return;
+                const res = await fetch(`/api/auction-requests/${requestId}/select`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ offer_id: offerId, item_type: itemType || "car", item_id: requestId }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                  alert("Đã chốt người bán thành công!");
+                  loadBuyerRequests();
+                } else if (res.status === 403) {
+                  alert("Bạn không có quyền chốt yêu cầu này.");
+                } else {
+                  alert("Không thể chốt người bán: " + (data.error || "unknown"));
+                }
+              }
+
+              document.getElementById("sellerAuctionForm")?.addEventListener("submit", submitSellerAuction);
+              document.getElementById("buyerRequestForm")?.addEventListener("submit", submitBuyerRequest);
+              document.addEventListener("DOMContentLoaded", () => {
+                loadAuctions();
+                loadBuyerRequests();
+              });
+    </script>
+  </body>
+</html>

@@ -1,204 +1,1635 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="vi">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Second-hand EV & Battery Trading Platform</title>
-  <link rel="stylesheet" href="/static/style.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
-</head>
-<body>
-  <header class="header">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="flash-wrap">
-          {% for category, message in messages %}
-            <div class="flash {{ category }}">{{ message }}</div>
-          {% endfor %}
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EV Trading Platform</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-container">
+        <div class="logo-section">
+          <button class="menu-toggle" aria-label="Menu">
+            <i class="fas fa-bars"></i>
+          </button>
+          <img src="/static/images/logo.png" alt="EV Trading" class="logo" />
         </div>
-      {% endif %}
-    {% endwith %}
+        <nav class="user-menu">
+          <a href="{{ url_for('policy_page') }}" class="user-menu-item"
+            >Chinh sach</a
+          >
+          <a href="{{ url_for('favorites_page') }}" class="user-menu-item"
+            >Yeu thich</a
+          >
+          <a href="{{ url_for('reviews_page') }}" class="user-menu-item"
+            >Danh gia</a
+          >
+          <a href="{{ url_for('cart_page') }}" class="user-menu-item"
+            >Gio hang</a
+          >
+          <a href="{{ url_for('checkout_page') }}" class="user-menu-item"
+            >Thanh toan</a
+          >
 
-    <div class="header-container">
-      <div class="logo-section">
-        <button class="menu-toggle"><i class="fas fa-bars"></i></button>
-        <img src="/static/images/logo.png" alt="EV Trading" class="logo"/>
-      </div>
-
-      <div class="user-menu">
-        <a href="/policy" class="user-menu-item">Chính sách</a>
-        <a href="#" class="user-menu-item"><i class="far fa-comment"></i> Chat</a>
-        <a href="#" class="user-menu-item"><i class="far fa-bell"></i> Thông báo</a>
-
-        {% if session.get('user') %}
+          {% if session.get('user') %}
           <div class="user-avatar-wrap">
             <button class="avatar-btn" onclick="toggleUserMenu(event)">
-              <span class="avatar-circle">
-                {{ (session['user'].get('username') or 'U')[:1] | upper }}
-              </span>
+              {% set avatar = session['user'].get('avatar_url', '') %} {% if
+              avatar %} {% if avatar.startswith('http') or
+              avatar.startswith('/') %}
+              <img
+                src="{{ avatar }}"
+                alt="Avatar"
+                class="avatar-circle-img"
+                onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'"
+              />
+              <span class="avatar-circle" style="display: none"
+                >{{ (session['user'].get('username') or 'U')[:1] | upper
+                }}</span
+              >
+              {% else %}
+              <img
+                src="/static/uploads/avatars/{{ avatar }}"
+                alt="Avatar"
+                class="avatar-circle-img"
+                onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'"
+              />
+              <span class="avatar-circle" style="display: none"
+                >{{ (session['user'].get('username') or 'U')[:1] | upper
+                }}</span
+              >
+              {% endif %} {% else %}
+              <span class="avatar-circle"
+                >{{ (session['user'].get('username') or 'U')[:1] | upper
+                }}</span
+              >
+              {% endif %}
             </button>
-            <div id="userDropdown" class="user-dropdown" style="display:none">
-              <div class="dropdown-name">{{ session['user'].get('username') }}</div>
-              <a href="#" class="dropdown-item">Hồ sơ</a>
-              <a href="{{ url_for('logout_page') }}" class="dropdown-item">Đăng xuất</a>
+            <div id="userDropdown" class="user-dropdown" style="display: none">
+              <div class="dropdown-name">
+                {{ session['user'].get('username') or
+                session['user'].get('email', 'User') }}
+              </div>
+              <a
+                href="{{ url_for('profile_page_gateway') }}"
+                class="dropdown-item"
+                ><i class="fas fa-user"></i> Ho so</a
+              >
+              <a href="{{ url_for('favorites_page') }}" class="dropdown-item"
+                ><i class="fas fa-heart"></i> Yeu thich</a
+              >
+              {% if session['user'].get('role') == 'admin' %}
+              <a href="{{ url_for('admin_page') }}" class="dropdown-item"
+                ><i class="fas fa-shield-alt"></i> Quan tri</a
+              >
+              {% endif %}
+              <a href="{{ url_for('logout_page') }}" class="dropdown-item"
+                ><i class="fas fa-sign-out-alt"></i> Dang xuat</a
+              >
+            </div>
+          </div>
+          <a href="{{ url_for('add_listing') }}" class="post-button"
+            >Dang tin</a
+          >
+          {% else %}
+          <a href="{{ url_for('login_page') }}" class="user-menu-item"
+            >Dang nhap</a
+          >
+          <a href="{{ url_for('register_page') }}" class="user-menu-item"
+            >Dang ky</a
+          >
+          <a href="{{ url_for('login_page') }}" class="post-button">Dang tin</a>
+          {% endif %}
+        </nav>
+      </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %} {% if
+    messages %}
+    <div class="flash-wrap">
+      {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %} {% endwith %}
+
+    <section class="search-section">
+      <div class="search-container">
+        <h1 class="search-title">Nen tang giao dich xe dien va pin cu</h1>
+        <h2 class="search-subtitle">
+          Ket noi nguoi mua va nguoi ban tren toan quoc
+        </h2>
+
+        <!-- Simple Search Bar -->
+        <div class="simple-search-bar">
+          <select class="search-type" id="main-type">
+            <option value="vehicle">Xe dien</option>
+            <option value="battery">Pin</option>
+          </select>
+
+          <button class="search-submit" onclick="toggleAdvancedSearch()">
+            <i class="fas fa-search"></i> Tim kiem
+          </button>
+        </div>
+
+        <!-- Advanced Search Form (Initially Hidden) -->
+        <div
+          class="advanced-search-container"
+          id="advanced-filters"
+          style="display: none"
+        >
+          <div class="search-tabs">
+            <button
+              class="search-tab active"
+              id="tab-vehicle"
+              onclick="switchSearchTab('vehicle')"
+            >
+              <i class="fas fa-car"></i> Xe dien
+            </button>
+            <button
+              class="search-tab"
+              id="tab-battery"
+              onclick="switchSearchTab('battery')"
+            >
+              <i class="fas fa-battery-full"></i> Pin
+            </button>
+          </div>
+
+          <!-- Vehicle Search Form -->
+          <div id="vehicle-search-form" class="search-form active">
+            <div class="search-filters">
+              <div class="filter-row">
+                <div class="filter-group">
+                  <label><i class="fas fa-tag"></i> Hang xe</label>
+                  <input
+                    type="text"
+                    id="vehicle-brand"
+                    placeholder="VD: VinFast, Tesla..."
+                  />
+                </div>
+                <div class="filter-group">
+                  <label><i class="fas fa-car-side"></i> Model</label>
+                  <input
+                    type="text"
+                    id="vehicle-model"
+                    placeholder="VD: VF8, Model 3..."
+                  />
+                </div>
+                <div class="filter-group">
+                  <label><i class="fas fa-map-marker-alt"></i> Khu vuc</label>
+                  <select id="vehicle-province">
+                    <option value="">Tat ca</option>
+                    <option value="TP Ho Chi Minh">TP Ho Chi Minh</option>
+                    <option value="Ha Noi">Ha Noi</option>
+                    <option value="Da Nang">Da Nang</option>
+                    <option value="Can Tho">Can Tho</option>
+                    <option value="Hai Phong">Hai Phong</option>
+                    <option value="An Giang">An Giang</option>
+                    <option value="Ba Ria - Vung Tau">Ba Ria - Vung Tau</option>
+                    <option value="Bac Giang">Bac Giang</option>
+                    <option value="Bac Kan">Bac Kan</option>
+                    <option value="Bac Lieu">Bac Lieu</option>
+                    <option value="Bac Ninh">Bac Ninh</option>
+                    <option value="Ben Tre">Ben Tre</option>
+                    <option value="Binh Dinh">Binh Dinh</option>
+                    <option value="Binh Duong">Binh Duong</option>
+                    <option value="Binh Phuoc">Binh Phuoc</option>
+                    <option value="Binh Thuan">Binh Thuan</option>
+                    <option value="Ca Mau">Ca Mau</option>
+                    <option value="Cao Bang">Cao Bang</option>
+                    <option value="Dak Lak">Dak Lak</option>
+                    <option value="Dak Nong">Dak Nong</option>
+                    <option value="Dien Bien">Dien Bien</option>
+                    <option value="Dong Nai">Dong Nai</option>
+                    <option value="Dong Thap">Dong Thap</option>
+                    <option value="Gia Lai">Gia Lai</option>
+                    <option value="Ha Giang">Ha Giang</option>
+                    <option value="Ha Nam">Ha Nam</option>
+                    <option value="Ha Tinh">Ha Tinh</option>
+                    <option value="Hai Duong">Hai Duong</option>
+                    <option value="Hau Giang">Hau Giang</option>
+                    <option value="Hoa Binh">Hoa Binh</option>
+                    <option value="Hung Yen">Hung Yen</option>
+                    <option value="Khanh Hoa">Khanh Hoa</option>
+                    <option value="Kien Giang">Kien Giang</option>
+                    <option value="Kon Tum">Kon Tum</option>
+                    <option value="Lai Chau">Lai Chau</option>
+                    <option value="Lam Dong">Lam Dong</option>
+                    <option value="Lang Son">Lang Son</option>
+                    <option value="Lao Cai">Lao Cai</option>
+                    <option value="Long An">Long An</option>
+                    <option value="Nam Dinh">Nam Dinh</option>
+                    <option value="Nghe An">Nghe An</option>
+                    <option value="Ninh Binh">Ninh Binh</option>
+                    <option value="Ninh Thuan">Ninh Thuan</option>
+                    <option value="Phu Tho">Phu Tho</option>
+                    <option value="Phu Yen">Phu Yen</option>
+                    <option value="Quang Binh">Quang Binh</option>
+                    <option value="Quang Nam">Quang Nam</option>
+                    <option value="Quang Ngai">Quang Ngai</option>
+                    <option value="Quang Ninh">Quang Ninh</option>
+                    <option value="Quang Tri">Quang Tri</option>
+                    <option value="Soc Trang">Soc Trang</option>
+                    <option value="Son La">Son La</option>
+                    <option value="Tay Ninh">Tay Ninh</option>
+                    <option value="Thai Binh">Thai Binh</option>
+                    <option value="Thai Nguyen">Thai Nguyen</option>
+                    <option value="Thanh Hoa">Thanh Hoa</option>
+                    <option value="Thua Thien Hue">Thua Thien Hue</option>
+                    <option value="Tien Giang">Tien Giang</option>
+                    <option value="Tra Vinh">Tra Vinh</option>
+                    <option value="Tuyen Quang">Tuyen Quang</option>
+                    <option value="Vinh Long">Vinh Long</option>
+                    <option value="Vinh Phuc">Vinh Phuc</option>
+                    <option value="Yen Bai">Yen Bai</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="filter-row">
+                <div class="filter-group">
+                  <label><i class="fas fa-calendar"></i> Nam san xuat</label>
+                  <div class="range-inputs">
+                    <input
+                      type="number"
+                      id="vehicle-year-from"
+                      placeholder="Tu"
+                      min="2015"
+                      max="2025"
+                    />
+                    <span>-</span>
+                    <input
+                      type="number"
+                      id="vehicle-year-to"
+                      placeholder="Den"
+                      min="2015"
+                      max="2025"
+                    />
+                  </div>
+                </div>
+                <div class="filter-group">
+                  <label><i class="fas fa-road"></i> So km da chay</label>
+                  <input
+                    type="number"
+                    id="vehicle-mileage"
+                    placeholder="Toi da (km)"
+                  />
+                </div>
+                <div class="filter-group">
+                  <label
+                    ><i class="fas fa-battery-three-quarters"></i> Dung luong
+                    pin (kWh)</label
+                  >
+                  <div class="range-inputs">
+                    <input
+                      type="number"
+                      id="vehicle-battery-min"
+                      placeholder="Tu"
+                      min="0"
+                    />
+                    <span>-</span>
+                    <input
+                      type="number"
+                      id="vehicle-battery-max"
+                      placeholder="Den"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div class="filter-row">
+                <div class="filter-group">
+                  <label
+                    ><i class="fas fa-dollar-sign"></i> Khoang gia (VND)</label
+                  >
+                  <div class="range-inputs">
+                    <input
+                      type="number"
+                      id="vehicle-price-min"
+                      placeholder="Tu"
+                      min="0"
+                    />
+                    <span>-</span>
+                    <input
+                      type="number"
+                      id="vehicle-price-max"
+                      placeholder="Den"
+                    />
+                  </div>
+                </div>
+                <div class="filter-group">
+                  <label><i class="fas fa-info-circle"></i> Tinh trang</label>
+                  <select id="vehicle-condition">
+                    <option value="">Tat ca</option>
+                    <option value="moi">Moi</option>
+                    <option value="da-su-dung">Da su dung</option>
+                  </select>
+                </div>
+                <div class="filter-group">
+                  <button class="search-button" onclick="searchVehicles()">
+                    <i class="fas fa-search"></i> Tim kiem
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
-          <a href="{{ url_for('add_listing') }}" class="post-button">Đăng tin</a>
-        {% else %}
-          <a href="{{ url_for('login_page') }}" class="user-menu-item">Đăng nhập</a>
-          <a href="{{ url_for('register_page') }}" class="user-menu-item">Đăng ký</a>
-          <a href="{{ url_for('login_page') }}" class="post-button">Đăng tin</a>
+          <!-- Battery Search Form -->
+          <div id="battery-search-form" class="search-form">
+            <div class="search-filters">
+              <div class="filter-row">
+                <div class="filter-group">
+                  <label><i class="fas fa-tag"></i> Hang pin</label>
+                  <input
+                    type="text"
+                    id="battery-brand"
+                    placeholder="VD: CATL, LG..."
+                  />
+                </div>
+                <div class="filter-group">
+                  <label><i class="fas fa-map-marker-alt"></i> Khu vuc</label>
+                  <select id="battery-province">
+                    <option value="">Tat ca</option>
+                    <option value="TP Ho Chi Minh">TP Ho Chi Minh</option>
+                    <option value="Ha Noi">Ha Noi</option>
+                    <option value="Da Nang">Da Nang</option>
+                    <option value="Can Tho">Can Tho</option>
+                    <option value="Hai Phong">Hai Phong</option>
+                    <option value="An Giang">An Giang</option>
+                    <option value="Ba Ria - Vung Tau">Ba Ria - Vung Tau</option>
+                    <option value="Bac Giang">Bac Giang</option>
+                    <option value="Bac Kan">Bac Kan</option>
+                    <option value="Bac Lieu">Bac Lieu</option>
+                    <option value="Bac Ninh">Bac Ninh</option>
+                    <option value="Ben Tre">Ben Tre</option>
+                    <option value="Binh Dinh">Binh Dinh</option>
+                    <option value="Binh Duong">Binh Duong</option>
+                    <option value="Binh Phuoc">Binh Phuoc</option>
+                    <option value="Binh Thuan">Binh Thuan</option>
+                    <option value="Ca Mau">Ca Mau</option>
+                    <option value="Cao Bang">Cao Bang</option>
+                    <option value="Dak Lak">Dak Lak</option>
+                    <option value="Dak Nong">Dak Nong</option>
+                    <option value="Dien Bien">Dien Bien</option>
+                    <option value="Dong Nai">Dong Nai</option>
+                    <option value="Dong Thap">Dong Thap</option>
+                    <option value="Gia Lai">Gia Lai</option>
+                    <option value="Ha Giang">Ha Giang</option>
+                    <option value="Ha Nam">Ha Nam</option>
+                    <option value="Ha Tinh">Ha Tinh</option>
+                    <option value="Hai Duong">Hai Duong</option>
+                    <option value="Hau Giang">Hau Giang</option>
+                    <option value="Hoa Binh">Hoa Binh</option>
+                    <option value="Hung Yen">Hung Yen</option>
+                    <option value="Khanh Hoa">Khanh Hoa</option>
+                    <option value="Kien Giang">Kien Giang</option>
+                    <option value="Kon Tum">Kon Tum</option>
+                    <option value="Lai Chau">Lai Chau</option>
+                    <option value="Lam Dong">Lam Dong</option>
+                    <option value="Lang Son">Lang Son</option>
+                    <option value="Lao Cai">Lao Cai</option>
+                    <option value="Long An">Long An</option>
+                    <option value="Nam Dinh">Nam Dinh</option>
+                    <option value="Nghe An">Nghe An</option>
+                    <option value="Ninh Binh">Ninh Binh</option>
+                    <option value="Ninh Thuan">Ninh Thuan</option>
+                    <option value="Phu Tho">Phu Tho</option>
+                    <option value="Phu Yen">Phu Yen</option>
+                    <option value="Quang Binh">Quang Binh</option>
+                    <option value="Quang Nam">Quang Nam</option>
+                    <option value="Quang Ngai">Quang Ngai</option>
+                    <option value="Quang Ninh">Quang Ninh</option>
+                    <option value="Quang Tri">Quang Tri</option>
+                    <option value="Soc Trang">Soc Trang</option>
+                    <option value="Son La">Son La</option>
+                    <option value="Tay Ninh">Tay Ninh</option>
+                    <option value="Thai Binh">Thai Binh</option>
+                    <option value="Thai Nguyen">Thai Nguyen</option>
+                    <option value="Thanh Hoa">Thanh Hoa</option>
+                    <option value="Thua Thien Hue">Thua Thien Hue</option>
+                    <option value="Tien Giang">Tien Giang</option>
+                    <option value="Tra Vinh">Tra Vinh</option>
+                    <option value="Tuyen Quang">Tuyen Quang</option>
+                    <option value="Vinh Long">Vinh Long</option>
+                    <option value="Vinh Phuc">Vinh Phuc</option>
+                    <option value="Yen Bai">Yen Bai</option>
+                  </select>
+                </div>
+                <div class="filter-group">
+                  <label
+                    ><i class="fas fa-battery-full"></i> Dung luong pin
+                    (kWh)</label
+                  >
+                  <div class="range-inputs">
+                    <input
+                      type="number"
+                      id="battery-capacity-min"
+                      placeholder="Tu"
+                      min="0"
+                    />
+                    <span>-</span>
+                    <input
+                      type="number"
+                      id="battery-capacity-max"
+                      placeholder="Den"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div class="filter-row">
+                <div class="filter-group">
+                  <label
+                    ><i class="fas fa-dollar-sign"></i> Khoang gia (VND)</label
+                  >
+                  <div class="range-inputs">
+                    <input
+                      type="number"
+                      id="battery-price-min"
+                      placeholder="Tu"
+                      min="0"
+                    />
+                    <span>-</span>
+                    <input
+                      type="number"
+                      id="battery-price-max"
+                      placeholder="Den"
+                    />
+                  </div>
+                </div>
+                <div class="filter-group">
+                  <label
+                    ><i class="fas fa-heartbeat"></i> Tinh trang pin (%)</label
+                  >
+                  <div class="range-inputs">
+                    <input
+                      type="number"
+                      id="battery-health-min"
+                      placeholder="Tu"
+                      min="0"
+                      max="100"
+                    />
+                    <span>-</span>
+                    <input
+                      type="number"
+                      id="battery-health-max"
+                      placeholder="Den"
+                      max="100"
+                    />
+                  </div>
+                </div>
+                <div class="filter-group">
+                  <label><i class="fas fa-calendar"></i> Nam san xuat</label>
+                  <div class="range-inputs">
+                    <input
+                      type="number"
+                      id="battery-year-from"
+                      placeholder="Tu"
+                      min="2015"
+                      max="2025"
+                    />
+                    <span>-</span>
+                    <input
+                      type="number"
+                      id="battery-year-to"
+                      placeholder="Den"
+                      min="2015"
+                      max="2025"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div class="filter-row">
+                <div class="filter-group">
+                  <label><i class="fas fa-sync"></i> So chu ky sac</label>
+                  <input
+                    type="number"
+                    id="battery-cycles"
+                    placeholder="Toi da"
+                  />
+                </div>
+                <div class="filter-group">
+                  <label><i class="fas fa-info-circle"></i> Tinh trang</label>
+                  <select id="battery-condition">
+                    <option value="">Tat ca</option>
+                    <option value="moi">Moi</option>
+                    <option value="da-su-dung">Da su dung</option>
+                  </select>
+                </div>
+                <div class="filter-group">
+                  <button class="search-button" onclick="searchBatteries()">
+                    <i class="fas fa-search"></i> Tim kiem
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Search Results -->
+          <div id="search-results" class="search-results">
+            <div
+              id="results-header"
+              class="results-header"
+              style="display: none"
+            >
+              <h3 id="results-title">Ket qua tim kiem</h3>
+              <span id="results-count"></span>
+            </div>
+            <div id="results-grid" class="product-grid"></div>
+            <div id="results-pagination" class="pagination-controls"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="product-section">
+      <div class="section-header">
+        <h2 class="section-title">Xe dien noi bat</h2>
+        <a href="#" class="view-all">Xem tat ca</a>
+      </div>
+      <div class="product-grid">
+        {% if cars %} {% for car in cars %}
+        <div class="product-card">
+          {% if car.approved %}
+          <div class="product-actions">
+            <button
+              class="btn-fav"
+              onclick="event.preventDefault(); toggleFavorite('car', {{ car.id }}, this)"
+              title="Yeu thich"
+            >
+              <i class="fas fa-heart"></i>
+            </button>
+          </div>
+          {% endif %}
+          <a
+            href="/listings/{{ car.id }}"
+            style="display: block; text-decoration: none; color: inherit"
+          >
+            <img
+              src="{{ car.main_image_url or '/static/images/placeholder.png' }}"
+              alt="{{ car.name }}"
+              class="product-image"
+              onerror="this.onerror=null;this.src='/static/images/placeholder.png'"
+            />
+            <div class="product-info">
+              <h3 class="product-title">{{ car.name }}</h3>
+              <div class="product-price">
+                {{ "{:,.0f}".format(car.price) }} d
+              </div>
+              <div class="product-location">
+                <i class="fas fa-map-marker-alt"></i> {{ car.province or 'Khong
+                ro' }}
+              </div>
+            </div>
+          </a>
+          <div class="product-card-actions">
+            <button
+              class="btn-buy-now"
+              onclick="event.stopPropagation(); buyNowFromCard('car', {{ car.id }}, {{ car.price }})"
+            >
+              <i class="fas fa-bolt"></i> Mua ngay
+            </button>
+            <button
+              class="btn-add-cart"
+              onclick="event.stopPropagation(); addToCartFromCard('car', {{ car.id }}, {{ car.price }})"
+            >
+              <i class="fas fa-shopping-cart"></i> Gio hang
+            </button>
+          </div>
+        </div>
+        {% endfor %} {% else %}
+        <p class="empty-state">Chua co xe duoc duyet.</p>
         {% endif %}
       </div>
-    </div>
-  </header>
+    </section>
 
-  <section class="search-section">
-    <div class="search-container">
-      <h1 class="search-title">Second-hand EV & Battery Trading Platform</h1>
-      <h2 class="search-subtitle">Nền tảng giao dịch pin và xe điện qua sử dụng</h2>
-      <div class="search-box">
-        <input type="text" class="search-input" placeholder="Tìm kiếm xe điện, pin..."/>
-        <select class="location-dropdown">
-          <option value="">Chọn khu vực</option>
-          <option value="hcm">TP. Hồ Chí Minh</option>
-          <option value="hn">Hà Nội</option>
-          <option value="dn">Đà Nẵng</option>
-        </select>
-        <button class="search-button">Tìm kiếm</button>
+    <section class="product-section">
+      <div class="section-header">
+        <h2 class="section-title">Pin xe dien moi ve</h2>
+        <a href="#" class="view-all">Xem tat ca</a>
       </div>
-    </div>
-  </section>
-
-  <!-- =========== XE ĐIỆN =========== -->
-  <section class="product-section">
-    <div class="section-header">
-      <h2 class="section-title">Xe điện nổi bật</h2>
-      <a href="#" class="view-all">Xem tất cả</a>
-    </div>
-
-    <div class="product-grid">
-      {% if cars and cars|length %}
-        {% for p in cars %}
-          <a href="/listings/{{ p.id }}" class="product-card">
+      <div class="product-grid">
+        {% if batts %} {% for battery in batts %}
+        <div class="product-card">
+          {% if battery.approved %}
+          <div class="product-actions">
+            <button
+              class="btn-fav"
+              onclick="event.preventDefault(); toggleFavorite('battery', {{ battery.id }}, this)"
+              title="Yeu thich"
+            >
+              <i class="fas fa-heart"></i>
+            </button>
+          </div>
+          {% endif %}
+          <a
+            href="/listings/{{ battery.id }}"
+            style="display: block; text-decoration: none; color: inherit"
+          >
             <img
-              src="{{ p.main_image_url or '/static/images/placeholder.png' }}"
-              alt="{{ p.name }}"
+              src="{{ battery.main_image_url or '/static/images/placeholder.png' }}"
+              alt="{{ battery.name }}"
               class="product-image"
-              onerror="this.onerror=null;this.src='/static/images/placeholder.png'"/>
+              onerror="this.onerror=null;this.src='/static/images/placeholder.png'"
+            />
             <div class="product-info">
-              <h3 class="product-title">{{ p.name }}</h3>
-              <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
+              <h3 class="product-title">{{ battery.name }}</h3>
+              <div class="product-price">
+                {{ "{:,.0f}".format(battery.price) }} d
+              </div>
               <div class="product-location">
-                <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
+                <i class="fas fa-map-marker-alt"></i> {{ battery.province or
+                'Khong ro' }}
               </div>
             </div>
           </a>
-        {% endfor %}
-      {% else %}
-        <p>Chưa có xe nào được duyệt.</p>
-      {% endif %}
-    </div>
-  </section>
+          <div class="product-card-actions">
+            <button
+              class="btn-buy-now"
+              onclick="event.stopPropagation(); buyNowFromCard('battery', {{ battery.id }}, {{ battery.price }})"
+            >
+              <i class="fas fa-bolt"></i> Mua ngay
+            </button>
+            <button
+              class="btn-add-cart"
+              onclick="event.stopPropagation(); addToCartFromCard('battery', {{ battery.id }}, {{ battery.price }})"
+            >
+              <i class="fas fa-shopping-cart"></i> Gio hang
+            </button>
+          </div>
+        </div>
+        {% endfor %} {% else %}
+        <p class="empty-state">Chua co pin duoc duyet.</p>
+        {% endif %}
+      </div>
+    </section>
 
-  <!-- =========== PIN XE ĐIỆN =========== -->
-  <section class="product-section">
-    <div class="section-header">
-      <h2 class="section-title">Pin xe điện mới về</h2>
-      <a href="#" class="view-all">Xem tất cả</a>
-    </div>
+    <footer class="footer">
+      <p>© 2025 EV Trading Platform. Tat ca quyen duoc bao luu.</p>
+    </footer>
 
-    <div class="product-grid">
-      {% if batts and batts|length %}
-        {% for p in batts %}
-          <a href="/listings/{{ p.id }}" class="product-card">
+    <style>
+      /* Product Card Actions */
+      .product-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .product-card > a {
+        position: relative;
+        z-index: 1;
+      }
+
+      .product-actions {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        display: flex;
+        gap: 8px;
+        z-index: 10;
+      }
+
+      .btn-fav,
+      .btn-compare {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
+
+      .btn-fav {
+        background: white;
+        color: #ff4757;
+      }
+
+      .btn-fav:hover {
+        background: #ff4757;
+        color: white;
+        transform: scale(1.1);
+      }
+
+      .btn-fav.active {
+        background: #ff4757;
+        color: white;
+      }
+
+      .btn-compare {
+        background: white;
+        color: #2196f3;
+      }
+
+      .btn-compare:hover {
+        background: #2196f3;
+        color: white;
+        transform: scale(1.1);
+      }
+
+      .btn-compare.active {
+        background: #2196f3;
+        color: white;
+      }
+
+      /* Product Card Actions */
+      .product-card-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        padding-top: 0;
+        position: relative;
+        z-index: 10;
+      }
+
+      .btn-buy-now,
+      .btn-add-cart {
+        padding: 0.65rem 0.5rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.3rem;
+        white-space: nowrap;
+        position: relative;
+        z-index: 100;
+      }
+
+      .btn-buy-now {
+        background: linear-gradient(135deg, #ffd700 0%, #ffa500 100%);
+        color: #333;
+        box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
+      }
+
+      .btn-buy-now:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(255, 215, 0, 0.5);
+        background: linear-gradient(135deg, #ffed4e 0%, #ffb732 100%);
+      }
+
+      .btn-add-cart {
+        background: linear-gradient(135deg, #ff9800 0%, #ff6f00 100%);
+        color: white;
+        box-shadow: 0 2px 8px rgba(255, 152, 0, 0.4);
+      }
+
+      .btn-add-cart:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(255, 152, 0, 0.5);
+        background: linear-gradient(135deg, #ffad33 0%, #ff8c1a 100%);
+      }
+
+      /* Simple Search Bar */
+      .simple-search-bar {
+        display: flex;
+        gap: 1rem;
+        max-width: 800px;
+        margin: 2rem auto;
+        background: white;
+        padding: 1rem;
+        border-radius: 50px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      }
+
+      .search-location,
+      .search-type {
+        flex: 1;
+        padding: 0.8rem 1.2rem;
+        border: 2px solid #e8e8e8;
+        border-radius: 25px;
+        font-size: 0.95rem;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .search-location:focus,
+      .search-type:focus {
+        outline: none;
+        border-color: #4caf50;
+        box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+      }
+
+      .search-submit {
+        padding: 0.8rem 2rem;
+        background: linear-gradient(135deg, #ffd700 0%, #ffa500 100%);
+        color: #333;
+        border: none;
+        border-radius: 25px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+        white-space: nowrap;
+      }
+
+      .search-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 215, 0, 0.5);
+      }
+
+      .search-submit i {
+        margin-right: 0.5rem;
+      }
+
+      .advanced-search-container {
+        margin-top: 1.5rem;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+        border: 1px solid #e8e8e8;
+        animation: slideDown 0.3s ease;
+      }
+
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .search-tabs {
+        display: flex;
+        gap: 0.4rem;
+        margin-bottom: 1rem;
+        background: #f5f5f5;
+        padding: 0.3rem;
+        border-radius: 8px;
+      }
+
+      .search-tab {
+        flex: 1;
+        padding: 0.5rem 0.8rem;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        font-size: 0.85rem;
+        color: #666;
+        transition: all 0.3s ease;
+        border-radius: 6px;
+        font-weight: 500;
+      }
+
+      .search-tab:hover {
+        color: #4caf50;
+        background: rgba(76, 175, 80, 0.05);
+      }
+
+      .search-tab.active {
+        color: white;
+        background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+        font-weight: 600;
+        box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
+      }
+
+      .search-tab i {
+        margin-right: 0.4rem;
+      }
+
+      .search-form {
+        display: none;
+        animation: fadeIn 0.3s ease;
+      }
+
+      .search-form.active {
+        display: block;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .search-filters {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .filter-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.75rem;
+        align-items: end;
+      }
+
+      .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+      }
+
+      .filter-group label {
+        font-weight: 500;
+        color: #555;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 0.8rem;
+      }
+
+      .filter-group label i {
+        color: #4caf50;
+        font-size: 0.8rem;
+      }
+
+      .filter-group input,
+      .filter-group select {
+        padding: 0.5rem 0.7rem;
+        border: 1.5px solid #e0e0e0;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        transition: all 0.3s ease;
+        background: white;
+      }
+
+      .filter-group input:focus,
+      .filter-group select:focus {
+        outline: none;
+        border-color: #4caf50;
+        box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+      }
+
+      .filter-group input::placeholder {
+        color: #aaa;
+        font-size: 0.8rem;
+      }
+
+      .range-inputs {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+      }
+
+      .range-inputs input {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .range-inputs span {
+        color: #999;
+        font-size: 0.75rem;
+        font-weight: 500;
+      }
+
+      .filter-group button.search-button {
+        padding: 0.55rem 1.2rem;
+        background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 5px rgba(76, 175, 80, 0.3);
+      }
+
+      .filter-group button.search-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+      }
+
+      .filter-group button.search-button:active {
+        transform: translateY(0);
+      }
+
+      .search-results {
+        margin-top: 2rem;
+      }
+
+      .results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #e8e8e8;
+      }
+
+      .results-header h3 {
+        color: #333;
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      #results-count {
+        color: #666;
+        font-size: 0.9rem;
+        background: #f5f5f5;
+        padding: 0.4rem 0.8rem;
+        border-radius: 6px;
+      }
+
+      .pagination-controls {
+        display: flex;
+        justify-content: center;
+        gap: 0.4rem;
+        margin-top: 1.5rem;
+        flex-wrap: wrap;
+      }
+
+      .pagination-controls button {
+        padding: 0.5rem 0.9rem;
+        border: 1.5px solid #e0e0e0;
+        background: white;
+        cursor: pointer;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        min-width: 36px;
+      }
+
+      .pagination-controls button:hover:not(:disabled) {
+        background: #4caf50;
+        color: white;
+        border-color: #4caf50;
+        transform: translateY(-1px);
+      }
+
+      .pagination-controls button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .pagination-controls button.active {
+        background: #4caf50;
+        color: white;
+        border-color: #4caf50;
+        font-weight: 600;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .simple-search-bar {
+          flex-direction: column;
+          padding: 0.8rem;
+          gap: 0.8rem;
+          border-radius: 20px;
+        }
+
+        .search-location,
+        .search-type,
+        .search-submit {
+          width: 100%;
+        }
+
+        .advanced-search-container {
+          padding: 0.8rem;
+        }
+
+        .filter-row {
+          grid-template-columns: 1fr;
+          gap: 0.8rem;
+        }
+
+        .search-tab {
+          font-size: 0.85rem;
+          padding: 0.6rem 0.8rem;
+        }
+      }
+    </style>
+
+    <script>
+      let currentPage = 1;
+      let currentSearchType = "vehicle";
+      let advancedFiltersVisible = false;
+
+      function toggleUserMenu(event) {
+        event.preventDefault();
+        const dropdown = document.getElementById("userDropdown");
+        if (!dropdown) return;
+        dropdown.style.display =
+          dropdown.style.display === "block" ? "none" : "block";
+      }
+
+      document.addEventListener("click", function (ev) {
+        const wrap = document.querySelector(".user-avatar-wrap");
+        const dropdown = document.getElementById("userDropdown");
+        if (!wrap || !dropdown) return;
+        if (!wrap.contains(ev.target)) {
+          dropdown.style.display = "none";
+        }
+      });
+
+      function toggleAdvancedSearch() {
+        const filters = document.getElementById("advanced-filters");
+        const mainType = document.getElementById("main-type").value;
+
+        advancedFiltersVisible = !advancedFiltersVisible;
+
+        if (advancedFiltersVisible) {
+          filters.style.display = "block";
+
+          // Sync main type with tabs
+          currentSearchType = mainType;
+          switchSearchTab(mainType);
+
+          // Scroll to filters
+          filters.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else {
+          filters.style.display = "none";
+
+          // Do quick search with main filters only
+          quickSearch();
+        }
+      }
+
+      function quickSearch() {
+        const location = document.getElementById("main-location").value;
+        const type = document.getElementById("main-type").value;
+
+        if (type === "vehicle") {
+          // Set location filter
+          if (location) {
+            document.getElementById("vehicle-province").value = location;
+          }
+          searchVehicles(1);
+        } else {
+          // Set location filter
+          if (location) {
+            document.getElementById("battery-province").value = location;
+          }
+          searchBatteries(1);
+        }
+      }
+
+      function switchSearchTab(type) {
+        currentSearchType = type;
+        currentPage = 1;
+
+        // Update main dropdown
+        document.getElementById("main-type").value = type;
+
+        // Update tabs
+        document.querySelectorAll(".search-tab").forEach((tab) => {
+          tab.classList.remove("active");
+        });
+        document.getElementById(`tab-${type}`).classList.add("active");
+
+        // Update forms
+        document.querySelectorAll(".search-form").forEach((form) => {
+          form.classList.remove("active");
+        });
+        document.getElementById(`${type}-search-form`).classList.add("active");
+
+        // Clear results
+        document.getElementById("results-grid").innerHTML = "";
+        document.getElementById("results-header").style.display = "none";
+        document.getElementById("results-pagination").innerHTML = "";
+      }
+
+      function searchVehicles(page = 1) {
+        currentPage = page;
+        const params = new URLSearchParams();
+
+        const brand = document.getElementById("vehicle-brand").value;
+        const model = document.getElementById("vehicle-model").value;
+        const province = document.getElementById("vehicle-province").value;
+        const yearFrom = document.getElementById("vehicle-year-from").value;
+        const yearTo = document.getElementById("vehicle-year-to").value;
+        const mileage = document.getElementById("vehicle-mileage").value;
+        const batteryMin = document.getElementById("vehicle-battery-min").value;
+        const batteryMax = document.getElementById("vehicle-battery-max").value;
+        const priceMin = document.getElementById("vehicle-price-min").value;
+        const priceMax = document.getElementById("vehicle-price-max").value;
+        const condition = document.getElementById("vehicle-condition").value;
+
+        if (brand) params.append("brand", brand);
+        if (model) params.append("q", model);
+        if (province) params.append("province", province);
+        if (yearFrom) params.append("year_from", yearFrom);
+        if (yearTo) params.append("year_to", yearTo);
+        if (mileage) params.append("mileage_max", mileage);
+        if (batteryMin) params.append("battery_min", batteryMin);
+        if (batteryMax) params.append("battery_max", batteryMax);
+        if (priceMin) params.append("min_price", priceMin);
+        if (priceMax) params.append("max_price", priceMax);
+        params.append("page", page);
+
+        const url = `/api/search/vehicles?${params.toString()}`;
+        console.log("Searching vehicles:", url);
+
+        fetch(url)
+          .then((res) => {
+            console.log("Response status:", res.status);
+            return res.json();
+          })
+          .then((data) => {
+            console.log("Search results:", data);
+            displayResults(data, "vehicle");
+          })
+          .catch((err) => {
+            console.error("Search error:", err);
+            alert("Co loi xay ra khi tim kiem: " + err.message);
+          });
+      }
+
+      function searchBatteries(page = 1) {
+        currentPage = page;
+        const params = new URLSearchParams();
+
+        const brand = document.getElementById("battery-brand").value;
+        const province = document.getElementById("battery-province").value;
+        const capacityMin = document.getElementById(
+          "battery-capacity-min"
+        ).value;
+        const capacityMax = document.getElementById(
+          "battery-capacity-max"
+        ).value;
+        const priceMin = document.getElementById("battery-price-min").value;
+        const priceMax = document.getElementById("battery-price-max").value;
+        const healthMin = document.getElementById("battery-health-min").value;
+        const healthMax = document.getElementById("battery-health-max").value;
+        const yearFrom = document.getElementById("battery-year-from").value;
+        const yearTo = document.getElementById("battery-year-to").value;
+        const cycles = document.getElementById("battery-cycles").value;
+        const condition = document.getElementById("battery-condition").value;
+
+        if (brand) params.append("brand", brand);
+        if (province) params.append("province", province);
+        if (capacityMin) params.append("capacity_min", capacityMin);
+        if (capacityMax) params.append("capacity_max", capacityMax);
+        if (priceMin) params.append("min_price", priceMin);
+        if (priceMax) params.append("max_price", priceMax);
+        if (healthMin) params.append("health_min", healthMin);
+        if (healthMax) params.append("health_max", healthMax);
+        if (yearFrom) params.append("year_from", yearFrom);
+        if (yearTo) params.append("year_to", yearTo);
+        if (cycles) params.append("cycles_max", cycles);
+        params.append("page", page);
+
+        const url = `/api/search/batteries?${params.toString()}`;
+        console.log("Searching batteries:", url);
+
+        fetch(url)
+          .then((res) => {
+            console.log("Response status:", res.status);
+            return res.json();
+          })
+          .then((data) => {
+            console.log("Search results:", data);
+            displayResults(data, "battery");
+          })
+          .catch((err) => {
+            console.error("Search error:", err);
+            alert("Co loi xay ra khi tim kiem: " + err.message);
+          });
+      }
+
+      function displayResults(data, type) {
+        const resultsGrid = document.getElementById("results-grid");
+        const resultsHeader = document.getElementById("results-header");
+        const resultsCount = document.getElementById("results-count");
+        const pagination = document.getElementById("results-pagination");
+
+        resultsHeader.style.display = "flex";
+
+        const items = data.items || data.listings || [];
+        const total = data.total || items.length;
+        const pages = data.pages || Math.ceil(total / 20);
+
+        resultsCount.textContent = `Tim thay ${total} ket qua`;
+
+        if (items.length === 0) {
+          resultsGrid.innerHTML =
+            '<p class="empty-state">Khong tim thay ket qua phu hop</p>';
+          pagination.innerHTML = "";
+          return;
+        }
+
+        resultsGrid.innerHTML = items
+          .map(
+            (item) => `
+          <a href="/listings/${item.id}" class="product-card">
             <img
-              src="{{ p.main_image_url or '/static/images/placeholder.png' }}"
-              alt="{{ p.name }}"
+              src="${item.main_image_url || "/static/images/placeholder.png"}"
+              alt="${item.name}"
               class="product-image"
-              onerror="this.onerror=null;this.src='/static/images/placeholder.png'"/>
+              onerror="this.onerror=null;this.src='/static/images/placeholder.png'"
+            />
             <div class="product-info">
-              <h3 class="product-title">{{ p.name }}</h3>
-              <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
-              <div class="product-location">
-                <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
-              </div>
+              <h3 class="product-title">${item.name}</h3>
+              <div class="product-price">${parseInt(item.price).toLocaleString(
+                "vi-VN"
+              )} đ</div>
+              ${
+                item.province
+                  ? `<div class="product-location">
+                <i class="fas fa-map-marker-alt"></i> ${item.province}
+              </div>`
+                  : ""
+              }
+              ${
+                item.year
+                  ? `<div class="product-meta">Năm: ${item.year}</div>`
+                  : ""
+              }
+              ${
+                item.mileage
+                  ? `<div class="product-meta">Đã chạy: ${parseInt(
+                      item.mileage
+                    ).toLocaleString("vi-VN")} km</div>`
+                  : ""
+              }
             </div>
           </a>
-        {% endfor %}
-      {% else %}
-        <p>Chưa có pin nào được duyệt.</p>
-      {% endif %}
-    </div>
-  </section>
+        `
+          )
+          .join("");
 
-  <!-- ===== Modals ===== -->
-  <div id="authModal" class="modal" style="display:none">
-    <div class="modal-content">
-      <span class="close" onclick="document.getElementById('authModal').style.display='none'">&times;</span>
-      <div class="auth-tabs">
-        <button onclick="showTab('login')">Đăng nhập</button>
-        <button onclick="showTab('register')">Đăng ký</button>
-      </div>
-      <div id="loginTab" class="tab-content">
-        <form id="loginForm" method="POST" action="{{ url_for('login_page') }}">
-          <input type="email" name="email" placeholder="Email" required/>
-          <input type="password" name="password" placeholder="Mật khẩu" required/>
-          <button type="submit">Đăng nhập</button>
-        </form>
-      </div>
-      <div id="registerTab" class="tab-content" style="display:none">
-        <form id="registerForm" method="POST" action="{{ url_for('register_page') }}">
-          <input type="email" name="email" placeholder="Email" required/>
-          <input type="text" name="phone" placeholder="Số điện thoại" required/>
-          <input type="password" name="password" placeholder="Mật khẩu" required/>
-          <input type="password" name="confirmPassword" placeholder="Xác nhận mật khẩu" required/>
-          <button type="submit">Đăng ký</button>
-        </form>
-      </div>
-    </div>
-  </div>
+        // Pagination
+        if (pages > 1) {
+          let paginationHTML = "";
+          if (currentPage > 1) {
+            paginationHTML += `<button onclick="${
+              type === "vehicle" ? "searchVehicles" : "searchBatteries"
+            }(${currentPage - 1})">Trước</button>`;
+          }
 
-  <div id="profileModal" class="modal" style="display:none">
-    <div class="modal-content">
-      <span class="close" onclick="document.getElementById('profileModal').style.display='none'">&times;</span>
-      <h2>Hồ sơ cá nhân</h2>
-      <form id="profileForm">
-        <input type="text" name="name" placeholder="Tên"/>
-        <input type="date" name="dob" placeholder="Ngày sinh"/>
-        <input type="text" name="address" placeholder="Địa chỉ"/>
-        <input type="file" name="avatar" accept="image/*"/>
-        <button type="submit">Cập nhật hồ sơ</button>
-      </form>
-      <div id="roleInfo"></div>
-    </div>
-  </div>
+          for (let i = 1; i <= Math.min(pages, 10); i++) {
+            paginationHTML += `<button class="${
+              i === currentPage ? "active" : ""
+            }" onclick="${
+              type === "vehicle" ? "searchVehicles" : "searchBatteries"
+            }(${i})">${i}</button>`;
+          }
 
-  <footer class="footer">
-    <p>© 2025 EV Trading Platform. Tất cả quyền được bảo lưu.</p>
-  </footer>
+          if (currentPage < pages) {
+            paginationHTML += `<button onclick="${
+              type === "vehicle" ? "searchVehicles" : "searchBatteries"
+            }(${currentPage + 1})">Sau</button>`;
+          }
 
-  <script>
-    function showTab(tab){
-      document.getElementById("loginTab").style.display = (tab === "login") ? "block" : "none";
-      document.getElementById("registerTab").style.display = (tab === "register") ? "block" : "none";
-    }
-    function openAuthModal(){
-      showTab("login");
-      document.getElementById("authModal").style.display = "block";
-    }
-    function toggleUserMenu(e){
-      e.preventDefault();
-      const dd = document.getElementById('userDropdown');
-      dd.style.display = (!dd.style.display || dd.style.display === 'none') ? 'block' : 'none';
-    }
-    document.addEventListener('click', function(ev){
-      const wrap = document.querySelector('.user-avatar-wrap');
-      const dd = document.getElementById('userDropdown');
-      if (!wrap || !dd) return;
-      if (!wrap.contains(ev.target)) dd.style.display = 'none';
-    });
-  </script>
-</body>
+          pagination.innerHTML = paginationHTML;
+        } else {
+          pagination.innerHTML = "";
+        }
+
+        // Scroll to results
+        resultsHeader.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      // ===== FAVORITES & COMPARE FUNCTIONS =====
+
+      function toggleFavorite(itemType, itemId, btn) {
+        // Check if user is logged in
+        {% if not session.get('user') %}
+        alert('Vui lòng đăng nhập để sử dụng tính năng yêu thích!');
+        window.location.href = '/login';
+        return;
+        {% endif %}
+
+        const isActive = btn.classList.contains('active');
+
+        if (isActive) {
+          // Remove from favorites
+          // Find favorite id first
+          fetch('/api/favorites')
+            .then(res => res.json())
+            .then(data => {
+              const fav = data.data?.find(f => f.item_type === itemType && f.item_id === itemId);
+              if (fav) {
+                return fetch(`/api/favorites/${fav.id}`, { method: 'DELETE' });
+              }
+            })
+            .then(() => {
+              btn.classList.remove('active');
+              showToast('Đã xóa khỏi yêu thích', 'success');
+            })
+            .catch(err => {
+              console.error('Error removing favorite:', err);
+              showToast('Có lỗi xảy ra', 'error');
+            });
+        } else {
+          // Add to favorites
+          fetch('/api/favorites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              item_type: itemType,
+              item_id: itemId
+            })
+          })
+          .then(res => {
+            if (res.ok) {
+              btn.classList.add('active');
+              showToast('Đã thêm vào yêu thích!', 'success');
+            } else {
+              return res.json().then(data => {
+                throw new Error(data.message || 'Lỗi thêm yêu thích');
+              });
+            }
+          })
+          .catch(err => {
+            console.error('Error adding favorite:', err);
+            showToast(err.message || 'Có lỗi xảy ra', 'error');
+          });
+        }
+      }
+
+      function toggleCompare(itemType, itemId, btn) {
+        const compareList = JSON.parse(localStorage.getItem('compareList') || '[]');
+        const itemKey = `${itemType}_${itemId}`;
+        const index = compareList.findIndex(item => item.key === itemKey);
+
+        if (index > -1) {
+          // Remove from compare
+          compareList.splice(index, 1);
+          btn.classList.remove('active');
+          showToast('Đã xóa khỏi so sánh', 'info');
+        } else {
+          // Add to compare (max 4 items)
+          if (compareList.length >= 4) {
+            showToast('Chỉ có thể so sánh tối đa 4 sản phẩm', 'warning');
+            return;
+          }
+          compareList.push({ key: itemKey, type: itemType, id: itemId });
+          btn.classList.add('active');
+          showToast('Đã thêm vào so sánh', 'success');
+        }
+
+        // Persist to both keys for backward-compat with compare page
+        const compareJson = JSON.stringify(compareList);
+        localStorage.setItem('compareList', compareJson);
+        localStorage.setItem('compareItems', compareJson);
+        updateCompareCount();
+      }
+
+      function updateCompareCount() {
+        // Read both keys and merge unique (by key)
+        const a = JSON.parse(localStorage.getItem('compareList') || '[]');
+        const b = JSON.parse(localStorage.getItem('compareItems') || '[]');
+        const map = new Map();
+        [...a, ...b].forEach(it => { if (it && it.key) map.set(it.key, it); });
+        const compareList = Array.from(map.values());
+        // Update badge if exists
+        const badge = document.querySelector('.compare-badge');
+        if (badge) {
+          badge.textContent = compareList.length;
+          badge.style.display = compareList.length > 0 ? 'inline-block' : 'none';
+        }
+      }
+
+      function showToast(message, type = 'info') {
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+        toast.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : type === 'warning' ? '#ff9800' : '#2196F3'};
+          color: white;
+          padding: 12px 24px;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          z-index: 10000;
+          animation: slideInRight 0.3s ease;
+        `;
+
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+          toast.style.animation = 'slideOutRight 0.3s ease';
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
+      }
+
+      // Add CSS animation for toast
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes slideInRight {
+          from { transform: translateX(400px); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutRight {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(400px); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+
+      // Buy Now from card - redirect to checkout
+      function buyNowFromCard(itemType, itemId, price) {
+        {% if session.get('user') %}
+        fetch('/cart/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            item_type: itemType,
+            item_id: itemId,
+            price: price,
+            qty: 1
+          })
+        })
+        .then(async res => {
+          const data = await res.json().catch(() => ({}));
+          if (res.status === 401 || data.error === 'unauthenticated') {
+            showToast('Vui lòng đăng nhập để mua hàng', 'warning');
+            setTimeout(() => window.location.href = '/login', 1500);
+            return;
+          }
+          if (data && (data.ok || data.success)) {
+            window.location.href = '/checkout';
+          } else {
+            showToast(data.message || data.error || 'Có lỗi xảy ra', 'error');
+          }
+        })
+        .catch(err => {
+          console.error('Error:', err);
+          showToast('Không thể mua ngay. Vui lòng thử lại!', 'error');
+        });
+        {% else %}
+        showToast('Vui lòng đăng nhập để mua hàng', 'warning');
+        setTimeout(() => window.location.href = '/login', 1500);
+        {% endif %}
+      }
+
+      // Add to Cart from card - stay on page
+      function addToCartFromCard(itemType, itemId, price) {
+        {% if session.get('user') %}
+        fetch('/cart/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            item_type: itemType,
+            item_id: itemId,
+            price: price,
+            qty: 1
+          })
+        })
+        .then(async res => {
+          const data = await res.json().catch(() => ({}));
+          if (res.status === 401 || data.error === 'unauthenticated') {
+            showToast('Vui lòng đăng nhập để thêm vào giỏ hàng', 'warning');
+            setTimeout(() => window.location.href = '/login', 1500);
+            return;
+          }
+          if (data && (data.ok || data.success)) {
+            showToast('Đã thêm vào giỏ hàng!', 'success');
+          } else {
+            showToast(data.message || data.error || 'Có lỗi xảy ra', 'error');
+          }
+        })
+        .catch(err => {
+          console.error('Error:', err);
+          showToast('Không thể thêm vào giỏ. Vui lòng thử lại!', 'error');
+        });
+        {% else %}
+        showToast('Vui lòng đăng nhập để thêm vào giỏ hàng', 'warning');
+        setTimeout(() => window.location.href = '/login', 1500);
+        {% endif %}
+      }
+
+      // Initialize on page load
+      document.addEventListener('DOMContentLoaded', function() {
+        // Load favorite status for all items
+        {% if session.get('user') %}
+        fetch('/api/favorites')
+          .then(res => res.json())
+          .then(data => {
+            const favorites = data.data || [];
+            favorites.forEach(fav => {
+              const btn = document.querySelector(`.btn-fav[onclick*="${fav.item_type}"][onclick*="${fav.item_id}"]`);
+              if (btn) {
+                btn.classList.add('active');
+              }
+            });
+          })
+          .catch(err => console.error('Error loading favorites:', err));
+        {% endif %}
+      });
+    </script>
+  </body>
 </html>

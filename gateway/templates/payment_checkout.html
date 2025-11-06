@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thanh toán - EV Trading</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+  <style>
+    .payment-container { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+    .payment-header { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:#fff; padding:30px; border-radius:12px 12px 0 0; text-align:center; }
+    .payment-header h1 { margin:0 0 10px; font-size:28px; }
+    .order-info { font-size:14px; opacity:.9; margin-top:10px; }
+    .contract-badge { display:inline-flex; align-items:center; gap:8px; background:#e8f5e9; color:#4caf50; padding:8px 16px; border-radius:20px; font-size:14px; font-weight:600; margin-top:12px; }
+    .payment-body { background:#fff; padding:40px; box-shadow:0 4px 20px rgba(0,0,0,.1); border-radius:0 0 12px 12px; }
+    .payment-amount { text-align:center; padding:30px; background:linear-gradient(135deg,#fff8f5 0%,#fffbf9 100%); border-radius:12px; margin-bottom:30px; border:2px solid #ff6b35; }
+    .amount-label { font-size:16px; color:#666; margin-bottom:10px; }
+    .amount-value { font-size:42px; font-weight:700; color:#ff6b35; }
+    .contract-code { font-size:14px; color:#999; margin-top:10px; }
+    .qr-section { background:#f9f9f9; padding:30px; border-radius:12px; text-align:center; margin-bottom:30px; }
+    .qr-section h3 { color:#333; margin-bottom:20px; display:flex; align-items:center; justify-content:center; gap:10px; }
+    .qr-code-wrapper { background:#fff; padding:20px; border-radius:12px; display:inline-block; box-shadow:0 4px 12px rgba(0,0,0,.1); }
+    .qr-code-wrapper img { display:block; max-width:300px; width:100%; height:auto; border-radius:8px; }
+    .bank-info { background:#fff; border-radius:8px; padding:20px; margin-top:20px; border:2px solid #e0e0e0; }
+    .bank-info-row { display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #f0f0f0; }
+    .bank-info-row:last-child { border-bottom:none; }
+    .bank-info-label { color:#666; font-size:14px; }
+    .bank-info-value { font-weight:600; color:#333; font-size:14px; }
+    .payment-instruction { background:#e3f2fd; padding:20px; border-radius:8px; margin-bottom:25px; border-left:4px solid #2196f3; }
+    .payment-instruction h4 { color:#1976d2; margin-bottom:15px; display:flex; align-items:center; gap:8px; }
+    .payment-instruction ol { margin:0; padding-left:20px; }
+    .payment-instruction li { margin-bottom:8px; line-height:1.6; }
+    .warning-box { background:#fff3cd; border-left:4px solid #ffc107; padding:15px; border-radius:8px; margin-bottom:25px; }
+    .warning-box i { color:#ff9800; margin-right:8px; }
+    .confirm-button { width:100%; padding:18px; background:linear-gradient(135deg,#4caf50 0%,#66bb6a 100%); color:#fff; border:none; border-radius:10px; font-size:18px; font-weight:600; cursor:pointer; transition:transform .2s, box-shadow .2s; display:flex; align-items:center; justify-content:center; gap:10px; }
+    .confirm-button:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 24px rgba(76,175,80,.4); }
+    .confirm-button:disabled { opacity:.6; cursor:not-allowed; }
+    .back-link { display:inline-flex; align-items:center; gap:8px; color:#667eea; text-decoration:none; margin-bottom:20px; }
+    .back-link:hover { text-decoration:underline; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-container">
+      <a href="/" class="logo">EV Trading</a>
+    </div>
+  </header>
+
+  <div class="payment-container">
+    <a href="/cart" class="back-link"><i class="fas fa-arrow-left"></i> Quay lại giỏ hàng</a>
+
+    <div class="payment-header">
+      <h1><i class="fas fa-credit-card"></i> THANH TOÁN ĐƠN HÀNG</h1>
+      <div class="order-info">Mã đơn hàng: <span id="orderId">...</span></div>
+      <div class="contract-badge">
+        <i class="fas fa-file-contract"></i>
+        Hợp đồng: <span id="contractCode">...</span>
+      </div>
+    </div>
+
+    <div class="payment-body">
+      <div class="payment-amount">
+        <div class="amount-label">Tổng thanh toán</div>
+        <div class="amount-value" id="amountValue">...</div>
+        <div class="contract-code">Nội dung CK: <strong id="transferContent">...</strong></div>
+      </div>
+
+      <div class="payment-instruction">
+        <h4><i class="fas fa-info-circle"></i> Hướng dẫn thanh toán</h4>
+        <ol>
+          <li>Mở ứng dụng ngân hàng có tính năng quét QR Code</li>
+          <li>Chọn <strong>"Quét mã QR"</strong> và quét mã bên dưới</li>
+          <li>Kiểm tra thông tin và <strong>KHÔNG THAY ĐỔI</strong> nội dung chuyển khoản</li>
+          <li>Xác nhận chuyển tiền trong ứng dụng ngân hàng</li>
+          <li>Quay lại đây và nhấn <strong>"Tôi đã chuyển tiền"</strong></li>
+        </ol>
+      </div>
+
+      <div class="qr-section">
+        <h3><i class="fas fa-qrcode"></i> QUÉT MÃ QR ĐỂ THANH TOÁN</h3>
+        <div class="qr-code-wrapper">
+          <img id="qrCodeImage" src="" alt="VietQR Code" />
+        </div>
+
+        <div class="bank-info">
+          <div class="bank-info-row">
+            <span class="bank-info-label"><i class="fas fa-university"></i> Ngân hàng:</span>
+            <span class="bank-info-value">MB Bank (Ngân hàng Quân Đội)</span>
+          </div>
+          <div class="bank-info-row">
+            <span class="bank-info-label"><i class="fas fa-credit-card"></i> Số tài khoản:</span>
+            <span class="bank-info-value">0359506148</span>
+          </div>
+          <div class="bank-info-row">
+            <span class="bank-info-label"><i class="fas fa-user"></i> Chủ tài khoản:</span>
+            <span class="bank-info-value">Nền tảng giao dịch pin và xe điện</span>
+          </div>
+          <div class="bank-info-row">
+            <span class="bank-info-label"><i class="fas fa-comment-alt"></i> Nội dung:</span>
+            <span class="bank-info-value" id="transferContentDetail">...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="warning-box">
+        <i class="fas fa-exclamation-triangle"></i>
+        <strong>Lưu ý quan trọng:</strong> Vui lòng KHÔNG THAY ĐỔI nội dung chuyển khoản để hệ thống tự động xác nhận thanh toán của bạn.
+      </div>
+
+      <button class="confirm-button" onclick="confirmPayment()">
+        <i class="fas fa-check-circle"></i>
+        TÔI ĐÃ CHUYỂN TIỀN
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const paymentId = {{ payment_id }};
+    let paymentData = null;
+
+    async function loadPaymentInfo() {
+      try {
+        const res = await fetch(`/api/payment/status/${paymentId}`);
+        const data = await res.json();
+        if (res.ok) {
+          paymentData = data;
+          displayPaymentInfo(data);
+          // If we have a contract_id, try to fetch it to decide addInfo = product name (single item)
+          if (data.contract_id) {
+            try {
+              const cRes = await fetch(`/api/payment/contract/view/${data.contract_id}`);
+              if (cRes.ok) {
+                const cData = await cRes.json();
+                maybeUseProductNameForAddInfo(cData);
+              }
+            } catch (e) {
+              console.warn('Contract fetch failed:', e);
+            }
+          }
+        } else {
+          alert('Không thể tải thông tin thanh toán');
+        }
+      } catch (e) {
+        console.error('Load payment error:', e);
+        alert('Lỗi kết nối đến server');
+      }
+    }
+
+    function displayPaymentInfo(data) {
+      const amount = data.amount || 0;
+      const orderId = data.order_id || '...';
+      const contractCode = data.contract_code || `HD${paymentId}`;
+      const transferContent = contractCode;
+
+      document.getElementById('orderId').textContent = orderId;
+      document.getElementById('contractCode').textContent = contractCode;
+      document.getElementById('amountValue').textContent = new Intl.NumberFormat('vi-VN').format(amount) + ' đ';
+      document.getElementById('transferContent').textContent = transferContent;
+      document.getElementById('transferContentDetail').textContent = transferContent;
+
+      const accountName = 'Nền tảng giao dịch pin và xe điện';
+      const qrUrl = `https://img.vietqr.io/image/MB-0359506148-compact2.jpg?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(accountName)}`;
+      document.getElementById('qrCodeImage').src = qrUrl;
+    }
+
+    function maybeUseProductNameForAddInfo(contract) {
+      try {
+        const amount = paymentData?.amount || 0;
+        const accountName = 'Nền tảng giao dịch pin và xe điện';
+        const contractCode = paymentData?.contract_code || `HD${paymentId}`;
+        let addInfo = contractCode;
+
+        // If contract.extra_data.product_info.details exists and appears to have a single line item,
+        // parse the first line formatted like: "- <Tên> x<qty>: <giá> VNĐ"
+        const details = contract?.extra_data?.product_info?.details || '';
+        if (details) {
+          const lines = details.split('\n').map(s => s.trim()).filter(Boolean);
+          if (lines.length === 1) {
+            const first = lines[0];
+            // Try to extract product name between "- " and " x"
+            const m = /^-\s*(.+?)\s+x\d+/i.exec(first);
+            if (m && m[1]) {
+              addInfo = m[1].substring(0, 60); // keep it short for bank descriptions
+            }
+          }
+        }
+
+        // Update display and QR if changed
+        document.getElementById('transferContent').textContent = addInfo;
+        document.getElementById('transferContentDetail').textContent = addInfo;
+        const qrUrl = `https://img.vietqr.io/image/MB-0359506148-compact2.jpg?amount=${amount}&addInfo=${encodeURIComponent(addInfo)}&accountName=${encodeURIComponent(accountName)}`;
+        document.getElementById('qrCodeImage').src = qrUrl;
+      } catch (e) {
+        console.warn('Could not adjust addInfo with product name:', e);
+      }
+    }
+
+    function confirmPayment() {
+      if (!confirm('Bạn đã chuyển khoản thành công chưa?')) return;
+      const btn = event.target;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+      setTimeout(() => { window.location.href = `/payment/thankyou/${paymentId}`; }, 800);
+    }
+
+    loadPaymentInfo();
+  </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thanh toán - EV Trading</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+  <style>
+    .payment-container { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+    .payment-header { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:#fff; padding:30px; border-radius:12px 12px 0 0; text-align:center; }
+    .payment-header h1 { margin:0 0 10px; font-size:28px; }
+    .order-info { font-size:14px; opacity:.9; margin-top:10px; }
+    .contract-badge { display:inline-flex; align-items:center; gap:8px; background:#e8f5e9; color:#4caf50; padding:8px 16px; border-radius:20px; font-size:14px; font-weight:600; margin-top:12px; }
+    .payment-body { background:#fff; padding:40px; box-shadow:0 4px 20px rgba(0,0,0,.1); border-radius:0 0 12px 12px; }
+    .payment-amount { text-align:center; padding:30px; background:linear-gradient(135deg,#fff8f5 0%,#fffbf9 100%); border-radius:12px; margin-bottom:30px; border:2px solid #ff6b35; }
+    .amount-label { font-size:16px; color:#666; margin-bottom:10px; }
+    .amount-value { font-size:42px; font-weight:700; color:#ff6b35; }
+    .contract-code { font-size:14px; color:#999; margin-top:10px; }
+    .qr-section { background:#f9f9f9; padding:30px; border-radius:12px; text-align:center; margin-bottom:30px; }
+    .qr-section h3 { color:#333; margin-bottom:20px; display:flex; align-items:center; justify-content:center; gap:10px; }
+    .qr-code-wrapper { background:#fff; padding:20px; border-radius:12px; display:inline-block; box-shadow:0 4px 12px rgba(0,0,0,.1); }
+    .qr-code-wrapper img { display:block; max-width:300px; width:100%; height:auto; border-radius:8px; }
+    .bank-info { background:#fff; border-radius:8px; padding:20px; margin-top:20px; border:2px solid #e0e0e0; }
+    .bank-info-row { display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #f0f0f0; }
+    .bank-info-row:last-child { border-bottom:none; }
+    .bank-info-label { color:#666; font-size:14px; }
+    .bank-info-value { font-weight:600; color:#333; font-size:14px; }
+    .payment-instruction { background:#e3f2fd; padding:20px; border-radius:8px; margin-bottom:25px; border-left:4px solid #2196f3; }
+    .payment-instruction h4 { color:#1976d2; margin-bottom:15px; display:flex; align-items:center; gap:8px; }
+    .payment-instruction ol { margin:0; padding-left:20px; }
+    .payment-instruction li { margin-bottom:8px; line-height:1.6; }
+    .warning-box { background:#fff3cd; border-left:4px solid #ffc107; padding:15px; border-radius:8px; margin-bottom:25px; }
+    .warning-box i { color:#ff9800; margin-right:8px; }
+    .confirm-button { width:100%; padding:18px; background:linear-gradient(135deg,#4caf50 0%,#66bb6a 100%); color:#fff; border:none; border-radius:10px; font-size:18px; font-weight:600; cursor:pointer; transition:transform .2s, box-shadow .2s; display:flex; align-items:center; justify-content:center; gap:10px; }
+    .confirm-button:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 24px rgba(76,175,80,.4); }
+    .confirm-button:disabled { opacity:.6; cursor:not-allowed; }
+    .back-link { display:inline-flex; align-items:center; gap:8px; color:#667eea; text-decoration:none; margin-bottom:20px; }
+    .back-link:hover { text-decoration:underline; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-container">
+      <a href="/" class="logo">EV Trading</a>
+    </div>
+  </header>
+
+  <div class="payment-container">
+    <a href="/cart" class="back-link"><i class="fas fa-arrow-left"></i> Quay lại giỏ hàng</a>
+
+    <div class="payment-header">
+      <h1><i class="fas fa-credit-card"></i> THANH TOÁN ĐƠN HÀNG</h1>
+      <div class="order-info">Mã đơn hàng: <span id="orderId">...</span></div>
+      <div class="contract-badge">
+        <i class="fas fa-file-contract"></i>
+        Hợp đồng: <span id="contractCode">...</span>
+      </div>
+    </div>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Thanh toán - EV Trading</title>
+        <link rel="stylesheet" href="/static/style.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <style>
+                .payment-container { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+                .payment-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 30px; border-radius: 12px 12px 0 0; text-align: center; }
+                .payment-header h1 { margin: 0 0 10px; font-size: 28px; }
+                .order-info { font-size: 14px; opacity: .9; margin-top: 10px; }
+                .contract-badge { display: inline-flex; align-items: center; gap: 8px; background: #e8f5e9; color: #4caf50; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; margin-top: 15px; }
+                .payment-body { background: #fff; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,.1); border-radius: 0 0 12px 12px; }
+                .payment-amount { text-align: center; padding: 30px; background: linear-gradient(135deg, #fff8f5 0%, #fffbf9 100%); border-radius: 12px; margin-bottom: 30px; border: 2px solid #ff6b35; }
+                .amount-label { font-size: 16px; color: #666; margin-bottom: 10px; }
+                .amount-value { font-size: 48px; font-weight: 700; color: #ff6b35; margin-bottom: 5px; }
+                .contract-code { font-size: 14px; color: #999; margin-top: 10px; }
+                .qr-section { background: #f9f9f9; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 30px; }
+                .qr-section h3 { color: #333; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+                .qr-code-wrapper { background: #fff; padding: 20px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+                .qr-code-wrapper img { display: block; max-width: 300px; width: 100%; height: auto; border-radius: 8px; }
+            .bank-info { background: #fff; border-radius: 8px; padding: 20px; margin-top: 20px; border: 2px solid #e0e0e0; }
+                .bank-info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+                .bank-info-row:last-child { border-bottom: none; }
+                .bank-info-label { color: #666; font-size: 14px; }
+                .bank-info-value { font-weight: 600; color: #333; font-size: 14px; }
+                .payment-instruction { background: #e3f2fd; padding: 20px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #2196f3; }
+                .payment-instruction h4 { color: #1976d2; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+                .payment-instruction ol { margin: 0; padding-left: 20px; }
+                .payment-instruction li { margin-bottom: 8px; line-height: 1.6; }
+                .warning-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 25px; }
+                .warning-box i { color: #ff9800; margin-right: 8px; }
+                .confirm-button { width: 100%; padding: 18px; background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%); color: #fff; border: none; border-radius: 10px; font-size: 18px; font-weight: 600; cursor: pointer; transition: transform .2s, box-shadow .2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+                .confirm-button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(76,175,80,.4); }
+                .confirm-button:disabled { opacity: .6; cursor: not-allowed; }
+        </style>
+    
+</head>
+<body>
+        <header class="header">
+                <div class="header-container">
+                        <a href="/" class="logo">EV Trading</a>
+                </div>
+        </header>
+
+        <div class="payment-container">
+                <div class="payment-header">
+                        <h1><i class="fas fa-credit-card"></i> THANH TOÁN ĐƠN HÀNG</h1>
+                        <div class="order-info">Mã đơn hàng: <span id="orderId">...</span></div>
+                        <div class="contract-badge">
+                                <i class="fas fa-file-contract"></i>
+                                Hợp đồng: <span id="contractCode">...</span>
+                        </div>
+                </div>
+
+                <div class="payment-body">
+                        <div class="payment-amount">
+                                <div class="amount-label">Tổng thanh toán</div>
+                                <div class="amount-value" id="amountValue">...</div>
+                                <div class="contract-code">Nội dung CK: <strong id="transferContent">...</strong></div>
+                        </div>
+
+                        <div class="payment-instruction">
+                                <h4><i class="fas fa-info-circle"></i> Hướng dẫn thanh toán</h4>
+                                <ol>
+                                        <li>Mở ứng dụng ngân hàng có tính năng quét QR Code</li>
+                                        <li>Chọn <strong>"Quét mã QR"</strong> và quét mã bên dưới</li>
+                                        <li>Kiểm tra thông tin và <strong>KHÔNG THAY ĐỔI</strong> nội dung chuyển khoản</li>
+                                        <li>Xác nhận chuyển tiền trong ứng dụng ngân hàng</li>
+                                        <li>Quay lại đây và nhấn <strong>"Tôi đã chuyển tiền"</strong></li>
+                                </ol>
+                        </div>
+
+                        <div class="qr-section">
+                                <h3><i class="fas fa-qrcode"></i> QUÉT MÃ QR ĐỂ THANH TOÁN</h3>
+                                <div class="qr-code-wrapper">
+                                        <img id="qrCodeImage" src="" alt="VietQR Code" />
+                                </div>
+                
+                                <div class="bank-info">
+                                        <div class="bank-info-row">
+                                                <span class="bank-info-label"><i class="fas fa-university"></i> Ngân hàng:</span>
+                                                <span class="bank-info-value">MB Bank (Ngân hàng Quân Đội)</span>
+                                        </div>
+                                        <div class="bank-info-row">
+                                                <span class="bank-info-label"><i class="fas fa-credit-card"></i> Số tài khoản:</span>
+                                                <span class="bank-info-value">0359506148</span>
+                                        </div>
+                                        <div class="bank-info-row">
+                                                <span class="bank-info-label"><i class="fas fa-user"></i> Chủ tài khoản:</span>
+                                                <span class="bank-info-value">Nền tảng giao dịch pin và xe điện</span>
+                                        </div>
+                                        <div class="bank-info-row">
+                                                <span class="bank-info-label"><i class="fas fa-comment-alt"></i> Nội dung:</span>
+                                                <span class="bank-info-value" id="transferContentDetail">...</span>
+                                        </div>
+                                </div>
+                        </div>
+
+                        <div class="warning-box">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Lưu ý quan trọng:</strong> Vui lòng KHÔNG THAY ĐỔI nội dung chuyển khoản để hệ thống tự động xác nhận thanh toán của bạn.
+                        </div>
+
+                        <button class="confirm-button" onclick="confirmPayment()">
+                                <i class="fas fa-check-circle"></i>
+                                TÔI ĐÃ CHUYỂN TIỀN
+                        </button>
+                </div>
+        </div>
+
+        <script>
+                const paymentId = {{ payment_id }};
+                let paymentData = null;
+
+                async function loadPaymentInfo() {
+                        try {
+                                const res = await fetch(`/api/payment/status/${paymentId}`);
+                                const data = await res.json();
+                                if (res.ok) {
+                                        paymentData = data;
+                            displayPaymentInfo(data);
+                            // If we have a contract_id, try to fetch it to decide addInfo = product name (single item)
+                            if (data.contract_id) {
+                                try {
+                                    const cRes = await fetch(`/api/payment/contract/view/${data.contract_id}`);
+                                    if (cRes.ok) {
+                                        const cData = await cRes.json();
+                                        maybeUseProductNameForAddInfo(cData);
+                                    }
+                                } catch (e) {
+                                    console.warn('Contract fetch failed:', e);
+                                }
+                            }
+                                } else {
+                                        alert('Không thể tải thông tin thanh toán');
+                                }
+                        } catch (e) {
+                                console.error('Load payment error:', e);
+                                alert('Lỗi kết nối đến server');
+                        }
+                }
+
+                function displayPaymentInfo(data) {
+                        const amount = data.amount || 0;
+                        const orderId = data.order_id || '...';
+                        const contractCode = data.contract_code || `HD${paymentId}`;
+                    const transferContent = contractCode;
+
+                        document.getElementById('orderId').textContent = orderId;
+                        document.getElementById('contractCode').textContent = contractCode;
+                        document.getElementById('amountValue').textContent = new Intl.NumberFormat('vi-VN').format(amount) + ' đ';
+                        document.getElementById('transferContent').textContent = transferContent;
+                        document.getElementById('transferContentDetail').textContent = transferContent;
+
+                        const accountName = 'Nền tảng giao dịch pin và xe điện';
+                        const qrUrl = `https://img.vietqr.io/image/MB-0359506148-compact2.jpg?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(accountName)}`;
+                        document.getElementById('qrCodeImage').src = qrUrl;
+                }
+
+                function maybeUseProductNameForAddInfo(contract) {
+                    try {
+                        const amount = paymentData?.amount || 0;
+                        const accountName = 'Nền tảng giao dịch pin và xe điện';
+                        const contractCode = paymentData?.contract_code || `HD${paymentId}`;
+                        let addInfo = contractCode;
+
+                        // If contract.extra_data.product_info.details exists and appears to have a single line item,
+                        // parse the first line formatted like: "- <Tên> x<qty>: <giá> VNĐ"
+                        const details = contract?.extra_data?.product_info?.details || '';
+                        if (details) {
+                            const lines = details.split('\n').map(s => s.trim()).filter(Boolean);
+                            if (lines.length === 1) {
+                                const first = lines[0];
+                                // Try to extract product name between "- " and " x"
+                                const m = /^-\s*(.+?)\s+x\d+/i.exec(first);
+                                if (m && m[1]) {
+                                    addInfo = m[1].substring(0, 60); // keep it short for bank descriptions
+                                }
+                            }
+                        }
+
+                        // Update display and QR if changed
+                        document.getElementById('transferContent').textContent = addInfo;
+                        document.getElementById('transferContentDetail').textContent = addInfo;
+                        const qrUrl = `https://img.vietqr.io/image/MB-0359506148-compact2.jpg?amount=${amount}&addInfo=${encodeURIComponent(addInfo)}&accountName=${encodeURIComponent(accountName)}`;
+                        document.getElementById('qrCodeImage').src = qrUrl;
+                    } catch (e) {
+                        console.warn('Could not adjust addInfo with product name:', e);
+                    }
+                }
+
+                function confirmPayment() {
+                        if (!confirm('Bạn đã chuyển khoản thành công chưa?')) return;
+                        const btn = event.target;
+                        btn.disabled = true;
+                        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+                        setTimeout(() => { window.location.href = `/payment/thankyou/${paymentId}`; }, 800);
+                }
+
+                loadPaymentInfo();
+        </script>
+</body>
+</html>
+</body>
+</html>
+<!DOCTYPE html><!DOCTYPE html>
+
+<html lang="vi"><html lang="vi">
+
+<head>  <head>
+
+    <meta charset="UTF-8">    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Thanh toán - EV Trading</title>    <title>Xác nhận thanh toán - EV Trading</title>
+
+    <link rel="stylesheet" href="/static/style.css">    <link rel="stylesheet" href="/static/style.css" />
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">    <link
+
+    <style>      rel="stylesheet"
+
+        .payment-container {      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+
+            max-width: 900px;    />
+
+            margin: 40px auto;    <style>
+
+            padding: 0 20px;      .payment-container {
+
+        }        max-width: 800px;
+
+        .payment-header {        margin: 40px auto;
+
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);        padding: 0 20px;
+
+            color: white;      }
+
+            padding: 30px;      .payment-header {
+
+            border-radius: 12px 12px 0 0;        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+            text-align: center;        color: white;
+
+        }        padding: 30px;
+
+        .payment-header h1 {        border-radius: 12px;
+
+            margin: 0 0 10px 0;        text-align: center;
+
+            font-size: 28px;        margin-bottom: 30px;
+
+        }      }
+
+        .order-info {      .payment-header h1 {
+
+            font-size: 14px;        margin: 0 0 10px;
+
+            opacity: 0.9;        font-size: 28px;
+
+            margin-top: 10px;      }
+
+        }      .payment-header .order-id {
+
+        .payment-body {        font-size: 14px;
+
+            background: white;        opacity: 0.9;
+
+            padding: 40px;      }
+
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);      .payment-card {
+
+            border-radius: 0 0 12px 12px;        background: white;
+
+        }        border-radius: 12px;
+
+        .payment-amount {        padding: 30px;
+
+            text-align: center;        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+
+            padding: 30px;        margin-bottom: 20px;
+
+            background: linear-gradient(135deg, #fff8f5 0%, #fffbf9 100%);      }
+
+            border-radius: 12px;      .payment-info {
+
+            margin-bottom: 30px;        display: flex;
+
+            border: 2px solid #ff6b35;        justify-content: space-between;
+
+        }        align-items: center;
+
+        .amount-label {        padding: 20px 0;
+
+            font-size: 16px;        border-bottom: 2px solid #f0f0f0;
+
+            color: #666;        margin-bottom: 20px;
+
+            margin-bottom: 10px;      }
+
+        }      .payment-label {
+
+        .amount-value {        font-size: 16px;
+
+            font-size: 48px;        color: #666;
+
+            font-weight: 700;      }
+
+            color: #ff6b35;      .payment-amount {
+
+            margin-bottom: 5px;        font-size: 32px;
+
+        }        font-weight: bold;
+
+        .contract-code {        color: #667eea;
+
+            font-size: 14px;      }
+
+            color: #999;      .payment-status {
+
+            margin-top: 10px;        display: inline-flex;
+
+        }        align-items: center;
+
+        .qr-section {        gap: 8px;
+
+            background: #f9f9f9;        padding: 8px 16px;
+
+            padding: 30px;        border-radius: 20px;
+
+            border-radius: 12px;        font-size: 14px;
+
+            text-align: center;        font-weight: 600;
+
+            margin-bottom: 30px;      }
+
+        }      .status-pending {
+
+        .qr-section h3 {        background: #fff3cd;
+
+            color: #333;        color: #856404;
+
+            margin-bottom: 20px;      }
+
+            display: flex;      .status-completed {
+
+            align-items: center;        background: #d4edda;
+
+            justify-content: center;        color: #155724;
+
+            gap: 10px;      }
+
+        }      .payment-method-select {
+
+        .qr-code-wrapper {        margin: 20px 0;
+
+            background: white;      }
+
+            padding: 20px;      .method-option {
+
+            border-radius: 12px;        display: flex;
+
+            display: inline-block;        align-items: center;
+
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);        padding: 16px;
+
+        }        border: 2px solid #e0e0e0;
+
+        .qr-code-wrapper img {        border-radius: 8px;
+
+            display: block;        margin-bottom: 12px;
+
+            max-width: 300px;        cursor: pointer;
+
+            width: 100%;        transition: all 0.3s;
+
+            height: auto;      }
+
+            border-radius: 8px;      .method-option:hover {
+
+        }        border-color: #667eea;
+
+        .bank-info {        background: #f8f9ff;
+
+            background: white;      }
+
+            border-radius: 8px;      .method-option input[type="radio"] {
+
+            padding: 20px;        margin-right: 12px;
+
+            margin-top: 20px;        width: 20px;
+
+            border: 2px solid #e0e0e0;        height: 20px;
+
+        }      }
+
+        .bank-info-row {      .method-option.selected {
+
+            display: flex;        border-color: #667eea;
+
+            justify-content: space-between;        background: #f8f9ff;
+
+            padding: 12px 0;      }
+
+            border-bottom: 1px solid #f0f0f0;      .method-icon {
+
+        }        font-size: 28px;
+
+        .bank-info-row:last-child {        margin-right: 16px;
+
+            border-bottom: none;        min-width: 40px;
+
+        }        text-align: center;
+
+        .bank-info-label {      }
+
+            color: #666;      .method-details h4 {
+
+            font-size: 14px;        margin: 0 0 4px;
+
+        }        font-size: 16px;
+
+        .bank-info-value {      }
+
+            font-weight: 600;      .method-details p {
+
+            color: #333;        margin: 0;
+
+            font-size: 14px;        font-size: 13px;
+
+        }        color: #666;
+
+        .payment-instruction {      }
+
+            background: #e3f2fd;      .provider-select {
+
+            padding: 20px;        margin-top: 12px;
+
+            border-radius: 8px;        padding: 8px 12px;
+
+            margin-bottom: 25px;        border: 1px solid #ddd;
+
+            border-left: 4px solid #2196f3;        border-radius: 6px;
+
+        }        font-size: 14px;
+
+        .payment-instruction h4 {        width: 100%;
+
+            color: #1976d2;      }
+
+            margin-bottom: 15px;      .confirm-btn {
+
+            display: flex;        width: 100%;
+
+            align-items: center;        padding: 16px;
+
+            gap: 8px;        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+        }        color: white;
+
+        .payment-instruction ol {        border: none;
+
+            margin: 0;        border-radius: 8px;
+
+            padding-left: 20px;        font-size: 16px;
+
+        }        font-weight: 600;
+
+        .payment-instruction li {        cursor: pointer;
+
+            margin-bottom: 8px;        transition: transform 0.2s;
+
+            line-height: 1.6;        margin-top: 20px;
+
+        }      }
+
+        .warning-box {      .confirm-btn:hover:not(:disabled) {
+
+            background: #fff3cd;        transform: translateY(-2px);
+
+            border-left: 4px solid #ffc107;        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+
+            padding: 15px;      }
+
+            border-radius: 8px;      .confirm-btn:disabled {
+
+            margin-bottom: 25px;        opacity: 0.6;
+
+        }        cursor: not-allowed;
+
+        .warning-box i {      }
+
+            color: #ff9800;      .back-link {
+
+            margin-right: 8px;        display: inline-flex;
+
+        }        align-items: center;
+
+        .confirm-button {        gap: 8px;
+
+            width: 100%;        color: #667eea;
+
+            padding: 18px;        text-decoration: none;
+
+            background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);        margin-bottom: 20px;
+
+            color: white;      }
+
+            border: none;      .back-link:hover {
+
+            border-radius: 10px;        text-decoration: underline;
+
+            font-size: 18px;      }
+
+            font-weight: 600;      .info-box {
+
+            cursor: pointer;        background: #e3f2fd;
+
+            transition: transform 0.2s, box-shadow 0.2s;        border-left: 4px solid #2196f3;
+
+            display: flex;        padding: 16px;
+
+            align-items: center;        border-radius: 6px;
+
+            justify-content: center;        margin: 20px 0;
+
+            gap: 10px;      }
+
+        }      .info-box i {
+
+        .confirm-button:hover:not(:disabled) {        color: #2196f3;
+
+            transform: translateY(-2px);        margin-right: 8px;
+
+            box-shadow: 0 8px 24px rgba(76, 175, 80, 0.4);      }
+
+        }    </style>
+
+        .confirm-button:disabled {  </head>
+
+            opacity: 0.6;  <body>
+
+            cursor: not-allowed;    <div class="payment-container">
+
+        }      <a href="/cart" class="back-link">
+
+        .contract-badge {        <i class="fas fa-arrow-left"></i> Quay lại giỏ hàng
+
+            display: inline-flex;      </a>
+
+            align-items: center;
+
+            gap: 8px;      <div class="payment-header">
+
+            background: #e8f5e9;        <h1><i class="fas fa-receipt"></i> Xác nhận thanh toán</h1>
+
+            color: #4caf50;        <div class="order-id">Mã đơn hàng: {{ payment.order_id }}</div>
+
+            padding: 8px 16px;      </div>
+
+            border-radius: 20px;
+
+            font-size: 14px;      <div class="payment-card">
+
+            font-weight: 600;        <div class="payment-info">
+
+            margin-top: 15px;          <div class="payment-label">Số tiền thanh toán:</div>
+
+        }          <div class="payment-amount">
+
+    </style>            {{ "{:,.0f}".format(payment.amount) }} đ
+
+</head>          </div>
+
+<body>        </div>
+
+    <header class="header">
+
+        <div class="header-container">        <div style="margin-bottom: 20px">
+
+            <a href="/" class="logo">EV Trading</a>          <strong>Trạng thái:</strong>
+
+        </div>          <span class="payment-status status-{{ payment.status }}">
+
+    </header>            <i class="fas fa-circle"></i>
+
+            {% if payment.status == 'pending' %} Chờ thanh toán {% elif
+
+    <div class="payment-container">            payment.status == 'completed' %} Đã thanh toán {% else %} {{
+
+        <div class="payment-header">            payment.status }} {% endif %}
+
+            <h1><i class="fas fa-credit-card"></i> THANH TOÁN ĐƠN HÀNG</h1>          </span>
+
+            <div class="order-info">        </div>
+
+                Mã đơn hàng: <span id="orderId">...</span>
+
+            </div>        {% if payment.status == 'pending' %}
+
+            <div class="contract-badge">        <div class="info-box">
+
+                <i class="fas fa-file-contract"></i>          <i class="fas fa-info-circle"></i>
+
+                Hợp đồng: <span id="contractCode">...</span>          <strong>Lưu ý:</strong> Sau khi xác nhận, bạn sẽ nhận được hóa đơn
+
+            </div>          điện tử và hợp đồng số.
+
+        </div>        </div>
+
+
+
+        <div class="payment-body">        <div class="payment-method-select">
+
+            <div class="payment-amount">          <h3 style="margin-bottom: 16px">
+
+                <div class="amount-label">Tổng thanh toán</div>            <i class="fas fa-credit-card"></i> Chọn phương thức thanh toán
+
+                <div class="amount-value" id="amountValue">...</div>          </h3>
+
+                <div class="contract-code">Nội dung CK: <strong id="transferContent">...</strong></div>
+
+            </div>          <label class="method-option" data-method="banking">
+
+            <input type="radio" name="payment_method" value="banking" checked />
+
+            <div class="payment-instruction">            <div class="method-icon" style="color: #2196f3">
+
+                <h4><i class="fas fa-info-circle"></i> Hướng dẫn thanh toán</h4>              <i class="fas fa-university"></i>
+
+                <ol>            </div>
+
+                    <li>Mở ứng dụng ngân hàng có tính năng quét QR Code</li>            <div class="method-details">
+
+                    <li>Chọn <strong>"Quét mã QR"</strong> và quét mã bên dưới</li>              <h4>Chuyển khoản ngân hàng</h4>
+
+                    <li>Kiểm tra thông tin và <strong>KHÔNG THAY ĐỔI</strong> nội dung chuyển khoản</li>              <p>Chuyển khoản qua Internet Banking</p>
+
+                    <li>Xác nhận chuyển tiền trong ứng dụng ngân hàng</li>              <select
+
+                    <li>Quay lại đây và nhấn <strong>"Tôi đã chuyển tiền"</strong></li>                class="provider-select"
+
+                </ol>                id="bank-provider"
+
+            </div>                style="display: block"
+
+              >
+
+            <div class="qr-section">                <option value="Vietcombank">Vietcombank</option>
+
+                <h3>                <option value="VietinBank">VietinBank</option>
+
+                    <i class="fas fa-qrcode"></i>                <option value="BIDV">BIDV</option>
+
+                    QUÉT MÃ QR ĐỂ THANH TOÁN                <option value="Techcombank">Techcombank</option>
+
+                </h3>                <option value="MB Bank">MB Bank</option>
+
+                <div class="qr-code-wrapper">                <option value="ACB">ACB</option>
+
+                    <img id="qrCodeImage" src="" alt="VietQR Code" />              </select>
+
+                </div>            </div>
+
+                          </label>
+
+                <div class="bank-info">        </div>
+
+                    <div class="bank-info-row">
+
+                        <span class="bank-info-label"><i class="fas fa-university"></i> Ngân hàng:</span>        <button class="confirm-btn" onclick="confirmPayment()">
+
+                        <span class="bank-info-value">MB Bank (Ngân hàng Quân Đội)</span>          <i class="fas fa-check-circle"></i> Xác nhận thanh toán
+
+                    </div>        </button>
+
+                    <div class="bank-info-row">
+
+                        <span class="bank-info-label"><i class="fas fa-credit-card"></i> Số tài khoản:</span>        <div style="text-align: center; margin-top: 20px">
+
+                        <span class="bank-info-value">0359506148</span>          <small style="color: #666">
+
+                    </div>            <i class="fas fa-lock"></i> Giao dịch được bảo mật và mã hóa
+
+                    <div class="bank-info-row">          </small>
+
+                        <span class="bank-info-label"><i class="fas fa-user"></i> Chủ tài khoản:</span>        </div>
+
+                        <span class="bank-info-value">Lê Quý Nam</span>        {% else %}
+
+                    </div>        <div
+
+                    <div class="bank-info-row">          class="info-box"
+
+                        <span class="bank-info-label"><i class="fas fa-comment-alt"></i> Nội dung:</span>          style="background: #d4edda; border-left-color: #28a745"
+
+                        <span class="bank-info-value" id="transferContentDetail">...</span>        >
+
+                    </div>          <i class="fas fa-check-circle"></i>
+
+                </div>          <strong>Thanh toán đã hoàn tất!</strong>
+
+            </div>        </div>
+
+        <a
+
+            <div class="warning-box">          href="/"
+
+                <i class="fas fa-exclamation-triangle"></i>          class="confirm-btn"
+
+                <strong>Lưu ý quan trọng:</strong>           style="display: block; text-align: center; text-decoration: none"
+
+                Vui lòng KHÔNG THAY ĐỔI nội dung chuyển khoản để hệ thống tự động xác nhận thanh toán của bạn.        >
+
+            </div>          <i class="fas fa-home"></i> Về trang chủ
+
+        </a>
+
+            <button class="confirm-button" onclick="confirmPayment()">        {% endif %}
+
+                <i class="fas fa-check-circle"></i>      </div>
+
+                TÔI ĐÃ CHUYỂN TIỀN    </div>
+
+            </button>
+
+        </div>    <script>
+
+    </div>      async function confirmPayment() {
+
+        const btn = event.target;
+
+    <script>        const selectedMethod = document.querySelector(
+
+        const paymentId = {{ payment_id }};          'input[name="payment_method"]:checked'
+
+        let paymentData = null;        );
+
+
+
+        async function loadPaymentInfo() {        if (!selectedMethod) {
+
+            try {          alert("Vui lòng chọn phương thức thanh toán");
+
+                const res = await fetch(`/api/payment/status/${paymentId}`);          return;
+
+                const data = await res.json();        }
+
+                
+
+                if (res.ok) {        const provider = document.getElementById("bank-provider").value;
+
+                    paymentData = data;
+
+                    displayPaymentInfo(data);        btn.disabled = true;
+
+                } else {        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+
+                    alert('Không thể tải thông tin thanh toán');
+
+                }        try {
+
+            } catch (error) {          const res = await fetch("/api/payment/confirm/{{ payment.id }}", {
+
+                console.error('Load payment error:', error);            method: "POST",
+
+                alert('Lỗi kết nối đến server');            headers: { "Content-Type": "application/json" },
+
+            }            body: JSON.stringify({
+
+        }              payment_method: selectedMethod.value,
+
+              provider: provider || "Manual",
+
+        function displayPaymentInfo(data) {            }),
+
+            const amount = data.amount || 0;          });
+
+            const orderId = data.order_id || '...';
+
+            const contractCode = data.contract_code || `HD${paymentId}`;          const data = await res.json();
+
+            const transferContent = contractCode;
+
+                      if (res.ok) {
+
+            // Display order info            btn.innerHTML = '<i class="fas fa-check-circle"></i> Thành công!';
+
+            document.getElementById('orderId').textContent = orderId;            btn.style.background = "#28a745";
+
+            document.getElementById('contractCode').textContent = contractCode;
+
+                        // Redirect to invoice if available
+
+            // Display amount            if (data.contract_id) {
+
+            document.getElementById('amountValue').textContent =               setTimeout(() => {
+
+                new Intl.NumberFormat('vi-VN').format(amount) + ' đ';                window.location.href = `/payment/invoice/${data.contract_id}`;
+
+                          }, 1000);
+
+            // Display transfer content            } else {
+
+            document.getElementById('transferContent').textContent = transferContent;              setTimeout(() => {
+
+            document.getElementById('transferContentDetail').textContent = transferContent;                window.location.href = "/";
+
+                          }, 2000);
+
+            // Generate VietQR URL            }
+
+            const qrUrl = `https://img.vietqr.io/image/MB-0359506148-compact.png?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}`;          } else {
+
+            document.getElementById('qrCodeImage').src = qrUrl;            btn.disabled = false;
+
+        }            btn.innerHTML =
+
+              '<i class="fas fa-check-circle"></i> Xác nhận thanh toán';
+
+        async function confirmPayment() {            alert("Lỗi: " + (data.error || "Không thể xác nhận thanh toán"));
+
+            if (!confirm('Bạn đã chuyển khoản thành công chưa?')) {          }
+
+                return;        } catch (error) {
+
+            }          btn.disabled = false;
+
+                      btn.innerHTML =
+
+            const btn = event.target;            '<i class="fas fa-check-circle"></i> Xác nhận thanh toán';
+
+            btn.disabled = true;          alert("Lỗi kết nối: " + error.message);
+
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';        }
+
+                  }
+
+            // Redirect to thank you page    </script>
+
+            setTimeout(() => {  </body>
+
+                window.location.href = `/payment/thankyou/${paymentId}`;</html>
+
+            }, 1000);
+        }
+
+        // Load payment info on page load
+        loadPaymentInfo();
+    </script>
+</body>
+</html>

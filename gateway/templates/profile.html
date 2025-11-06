@@ -1,138 +1,374 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Hồ sơ cá nhân</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
   <style>
-    .profile-container {
-      max-width: 800px;
-      margin: 40px auto;
-      padding: 20px;
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    :root{
+      --bg:#f6f7fb; --card:#fff; --text:#111827; --muted:#6b7280; --border:#e5e7eb; --primary:#111827;
+      --ok:#059669; --err:#b91c1c; --chip:#eef2ff; --chip-text:#3730a3; --chip2:#ecfeff; --chip2-text:#155e75;
     }
-    .profile-header {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      margin-bottom: 20px;
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif}
+    a{color:inherit;text-decoration:none}
+    .hidden{display:none}
+    .container{max-width:1000px;margin:28px auto;padding:0 16px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    header .subtitle{color:var(--muted);margin-top:4px}
+    .btn{height:36px;padding:0 14px;border-radius:10px;border:1px solid var(--primary);background:var(--primary);color:#fff;cursor:pointer}
+    .btn.ghost{background:#fff;color:var(--primary);border-color:var(--border)}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .btn.sm{height:36px;padding:0 12px;border-radius:10px;font-size:14px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.03);margin-bottom:14px}
+    .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+
+    /* Tabs */
+    .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+    .tab-btn{padding:8px 12px;border:1px solid var(--border);background:#fff;border-radius:10px;cursor:pointer}
+    .tab-btn.active{background:#111827;color:#fff;border-color:#111827}
+    .tab-panel{display:none}
+    .tab-panel.active{display:block}
+
+    /* Profile */
+    .profile-section{display:flex;gap:24px;align-items:flex-start}
+    .avatar-wrap{position:relative;display:block;width:180px}
+    .avatar{width:180px;height:180px;border-radius:14px;object-fit:cover;border:1px solid var(--border);background:#f9fafb}
+    .avatar-edit{position:absolute;bottom:8px;left:8px;right:8px;text-align:center;font-size:13px;background:rgba(0,0,0,.65);color:#fff;padding:6px 8px;border-radius:10px}
+    .info-list{display:flex;flex-direction:column;gap:14px;width:100%}
+    .info-row{
+      display:grid; grid-template-columns:160px 1fr auto; align-items:center; gap:10px;
     }
-    .profile-avatar {
-      width: 120px;
-      height: 120px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 3px solid #f0c000;
+    .info-row label{font-weight:600;color:#4b5563}
+    .value{
+      min-height:48px; display:flex; align-items:center;
+      padding:0 14px; border:1px solid var(--border); border-radius:12px; background:#fff; font-size:16px; width:100%;
     }
-    .profile-info p {
-      margin: 6px 0;
-      font-size: 15px;
+    .input-lg, .select-lg{
+      height:48px; padding:0 14px; border-radius:12px; border:1px solid var(--border); font-size:16px; width:100%; background:#fff; outline:none;
     }
-    .profile-info strong {
-      width: 120px;
-      display: inline-block;
-      color: #333;
+    .icon-btn{height:36px;padding:0 12px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:#fff}
+    .edit-group{display:none;gap:8px}
+    .has-editing .edit-group{display:flex}
+    .status{margin-top:8px;color:var(--muted)}
+
+    /* Ẩn/hiện per-field */
+    .info-row .edit-only{display:none}
+    .info-row.editing .edit-only{display:block}
+    .info-row.editing .view-only{display:none}
+
+    /* Listings */
+    .listings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .listing{display:flex;gap:12px;border:1px solid var(--border);border-radius:12px;padding:12px}
+    .listing img{width:120px;height:90px;object-fit:cover;border-radius:10px;border:1px solid var(--border);background:#f3f4f6}
+    .chip{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--chip);color:var(--chip-text);font-size:12px}
+    .chip2{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--chip2);color:var(--chip2-text);font-size:12px}
+
+    /* Table */
+    .table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    .table th{font-size:12px;color:#6b7280;text-align:left;padding:0 10px}
+    .table td{background:#fff;border:1px solid var(--border);border-left:none;border-right:none;padding:10px;border-radius:8px}
+  .muted{color:var(--muted)}
+
+    @media (max-width:980px){
+      .profile-section{flex-direction:column;align-items:center}
+      .avatar-wrap,.avatar{width:140px;height:140px}
+      .listings{grid-template-columns:1fr}
+      .info-row{grid-template-columns:120px 1fr auto}
     }
-    .action-buttons {
-      margin: 20px 0;
-      display: flex;
-      gap: 10px;
-    }
-    .action-buttons a {
-      text-decoration: none;
-      padding: 10px 16px;
-      border-radius: 6px;
-      background: #333;
-      color: #fff;
-      font-weight: bold;
-    }
-    .action-buttons a.edit {
-      background: #ffba00;
-      color: #222;
-    }
-    .profile-section h3 {
-      margin-top: 30px;
-      font-size: 18px;
-      color: #222;
-    }
-    .profile-section form {
-      margin-top: 10px;
-    }
-    .profile-section input, .profile-section button {
-      width: 100%;
-      padding: 10px;
-      margin: 8px 0;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-    }
-    .profile-section button {
-      background: #333;
-      color: #fff;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .flash-messages {
-      margin: 10px 0;
-    }
-    .flash-message {
-      padding: 10px;
-      border-radius: 6px;
-      margin-bottom: 6px;
-    }
-    .flash-success { background: #e0f9e0; color: #2a7a2a; }
-    .flash-error { background: #ffe0e0; color: #a33; }
   </style>
 </head>
-<body>
-  <div class="profile-container">
-    <h2>Hồ sơ của {{ user.username }}</h2>
-
-    <!-- Thông báo flash -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="flash-messages">
-          {% for category, message in messages %}
-          <div class="flash-message flash-{{ category }}">{{ message }}</div>
-          {% endfor %}
-        </div>
-      {% endif %}
-    {% endwith %}
-
-    <!-- Thông tin cá nhân -->
-    <div class="profile-header">
+<body
+  data-auth-base="/auth"
+  data-listings-base="/listings"
+  data-payments-base="/payments">
+  <div class="container">
+    <header>
       <div>
-        {% if user.avatar %}
-          <img src="{{ url_for('static', filename=user.avatar) }}" alt="avatar" class="profile-avatar" />
-        {% else %}
-          <div class="profile-avatar" style="background:#eee; display:flex; align-items:center; justify-content:center; color:#999; font-size:14px;">
-            No Avatar
+        <h1>Hồ sơ cá nhân</h1>
+        <p class="subtitle">Xem bài đăng, giao dịch và chỉnh sửa thông tin của bạn</p>
+      </div>
+      <a href="{{ url_for('home') }}" class="btn ghost" style="height:36px;display:inline-flex;align-items:center;gap:6px">
+        <span>←</span> Về trang chủ
+      </a>
+    </header>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="info">Thông tin cá nhân</button>
+      <button class="tab-btn" data-tab="listings">Bài đăng của tôi</button>
+      <button class="tab-btn" data-tab="transactions">Lịch sử giao dịch</button>
+    </div>
+    <section class="card tab-panel active" id="panel-info">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div style="margin-bottom:15px;">
+            {% for category, message in messages %}
+              <div style="padding:10px;border-radius:6px;margin:8px 0;{% if category == 'success' %}background:#d1fae5;color:#065f46;border:1px solid #6ee7b7{% else %}background:#fee2e2;color:#991b1b;border:1px solid #fecaca{% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
           </div>
         {% endif %}
-      </div>
-      <div class="profile-info">
-        <p><strong>Họ và tên:</strong> {{ user.full_name or '' }}</p>
-        <p><strong>Email:</strong> {{ user.email }}</p>
-        <p><strong>Số điện thoại:</strong> {{ user.phone or '' }}</p>
-        <p><strong>Ngày sinh:</strong> {{ user.birthdate or '' }}</p>
-        <p><strong>Địa chỉ:</strong> {{ user.address or '' }}</p>
-        <p><strong>Giới tính:</strong> {{ user.gender or '' }}</p>
-      </div>
-    </div>
-    <div class="action-buttons">
-      <a href="{{ url_for('edit_profile') }}" class="edit">✏️ Chỉnh sửa hồ sơ</a>
-      <a href="{{ url_for('home') }}">🏠 Quay về trang chủ</a>
-    </div>
-    <div class="profile-section">
-      <h3>Đổi mật khẩu</h3>
-      <form method="POST" action="{{ url_for('change_password') }}">
-        <input type="password" name="current_password" placeholder="Mật khẩu hiện tại" required />
-        <input type="password" name="new_password" placeholder="Mật khẩu mới" required />
-        <button type="submit">Đổi mật khẩu</button>
+      {% endwith %}
+
+      <form method="POST" enctype="multipart/form-data" action="{{ url_for('profile_page_gateway') }}">
+        <div class="profile-section">
+          <div class="avatar-col">
+            <label class="avatar-wrap" for="avatar" title="Đổi ảnh đại diện" style="cursor:pointer">
+              {% set avatar_url = profile.avatar_url or '' %}
+              {% if avatar_url %}
+                {% if avatar_url.startswith('http') or avatar_url.startswith('/') %}
+                  <img src="{{ avatar_url }}" alt="Avatar" class="avatar" id="avatarPreview" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27180%27 height=%27180%27%3E%3Crect fill=%27%23f3f4f6%27 width=%27100%25%27 height=%27100%25%27/%3E%3Ccircle cx=%2790%27 cy=%2770%27 r=%2740%27 fill=%27%23d1d5db%27/%3E%3Crect x=%2730%27 y=%27120%27 width=%27120%27 height=%2750%27 rx=%2712%27 fill=%27%23d1d5db%27/%3E%3C/svg%3E'" />
+                {% else %}
+                  <img src="/static/uploads/avatars/{{ avatar_url }}" alt="Avatar" class="avatar" id="avatarPreview" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27180%27 height=%27180%27%3E%3Crect fill=%27%23f3f4f6%27 width=%27100%25%27 height=%27100%25%27/%3E%3Ccircle cx=%2790%27 cy=%2770%27 r=%2740%27 fill=%27%23d1d5db%27/%3E%3Crect x=%2730%27 y=%27120%27 width=%27120%27 height=%2750%27 rx=%2712%27 fill=%27%23d1d5db%27/%3E%3C/svg%3E'" />
+                {% endif %}
+              {% else %}
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect fill='%23f3f4f6' width='100%25' height='100%25'/%3E%3Ccircle cx='90' cy='70' r='40' fill='%23d1d5db'/%3E%3Crect x='30' y='120' width='120' height='50' rx='12' fill='%23d1d5db'/%3E%3C/svg%3E" alt="Avatar" class="avatar" id="avatarPreview" />
+              {% endif %}
+              <input id="avatar" name="avatar" type="file" accept="image/*" style="display:none" onchange="previewAvatar(event)" />
+              <span class="avatar-edit">Đổi ảnh</span>
+            </label>
+          </div>
+
+          <div style="flex:1">
+            <div class="row" style="margin-bottom:10px">
+              <h3 style="margin:0">Thông tin cá nhân</h3>
+              <div style="display:flex;gap:8px">
+                <a href="{{ url_for('home') }}" class="btn sm ghost">Hủy</a>
+                <button class="btn sm" type="submit">Lưu thay đổi</button>
+              </div>
+            </div>
+
+            <div class="info-list">
+              <div class="info-row">
+                <label>Họ tên</label>
+                <input name="full_name" class="input-lg" type="text" value="{{ profile.full_name or '' }}" placeholder="Nguyễn Văn A">
+              </div>
+              <div class="info-row">
+                <label>Email</label>
+                <input class="input-lg" type="email" value="{{ user_info.email or user.email or '' }}" disabled style="background:#f9fafb;color:#6b7280">
+              </div>
+              <div class="info-row">
+                <label>Số điện thoại</label>
+                <input name="phone" class="input-lg" type="text" value="{{ profile.phone or user_info.phone or '' }}" placeholder="0123456789">
+              </div>
+              <div class="info-row">
+                <label>Địa chỉ</label>
+                <input name="address" class="input-lg" type="text" value="{{ profile.address or '' }}" placeholder="Số nhà, đường, quận/huyện, tỉnh/thành">
+              </div>
+              <div class="info-row">
+                <label>Ngày sinh</label>
+                <input name="birthdate" class="input-lg" type="date" value="{{ profile.birthdate or '' }}">
+              </div>
+              <div class="info-row">
+                <label>Giới tính</label>
+                <select name="gender" class="select-lg">
+                  <option value="">— Chọn —</option>
+                  <option value="male" {% if profile.gender == 'male' %}selected{% endif %}>Nam</option>
+                  <option value="female" {% if profile.gender == 'female' %}selected{% endif %}>Nữ</option>
+                  <option value="other" {% if profile.gender == 'other' %}selected{% endif %}>Khác</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
       </form>
-    </div>
+    </section>
+    <section class="card tab-panel" id="panel-listings">
+      <div class="row" style="margin-bottom:8px">
+        <h3 style="margin:0">Bài đăng của tôi</h3>
+        <div class="row" style="gap:8px">
+          <button id="btnReloadListings" class="btn sm ghost">Tải lại</button>
+          <a href="/listings/new" class="btn sm">Đăng bài mới</a>
+        </div>
+      </div>
+      <div id="listingsWrap" class="listings"></div>
+      <p class="muted" id="listingsStatus"></p>
+    </section>
+    <section class="card tab-panel" id="panel-transactions">
+      <div class="row" style="margin-bottom:8px">
+        <h3 style="margin:0">Lịch sử giao dịch</h3>
+        <button id="btnReloadTx" class="btn sm ghost">Tải lại</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="table" id="txTable">
+          <thead>
+            <tr>
+              <th>Thời gian</th>
+              <th>Mã đơn / Liên quan</th>
+              <th>Loại</th>
+              <th>Số tiền</th>
+              <th>Trạng thái</th>
+              <th>Chi tiết</th>
+            </tr>
+          </thead>
+          <tbody id="txTbody"></tbody>
+        </table>
+      </div>
+      <p class="muted" id="txStatus"></p>
+    </section>
   </div>
+
+  <script>
+    // Preview avatar when file is selected
+    function previewAvatar(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('avatarPreview').src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // Tab switching
+    const $ = s=>document.querySelector(s);
+    const $$ = s=>document.querySelectorAll(s);
+
+    // Tab switching
+    $$('.tab-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        $$('.tab-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = btn.dataset.tab;
+        $$('.tab-panel').forEach(p=>p.classList.remove('active'));
+        $('#panel-'+tab).classList.add('active');
+      });
+    });
+
+    // ---------- Helpers ----------
+    const state = { listings: [], tx: [] };
+    const API = {
+      myListings: '/api/listings/mine',
+      myPayments: '/api/payments/mine'
+    };
+
+    async function apiGet(url){
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' }});
+      const ct = res.headers.get('content-type') || '';
+      const data = ct.includes('application/json') ? await res.json() : await res.text();
+      if(!res.ok) throw new Error((data && data.error) || res.statusText || 'Request error');
+      return data;
+    }
+
+    const fmtVND = (n)=>{
+      const num = Number(n||0);
+      return new Intl.NumberFormat('vi-VN').format(num) + ' đ';
+    };
+    const fmtDate = (iso)=>{
+      if(!iso) return '';
+      try{ const d = new Date(iso); return d.toLocaleString('vi-VN'); }catch{ return iso; }
+    };
+    const badge = (text, style='')=>{
+      const cls = style==='2' ? 'chip2' : 'chip';
+      return `<span class="${cls}">${(text||'').toString()}</span>`;
+    };
+
+    // ---------- Listings ----------
+    function renderListings(){
+      const wrap = $('#listingsWrap');
+      const list = state.listings || [];
+      if (!Array.isArray(list) || list.length===0){
+        wrap.innerHTML = `<div class="muted">Bạn chưa có bài đăng nào. <a href="/listings/new">Đăng bài ngay</a>.</div>`;
+        return;
+      }
+      wrap.innerHTML = list.map(item=>{
+        const cover = item.main_image_url || '';
+        const imgSrc = cover ? (cover.startsWith('http')?cover:(cover.startsWith('/')?cover:`/${cover}`)) : '';
+        const typ = (item.product_type || '').toString().toLowerCase();
+        const isCar = typ.includes('car') || typ.includes('xe');
+        const chipType = isCar ? badge('Xe','1') : badge('Pin','2');
+        
+        // Show sold status if sold, otherwise show approval status
+        let status = '';
+        if (item.sold === true) {
+          status = '<span class="chip" style="background:#ef4444;color:white">Đã bán</span>';
+        } else {
+          status = typeof item.approved === 'boolean' ? badge(item.approved? 'Đã duyệt':'Chờ duyệt') : '';
+        }
+        
+        const price = item.price!=null ? fmtVND(item.price) : '—';
+        const urlView = `/listings/${item.id}`;
+        const urlEdit = `/listings/${item.id}/edit`;
+        const title = item.name || item.title || 'Bài đăng';
+        const location = item.province || '';
+        return `
+          <article class="listing">
+            <img alt="" src="${imgSrc || 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;120&quot; height=&quot;90&quot;><rect width=&quot;100%&quot; height=&quot;100%&quot; fill=&quot;#f3f4f6&quot;/></svg>')}" />
+            <div style="flex:1">
+              <div class="row">
+                <a href="${urlView}" style="font-weight:600">${title}</a>
+                <div style="display:flex;gap:6px">${chipType}${status}</div>
+              </div>
+              <div class="muted" style="margin:6px 0">${location}</div>
+              <div class="row">
+                <div style="font-weight:700">${price}</div>
+                <div class="row" style="gap:6px">
+                  <a class="btn sm ghost" href="${urlView}">Xem</a>
+                  <a class="btn sm" href="${urlEdit}">Sửa</a>
+                </div>
+              </div>
+            </div>
+          </article>`;
+      }).join('');
+    }
+    async function loadListings(){
+      $('#listingsStatus').textContent='Đang tải bài đăng...';
+      try{
+        // Include sold items in owner's listing history
+        const res = await apiGet(API.myListings + '?show_sold=1');
+        state.listings = Array.isArray(res.items)?res.items:(Array.isArray(res)?res:(res.data||[]));
+        renderListings(); $('#listingsStatus').textContent='';
+      }catch(e){ $('#listingsStatus').textContent='Không tải được bài đăng: '+e.message; }
+    }
+
+    // ---------- Transactions ----------
+    function renderTx(){
+      const tb = $('#txTbody');
+      const rows = (state.tx||[]).map(tx=>{
+        const amount = fmtVND(tx.amount);
+        const status = badge(tx.status||'—','1');
+        const kind = badge((tx.payment_method||tx.transaction_type||'—').toString().toUpperCase(),'2');
+        const order = tx.order_id || tx.transaction_code || tx.id;
+        const who = (tx.item && tx.item.name) ? tx.item.name : '';
+        const when = fmtDate(tx.created_at || tx.updated_at || tx.completed_at);
+        const view = '#';
+        return `<tr>
+          <td>${when}</td><td>#${order}${who?` — ${who}`:''}</td><td>${kind}</td>
+          <td style="font-weight:700">${amount}</td><td>${status}</td>
+          <td><a class="btn sm ghost" href="${view}">Xem</a></td></tr>`;
+      }).join('');
+      tb.innerHTML = rows || `<tr><td colspan="6" class="muted">Chưa có giao dịch nào.</td></tr>`;
+    }
+    async function loadTx(){
+      $('#txStatus').textContent='Đang tải giao dịch...';
+      try{
+        const res = await apiGet(API.myPayments);
+        state.tx = Array.isArray(res.items)?res.items:(Array.isArray(res)?res:(res.data||[]));
+        renderTx(); $('#txStatus').textContent='';
+      }catch(e){ $('#txStatus').textContent='Không tải được giao dịch: '+e.message; }
+    }
+
+    // ---------- Bindings ----------
+    $('#btnReloadListings')?.addEventListener('click', loadListings);
+    $('#btnReloadTx')?.addEventListener('click', loadTx);
+
+    // Lazy load on tab switch
+    $$('.tab-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const tab = btn.dataset.tab;
+        if(tab==='listings' && (!state._loadedListings)){
+          state._loadedListings = true; loadListings();
+        }
+        if(tab==='transactions' && (!state._loadedTx)){
+          state._loadedTx = true; loadTx();
+        }
+      });
+    });
+
+    // Auto-load listings first time
+    state._loadedListings = true; loadListings();
+
+  </script>
 </body>
 </html>

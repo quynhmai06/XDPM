@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Đánh giá của tôi - EV Trading</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      .reviews-header {
+        background: #f5f5f5;
+        padding: 30px 20px;
+        text-align: center;
+        border-bottom: 2px solid #e0e0e0;
+      }
+      .reviews-tabs {
+        max-width: 1200px;
+        margin: 20px auto;
+        display: flex;
+        gap: 16px;
+        padding: 0 20px;
+        border-bottom: 2px solid #e0e0e0;
+      }
+      .tab-btn {
+        padding: 12px 24px;
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+        color: #666;
+        transition: all 0.3s;
+      }
+      .tab-btn:hover {
+        color: #ff6f00;
+      }
+      .tab-btn.active {
+        color: #ff6f00;
+        border-bottom-color: #ff6f00;
+      }
+      .reviews-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .review-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+      .review-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .review-meta {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 14px;
+        color: #666;
+      }
+      .review-role {
+        padding: 4px 12px;
+        border-radius: 16px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .review-role.buyer {
+        background: #e3f2fd;
+        color: #1976d2;
+      }
+      .review-role.seller {
+        background: #f3e5f5;
+        color: #7b1fa2;
+      }
+      .review-ratings {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        margin: 16px 0;
+        padding: 16px;
+        background: #f9f9f9;
+        border-radius: 8px;
+      }
+      .rating-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .rating-label {
+        font-size: 13px;
+        color: #666;
+      }
+      .stars {
+        color: #ffa726;
+      }
+      .review-comment {
+        margin: 12px 0;
+        padding: 12px;
+        background: #fffbf0;
+        border-left: 4px solid #ffa726;
+        border-radius: 4px;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      .review-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid #e0e0e0;
+      }
+      .review-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .btn-review {
+        padding: 6px 12px;
+        border: 1px solid #e0e0e0;
+        background: white;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.2s;
+      }
+      .btn-review:hover {
+        background: #f5f5f5;
+        border-color: #ff6f00;
+      }
+      .btn-review.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .helpful-badge {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: #e8f5e9;
+        border-radius: 16px;
+        font-size: 13px;
+        color: #2e7d32;
+      }
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #999;
+      }
+      .empty-state i {
+        font-size: 64px;
+        margin-bottom: 16px;
+        opacity: 0.3;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-container">
+        <div class="logo-section">
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <img src="/static/images/logo.png" alt="EV Trading" class="logo" />
+        </div>
+        <div class="user-menu">
+          <a href="/" class="user-menu-item">Trang chủ</a>
+          <a href="/favorites" class="user-menu-item">Yêu thích</a>
+          <a href="/cart" class="user-menu-item">Giỏ hàng</a>
+          {% if session.get('user') %}
+          <a href="{{ url_for('logout_page') }}" class="user-menu-item"
+            >Đăng xuất</a
+          >
+          {% else %}
+          <a href="{{ url_for('login_page') }}" class="user-menu-item"
+            >Đăng nhập</a
+          >
+          {% endif %}
+        </div>
+      </div>
+    </header>
+
+    <div class="reviews-header">
+      <h2><i class="fas fa-star"></i>Quản lý đánh giá</h2>
+    </div>
+
+    <div class="reviews-tabs">
+      <button class="tab-btn active" onclick="switchTab('given')">
+        Đánh giá của tôi
+      </button>
+      <button class="tab-btn" onclick="switchTab('received')">
+        Đánh giá về tôi
+      </button>
+      <button class="tab-btn" onclick="switchTab('pending')">
+        Cần đánh giá
+      </button>
+    </div>
+
+    <div class="reviews-container">
+      <div id="givenReviews"></div>
+      <div id="receivedReviews" style="display: none"></div>
+      <div id="pendingReviews" style="display: none"></div>
+    </div>
+
+    <script>
+      let currentTab = "given";
+      const userId = {{ session.get('user', {}).get('sub', 'null') }};
+
+      function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll(".tab-btn").forEach((btn) => {
+          btn.classList.remove("active");
+        });
+        event.target.classList.add("active");
+
+        document.getElementById("givenReviews").style.display =
+          tab === "given" ? "block" : "none";
+        document.getElementById("receivedReviews").style.display =
+          tab === "received" ? "block" : "none";
+        document.getElementById("pendingReviews").style.display =
+          tab === "pending" ? "block" : "none";
+
+        if (tab === "given") loadGivenReviews();
+        else if (tab === "received") loadReceivedReviews();
+        else if (tab === "pending") loadPendingReviews();
+      }
+
+      function renderStars(rating) {
+        if (!rating) return '<span class="stars">N/A</span>';
+        let html = '<span class="stars">';
+        for (let i = 1; i <= 5; i++) {
+          html += i <= rating ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
+        }
+        html += "</span>";
+        return html;
+      }
+
+      function renderReview(review, type) {
+        const canEdit =
+          type === "given" &&
+          review.can_edit &&
+          new Date(review.created_at).getTime() >
+            Date.now() - 24 * 60 * 60 * 1000;
+
+        return `
+          <div class="review-card" data-id="${review.id}">
+            <div class="review-header">
+              <div class="review-meta">
+                <span class="review-role ${review.reviewer_role}">${
+          review.reviewer_role === "buyer" ? "Người mua" : "Người bán"
+        }</span>
+                <span>${new Date(review.created_at).toLocaleDateString(
+                  "vi-VN"
+                )}</span>
+                ${
+                  review.updated_at && review.updated_at !== review.created_at
+                    ? '<span style="color:#ffa726">(Đã sửa)</span>'
+                    : ""
+                }
+              </div>
+              ${
+                type === "received"
+                  ? `<div class="helpful-badge">
+                  <i class="fas fa-thumbs-up"></i>
+                  ${review.helpful_count} hữu ích
+                </div>`
+                  : ""
+              }
+            </div>
+
+            <div class="review-ratings">
+              <div class="rating-item">
+                <span class="rating-label">Tác phong:</span>
+                ${renderStars(review.ratings.professionalism)}
+              </div>
+              ${
+                review.ratings.payment
+                  ? `<div class="rating-item">
+                <span class="rating-label">Thanh toán:</span>
+                ${renderStars(review.ratings.payment)}
+              </div>`
+                  : ""
+              }
+              ${
+                review.ratings.product
+                  ? `<div class="rating-item">
+                <span class="rating-label">Sản phẩm:</span>
+                ${renderStars(review.ratings.product)}
+              </div>`
+                  : ""
+              }
+              <div class="rating-item">
+                <span class="rating-label">Hợp tác:</span>
+                ${renderStars(review.ratings.cooperation)}
+              </div>
+              <div class="rating-item">
+                <span class="rating-label"><strong>Tổng thể:</strong></span>
+                ${renderStars(review.ratings.overall)}
+              </div>
+            </div>
+
+            ${
+              review.comment
+                ? `<div class="review-comment">${review.comment}</div>`
+                : ""
+            }
+
+            <div class="review-footer">
+              <div class="review-actions">
+                ${
+                  type === "given" && canEdit
+                    ? `
+                  <button class="btn-review" onclick="editReview(${review.id})">
+                    <i class="fas fa-edit"></i> Sửa
+                  </button>
+                  <button class="btn-review" onclick="deleteReview(${review.id})">
+                    <i class="fas fa-trash"></i> Xóa
+                  </button>
+                `
+                    : ""
+                }
+                ${
+                  type === "given" && !canEdit
+                    ? '<span style="color:#999;font-size:13px">Hết hạn sửa/xóa (24h)</span>'
+                    : ""
+                }
+                ${
+                  type === "received"
+                    ? `<button class="btn-review" onclick="reportReview(${review.id})">
+                    <i class="fas fa-flag"></i> Báo cáo vi phạm
+                  </button>`
+                    : ""
+                }
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      async function loadGivenReviews() {
+        const container = document.getElementById("givenReviews");
+        container.innerHTML = '<p style="text-align:center">Đang tải...</p>';
+        try {
+          const res = await fetch(`/api/reviews/by-reviewer/${userId}`);
+          const data = await res.json();
+          if (data.data && data.data.length > 0) {
+            container.innerHTML = data.data.map((r) => renderReview(r, "given")).join("");
+          } else {
+            container.innerHTML = `
+              <div class="empty-state">
+                <i class="far fa-comment-dots"></i>
+                <h3>Chưa có đánh giá nào</h3>
+                <p>Các đánh giá bạn viết sẽ hiển thị ở đây</p>
+              </div>
+            `;
+          }
+        } catch (e) {
+          container.innerHTML = '<p style="color:red">Không tải được đánh giá</p>';
+        }
+      }
+
+      async function loadReceivedReviews() {
+        const container = document.getElementById("receivedReviews");
+        container.innerHTML = '<p style="text-align:center">Đang tải...</p>';
+        try {
+          const res = await fetch(`/api/reviews/user/${userId}`);
+          const data = await res.json();
+          if (data.data && data.data.length > 0) {
+            container.innerHTML =
+              `<div style="background:#e8f5e9;padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 8px">Thống kê</h4>
+                <p style="margin:0">Tổng đánh giá: ${data.summary.total_reviews}</p>
+                <p style="margin:0">Điểm trung bình: ${renderStars(Math.round(data.summary.average_overall))}</p>
+              </div>` +
+              data.data.map((r) => renderReview(r, "received")).join("");
+          } else {
+            container.innerHTML = `
+              <div class="empty-state">
+                <i class="far fa-star"></i>
+                <h3>Chưa có đánh giá nào</h3>
+                <p>Các đánh giá về bạn sẽ hiển thị ở đây</p>
+              </div>
+            `;
+          }
+        } catch (e) {
+          container.innerHTML = '<p style="color:red">Không tải được đánh giá</p>';
+        }
+      }
+
+      async function loadPendingReviews() {
+        const container = document.getElementById("pendingReviews");
+        container.innerHTML = '<p style="text-align:center">Đang tải...</p>';
+        try {
+          const res = await fetch("/api/reviews/pending");
+          const data = await res.json();
+          if (data.data && data.data.length > 0) {
+            // TODO: Render pending orders that need reviews
+            container.innerHTML = `<p>Tính năng đang phát triển</p>`;
+          } else {
+            container.innerHTML = `
+              <div class="empty-state">
+                <i class="far fa-check-circle"></i>
+                <h3>Không có đơn hàng cần đánh giá</h3>
+                <p>Sau khi hoàn thành đơn, bạn có thể đánh giá ở đây</p>
+              </div>
+            `;
+          }
+        } catch (e) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <i class="far fa-check-circle"></i>
+              <h3>Không có đơn hàng cần đánh giá</h3>
+            </div>
+          `;
+        }
+      }
+
+      async function editReview(reviewId) {
+        // TODO: Open modal with review form
+        alert("Chức năng sửa đánh giá sẽ được bổ sung");
+      }
+
+      async function deleteReview(reviewId) {
+        if (!confirm("Bạn chắc chắn muốn xóa đánh giá này?")) return;
+        try {
+          const res = await fetch(`/api/reviews/${reviewId}`, {
+            method: "DELETE",
+          });
+          if (res.ok) {
+            alert("Đã xóa đánh giá");
+            loadGivenReviews();
+          } else {
+            const data = await res.json();
+            alert(data.error || "Không thể xóa đánh giá");
+          }
+        } catch (e) {
+          alert("Lỗi kết nối");
+        }
+      }
+
+      async function reportReview(reviewId) {
+        const reason = prompt("Lý do báo cáo:");
+        if (!reason) return;
+        try {
+          const res = await fetch(`/api/reviews/${reviewId}/report`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason }),
+          });
+          if (res.ok) {
+            alert("Đã gửi báo cáo. Admin sẽ xem xét.");
+          } else {
+            alert("Không thể gửi báo cáo");
+          }
+        } catch (e) {
+          alert("Lỗi kết nối");
+        }
+      }
+
+      // Load initial tab
+      if (userId) {
+        loadGivenReviews();
+      } else {
+        document.querySelector(".reviews-container").innerHTML =
+          '<div class="empty-state"><p>Vui lòng đăng nhập để xem đánh giá</p></div>';
+      }
+    </script>
+  </body>
+</html>

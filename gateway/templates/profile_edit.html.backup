@@ -1,0 +1,18 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>Chỉnh sửa hồ sơ</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <h1>Chỉnh sửa hồ sơ</h1>
+  <form method="POST" enctype="multipart/form-data">
+    <input type="text" name="full_name" placeholder="Họ tên" value="{{ user.full_name or '' }}" />
+    <input type="text" name="phone" placeholder="Điện thoại" value="{{ user.phone or '' }}" />
+    <input type="file" name="avatar" />
+    <button type="submit">Lưu</button>
+  </form>
+  <a href="/profile">Quay lại</a>
+</body>
+</html>

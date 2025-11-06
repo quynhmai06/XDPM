@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Đăng nhập - EV & Battery Trading</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+      .login-container { max-width: 400px; margin: 50px auto; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,.1); }
+      .login-header { text-align: center; margin-bottom: 20px; }
+      .login-header i { font-size: 2em; color: #007bff; }
+      .login-form input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; }
+      .login-form button { width: 100%; padding: 10px; background: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+      .login-form button:hover { background: #0056b3; }
+      .login-links { text-align: center; margin-top: 15px; }
+      .login-links a { color: #007bff; text-decoration: none; }
+      .flash-messages { margin-bottom: 20px; }
+      .flash-message { padding: 10px; border-radius: 4px; margin: 5px 0; }
+      .flash-success { background: #d4edda; color: #155724; }
+      .flash-error { background: #f8d7da; color: #721c24; }
+    </style>
+  </head>
+  <body>
+    <div class="login-container">
+      <div class="login-header">
+        <i class="fa-solid fa-bolt"></i>
+        <h2>Đăng nhập</h2>
+      </div>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-messages">
+            {% for category, message in messages %}
+              <div class="flash-message flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <!-- POST tới /login của gateway -->
+      <form method="POST" class="login-form" action="{{ url_for('login_page') }}">
+        <input type="text" name="username" placeholder="Tên đăng nhập" required />
+        <input type="password" name="password" placeholder="Mật khẩu" required />
+        <button type="submit">Đăng nhập</button>
+      </form>
+
+      <div class="login-links">
+        <p>Chưa có tài khoản?
+          <a href="{{ url_for('register_page') }}">Đăng ký</a>
+        </p>
+        <p><a href="{{ url_for('home') }}">Quay về trang chủ</a></p>
+        <!-- Nếu bạn chưa đặt endpoint 'home' trong gateway, có thể dùng: <a href="/">Quay về trang chủ</a> -->
+      </div>
+    </div>
+  </body>
+</html>

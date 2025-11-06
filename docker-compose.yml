@@ -23,6 +23,15 @@ services:
       JWT_SECRET: supersecret
     depends_on: [db]
     ports: ["5002:5002"]
+
+  admin_service:
+    build: ./admin-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+      JWT_SECRET: supersecret
+    depends_on: [db]
+    # Expose on host 5009, service listens on 5002 inside the container
+    ports: ["5009:5002"]
     
   pricing_service:
     build: ./pricing-service
@@ -37,8 +46,7 @@ services:
       SOFT_TIMEOUT: ${SOFT_TIMEOUT:-8}
       HARD_TIMEOUT: ${HARD_TIMEOUT:-15}
       CACHE_TTL: ${CACHE_TTL:-600}
-    ports:
-      - "5003:5003"
+    ports: ["5003:5003"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5003/').read()"]
       interval: 30s
@@ -47,9 +55,52 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  search_service:
+    build: ./search-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+    depends_on: [db]
+    # Expose on host 5010, service listens on 5003 inside the container
+    ports: ["5010:5003"]
 
+  favorites_service:
+    build: ./favorites-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+    depends_on: [db]
+    ports: ["5004:5004"]
 
+  orders_service:
+    build: ./orders-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+    depends_on: [db]
+    ports: ["5005:5005"]
 
+  reviews_service:
+    build: ./reviews-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+    depends_on: [db]
+    ports: ["5007:5007"]
+
+  transactions_service:
+    build: ./transactions-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+    depends_on: [db]
+    ports: ["5008:5008"]
+
+  payment_service:
+    build: ./payment-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+      JWT_SECRET: supersecret
+      BANK_NAME: "EV Bank"
+      BANK_ACCOUNT: "1234567890"
+      VAT_RATE: "0.1"
+    depends_on: [db]
+    ports: ["5011:5003"]
 
   web_gateway:
     build: ./gateway
@@ -57,8 +108,16 @@ services:
       AUTH_URL: http://auth_service:5001
       LISTING_URL: http://listing_service:5002
       PRICING_URL: http://pricing_service:5003
-      JWT_SECRET: supersecret
+      # Use container ports for inter-service communication
+      ADMIN_URL: http://admin_service:5002
+      SEARCH_URL: http://search_service:5003
+      FAVORITES_URL: http://favorites_service:5004
+      ORDERS_URL: http://orders_service:5005
+      REVIEWS_URL: http://reviews_service:5007
+      TRANSACTIONS_URL: http://transactions_service:5008
+      PAYMENT_URL: http://payment_service:5003
       GATEWAY_SECRET: dev
+      JWT_SECRET: supersecret
     depends_on:
       auth_service:
         condition: service_started
@@ -66,11 +125,23 @@ services:
         condition: service_started
       pricing_service:
         condition: service_healthy
-    ports:
-      - "8000:8000"
+      admin_service:
+        condition: service_started
+      search_service:
+        condition: service_started
+      favorites_service:
+        condition: service_started
+      orders_service:
+        condition: service_started
+      reviews_service:
+        condition: service_started
+      transactions_service:
+        condition: service_started
+      payment_service:
+        condition: service_started
+    ports: ["8000:8000"]
     volumes:
       - ./gateway/static/uploads:/app/static/uploads
-  
 
 volumes:
   dbdata:

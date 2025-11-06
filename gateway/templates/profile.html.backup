@@ -1,0 +1,15 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>Hồ sơ</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <h1>Hồ sơ cá nhân</h1>
+  <p>Username: {{ user.username }}</p>
+  <p>Email: {{ user.email }}</p>
+  <a href="/profile/edit">Chỉnh sửa</a>
+  <a href="/">Trang chủ</a>
+</body>
+</html>

@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ký hợp đồng điện tử - EV Trading</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      .contract-container {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 0 20px;
+      }
+      .contract-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 12px 12px 0 0;
+        text-align: center;
+      }
+      .contract-header h1 {
+        margin: 0 0 10px 0;
+        font-size: 28px;
+      }
+      .contract-code {
+        font-size: 18px;
+        opacity: 0.9;
+      }
+      .contract-body {
+        background: white;
+        padding: 40px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        border-radius: 0 0 12px 12px;
+      }
+      .contract-content {
+        background: #f9f9f9;
+        padding: 30px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+        max-height: 400px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        font-family: "Courier New", monospace;
+        font-size: 14px;
+        line-height: 1.8;
+        border: 2px solid #e0e0e0;
+      }
+      .signature-section {
+        background: #fff8f5;
+        padding: 25px;
+        border-radius: 10px;
+        border: 2px dashed #ff6b35;
+        margin-bottom: 20px;
+      }
+      .signature-section h3 {
+        color: #ff6b35;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .signature-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .signature-tab {
+        flex: 1;
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        background: white;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.3s;
+      }
+      .signature-tab:hover {
+        border-color: #ff6b35;
+      }
+      .signature-tab.active {
+        border-color: #ff6b35;
+        background: #fff8f5;
+        color: #ff6b35;
+        font-weight: 600;
+      }
+      .signature-input-group {
+        display: none;
+      }
+      .signature-input-group.active {
+        display: block;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #333;
+      }
+      .form-group input[type="text"] {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: border-color 0.3s;
+      }
+      .form-group input[type="text"]:focus {
+        outline: none;
+        border-color: #ff6b35;
+      }
+      .upload-area {
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        padding: 30px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        background: white;
+      }
+      .upload-area:hover {
+        border-color: #ff6b35;
+        background: #fffbf9;
+      }
+      .upload-area.drag-over {
+        border-color: #ff6b35;
+        background: #fff8f5;
+      }
+      .upload-area input[type="file"] {
+        display: none;
+      }
+      .signature-preview {
+        margin-top: 15px;
+        display: none;
+      }
+      .signature-preview.active {
+        display: block;
+      }
+      .signature-preview img {
+        max-width: 100%;
+        max-height: 150px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 10px;
+        background: white;
+      }
+      .sign-button {
+        width: 100%;
+        padding: 18px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 18px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+      .sign-button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+      }
+      .sign-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .agreement-checkbox {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 25px;
+        padding: 15px;
+        background: #e8f5e9;
+        border-radius: 8px;
+      }
+      .agreement-checkbox input[type="checkbox"] {
+        margin-top: 4px;
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+      }
+      .agreement-checkbox label {
+        flex: 1;
+        cursor: pointer;
+        line-height: 1.6;
+      }
+      .status-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .status-pending {
+        background: #fff3e0;
+        color: #f57c00;
+      }
+      .status-signed {
+        background: #e8f5e9;
+        color: #4caf50;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-container">
+        <a href="/" class="logo">EV Trading</a>
+      </div>
+    </header>
+
+    <div class="contract-container">
+      <div class="contract-header">
+        <h1><i class="fas fa-file-contract"></i> HỢP ĐỒNG MUA BÁN ĐIỆN TỬ</h1>
+        <div class="contract-code">
+          Mã hợp đồng: <span id="contractCode">...</span>
+        </div>
+        <div style="margin-top: 10px">
+          <span id="contractStatus" class="status-indicator status-pending">
+            <i class="fas fa-clock"></i> Chờ ký
+          </span>
+        </div>
+      </div>
+
+      <div class="contract-body">
+        <div class="contract-content" id="contractContent">
+          Đang tải nội dung hợp đồng...
+        </div>
+
+        <div class="signature-section" id="buyerSignatureSection">
+          <h3>
+            <i class="fas fa-pen-fancy"></i>
+            CHỮ KÝ NGƯỜI MUA
+          </h3>
+
+          <div class="signature-tabs">
+            <div class="signature-tab active" onclick="switchTab('text')">
+              <i class="fas fa-keyboard"></i> Nhập tên đầy đủ
+            </div>
+            <div class="signature-tab" onclick="switchTab('image')">
+              <i class="fas fa-image"></i> Upload chữ ký
+            </div>
+          </div>
+
+          <div id="textSignature" class="signature-input-group active">
+            <div class="form-group">
+              <label for="fullName">
+                <i class="fas fa-user"></i> Họ và tên đầy đủ *
+              </label>
+              <input
+                type="text"
+                id="fullName"
+                placeholder="Nhập họ tên đầy đủ của bạn"
+                required
+              />
+            </div>
+          </div>
+
+          <div id="imageSignature" class="signature-input-group">
+            <div class="form-group">
+              <label> <i class="fas fa-upload"></i> Upload ảnh chữ ký </label>
+              <div
+                class="upload-area"
+                id="uploadArea"
+                onclick="document.getElementById('signatureFile').click()"
+              >
+                <i
+                  class="fas fa-cloud-upload-alt"
+                  style="font-size: 48px; color: #ccc; margin-bottom: 10px"
+                ></i>
+                <p>Nhấn để chọn ảnh hoặc kéo thả vào đây</p>
+                <small style="color: #999"
+                  >Định dạng: JPG, PNG (Tối đa 2MB)</small
+                >
+                <input type="file" id="signatureFile" accept="image/*" />
+              </div>
+              <div class="signature-preview" id="signaturePreview">
+                <img id="previewImage" src="" alt="Chữ ký" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="agreement-checkbox">
+          <input type="checkbox" id="agreeTerms" />
+          <label for="agreeTerms">
+            Tôi đã đọc, hiểu rõ và đồng ý với toàn bộ nội dung hợp đồng trên.
+            Tôi cam kết thực hiện đúng các điều khoản đã ký kết.
+          </label>
+        </div>
+
+        <button
+          class="sign-button"
+          id="signButton"
+          onclick="signContract()"
+          disabled
+        >
+          <i class="fas fa-signature"></i>
+          XÁC NHẬN KÝ HỢP ĐỒNG
+        </button>
+      </div>
+    </div>
+
+    <script>
+      let contractData = null;
+      let signatureType = 'text';
+      let signatureData = null;
+      const contractId = {{ contract_id }};
+
+      // Load contract data
+      async function loadContract() {
+          try {
+              const res = await fetch(`/api/payment/contract/view/${contractId}`);
+              const data = await res.json();
+
+              if (res.ok) {
+                  contractData = data;
+                  document.getElementById('contractCode').textContent = data.contract_code || `HD${contractId}`;
+                  document.getElementById('contractContent').textContent = data.content;
+
+                  // Update status
+                  updateContractStatus(data.status);
+
+                  // Check if already signed
+                  if (data.buyer_signed_at) {
+                      showAlreadySigned();
+                  }
+              } else {
+                  alert('Không thể tải hợp đồng: ' + (data.error || 'Unknown error'));
+              }
+          } catch (error) {
+              console.error('Load contract error:', error);
+              alert('Lỗi kết nối đến server');
+          }
+      }
+
+      function updateContractStatus(status) {
+          const statusEl = document.getElementById('contractStatus');
+          if (status === 'signed') {
+              statusEl.className = 'status-indicator status-signed';
+              statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Đã ký';
+          } else if (status === 'pending_signature') {
+              statusEl.className = 'status-indicator status-pending';
+              statusEl.innerHTML = '<i class="fas fa-clock"></i> Chờ ký';
+          }
+      }
+
+      function showAlreadySigned() {
+          document.getElementById('buyerSignatureSection').innerHTML = `
+              <div style="text-align: center; padding: 30px;">
+                  <i class="fas fa-check-circle" style="font-size: 64px; color: #4caf50;"></i>
+                  <h3 style="color: #4caf50; margin-top: 20px;">Bạn đã ký hợp đồng này!</h3>
+                  <p style="color: #666; margin-top: 10px;">Chuyển đến trang thanh toán...</p>
+              </div>
+          `;
+          document.getElementById('signButton').style.display = 'none';
+
+          setTimeout(() => {
+              window.location.href = `/payment/checkout/${contractData.payment_id}`;
+          }, 2000);
+      }
+
+      function switchTab(type) {
+          signatureType = type;
+
+          // Update tabs
+          document.querySelectorAll('.signature-tab').forEach(tab => {
+              tab.classList.remove('active');
+          });
+          event.target.closest('.signature-tab').classList.add('active');
+
+          // Update input groups
+          document.getElementById('textSignature').classList.remove('active');
+          document.getElementById('imageSignature').classList.remove('active');
+
+          if (type === 'text') {
+              document.getElementById('textSignature').classList.add('active');
+          } else {
+              document.getElementById('imageSignature').classList.add('active');
+          }
+
+          // Reset signature data
+          signatureData = null;
+          validateForm();
+      }
+
+      // Handle file upload
+      document.getElementById('signatureFile').addEventListener('change', function(e) {
+          const file = e.target.files[0];
+          if (file) {
+              if (file.size > 2 * 1024 * 1024) {
+                  alert('Kích thước file quá lớn! Vui lòng chọn ảnh nhỏ hơn 2MB.');
+                  return;
+              }
+
+              const reader = new FileReader();
+              reader.onload = function(event) {
+                  signatureData = event.target.result;
+                  document.getElementById('previewImage').src = signatureData;
+                  document.getElementById('signaturePreview').classList.add('active');
+                  validateForm();
+              };
+              reader.readAsDataURL(file);
+          }
+      });
+
+      // Drag and drop
+      const uploadArea = document.getElementById('uploadArea');
+      uploadArea.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          uploadArea.classList.add('drag-over');
+      });
+      uploadArea.addEventListener('dragleave', () => {
+          uploadArea.classList.remove('drag-over');
+      });
+      uploadArea.addEventListener('drop', (e) => {
+          e.preventDefault();
+          uploadArea.classList.remove('drag-over');
+          const file = e.dataTransfer.files[0];
+          if (file && file.type.startsWith('image/')) {
+              document.getElementById('signatureFile').files = e.dataTransfer.files;
+              document.getElementById('signatureFile').dispatchEvent(new Event('change'));
+          }
+      });
+
+      // Validate form
+      function validateForm() {
+          const agreeChecked = document.getElementById('agreeTerms').checked;
+          let hasSignature = false;
+
+          if (signatureType === 'text') {
+              const fullName = document.getElementById('fullName').value.trim();
+              hasSignature = fullName.length > 0;
+              signatureData = fullName;
+          } else {
+              hasSignature = signatureData !== null;
+          }
+
+          document.getElementById('signButton').disabled = !(agreeChecked && hasSignature);
+      }
+
+      document.getElementById('agreeTerms').addEventListener('change', validateForm);
+      document.getElementById('fullName').addEventListener('input', validateForm);
+
+      // Sign contract
+      async function signContract() {
+          const btn = document.getElementById('signButton');
+          btn.disabled = true;
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+
+          try {
+              const res = await fetch(`/api/payment/contract/sign/${contractId}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      signer_role: 'buyer',
+                      signature_type: signatureType,
+                      signature_data: signatureData
+                  })
+              });
+
+              const data = await res.json();
+
+              if (res.ok) {
+                  btn.innerHTML = '<i class="fas fa-check-circle"></i> Ký thành công!';
+                  btn.style.background = '#4caf50';
+
+                  setTimeout(() => {
+                      window.location.href = `/payment/checkout/${contractData.payment_id}`;
+                  }, 1500);
+              } else {
+                  alert('Không thể ký hợp đồng: ' + (data.error || 'Unknown error'));
+                  btn.disabled = false;
+                  btn.innerHTML = '<i class="fas fa-signature"></i> XÁC NHẬN KÝ HỢP ĐỒNG';
+              }
+          } catch (error) {
+              console.error('Sign error:', error);
+              alert('Lỗi kết nối đến server');
+              btn.disabled = false;
+              btn.innerHTML = '<i class="fas fa-signature"></i> XÁC NHẬN KÝ HỢP ĐỒNG';
+          }
+      }
+
+      // Load contract on page load
+      loadContract();
+    </script>
+  </body>
+</html>
