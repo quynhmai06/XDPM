@@ -1,79 +1,76 @@
-version: "3.9"
-name: ev-platform
 services:
-  auth_service:
-    build:
-      context: ./auth-service
-    image: ev/auth-service:latest
-    container_name: auth_service
-    env_file: [.env]
-    environment:
-      DATABASE_URL: ${AUTH_DATABASE_URL:-sqlite:////data/auth.db}
-      JWT_SECRET: ${JWT_SECRET}
-      PORT: 5001
-    volumes:
-      - auth_data:/data
-    ports: ["5001:5001"]
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys; \ntry:\n  r=urllib.request.urlopen('http://localhost:5001/health',timeout=2)\n  sys.exit(0 if r.getcode()==200 else 1)\nexcept Exception:\n  sys.exit(1)\nPY"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
-      start_period: 15s
-
-  admin_service:
-    build: { context: ./admin-service }
-    image: ev/admin-service:latest
-    container_name: admin_service
-    env_file: [.env]
-    environment:
-      JWT_SECRET: ${JWT_SECRET}
-      AUTH_URL: ${AUTH_URL_INTERNAL:-http://auth_service:5001}
-      PORT: 5003
-    depends_on:
-      auth_service:
-        condition: service_healthy
-    ports: ["5003:5003"]
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:5003/health >/dev/null || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
-      start_period: 15s
-
-  gateway:
-    build: { context: ./gateway }
-    image: ev/web-gateway:latest
-    container_name: web_gateway
-    env_file: [.env]
-    environment:
-      AUTH_URL: ${AUTH_URL_INTERNAL:-http://auth_service:5001}
-      ADMIN_URL: ${ADMIN_URL_INTERNAL:-http://admin_service:5003}
-      JWT_SECRET: ${JWT_SECRET}
-      GATEWAY_SECRET: ${GATEWAY_SECRET:-dev_gateway_secret}
-      PORT: 8000
-    depends_on:
-      auth_service: { condition: service_healthy }
-      admin_service: { condition: service_healthy }
-    ports: ["8000:8000"]
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/ >/dev/null || exit 1"]
-
-  postgres:
+  db:
     image: postgres:16
     environment:
       POSTGRES_USER: ev
       POSTGRES_PASSWORD: evpass
-      POSTGRES_DB: ev_platform
-      PGDATA: /var/lib/postgresql/data/pgdata
-    volumes:
-      - ev_pgdata:/var/lib/postgresql/data
+      POSTGRES_DB: evdb
+    volumes: [dbdata:/var/lib/postgresql/data]
     ports: ["5432:5432"]
+
+  auth_service:
+    build: ./auth-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+      JWT_SECRET: supersecret
+    depends_on: [db]
+    ports: ["5001:5001"]
+
+  listing_service:
+    build: ./listing-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@db:5432/evdb
+      JWT_SECRET: supersecret
+    depends_on: [db]
+    ports: ["5002:5002"]
+    
+  pricing_service:
+    build: ./pricing-service
+    env_file:
+      - .env
+    environment:
+      PROVIDER: ${PROVIDER}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL}
+      SOFT_TIMEOUT: ${SOFT_TIMEOUT:-8}
+      HARD_TIMEOUT: ${HARD_TIMEOUT:-15}
+      CACHE_TTL: ${CACHE_TTL:-600}
+    ports:
+      - "5003:5003"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5003/').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
+
+
+
+
+  web_gateway:
+    build: ./gateway
+    environment:
+      AUTH_URL: http://auth_service:5001
+      LISTING_URL: http://listing_service:5002
+      PRICING_URL: http://pricing_service:5003
+      JWT_SECRET: supersecret
+      GATEWAY_SECRET: dev
+    depends_on:
+      auth_service:
+        condition: service_started
+      listing_service:
+        condition: service_started
+      pricing_service:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./gateway/static/uploads:/app/static/uploads
+  
+
 volumes:
-  auth_data:
-  ev_pgdata:
+  dbdata:

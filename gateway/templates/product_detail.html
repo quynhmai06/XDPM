@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ item.name }} — Chi tiết</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/static/style.css" />
+
+  <style>
+    .detail-wrap{
+      max-width:1100px;
+      margin:28px auto;
+      padding:0 16px;
+    }
+
+    .detail-breadcrumb{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      color:#667085;
+      font-size:14px;
+      margin-bottom:16px;
+    }
+    .detail-breadcrumb a{
+      color:#667085;
+      text-decoration:none;
+    }
+    .detail-breadcrumb a:hover{
+      color:#111827;
+    }
+
+    .detail-grid{
+      display:grid;
+      gap:22px;
+      grid-template-columns:minmax(0,2fr) minmax(0,1.2fr);
+    }
+
+    .detail-card{
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius:14px;
+      overflow:hidden;
+      box-shadow:0 8px 24px rgba(0,0,0,.06);
+    }
+    .detail-box{
+      padding:16px 18px;
+    }
+
+    /* ảnh chính */
+    .detail-cover{
+      aspect-ratio:16/10;
+      background:#fafafa;
+    }
+    .detail-cover img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+
+    /* list ảnh nhỏ */
+    .detail-thumbs{
+      display:flex;
+      gap:10px;
+      padding:10px 18px;
+      background:#fafafa;
+      border-top:1px solid #e5e7eb;
+      flex-wrap:wrap;
+    }
+    .detail-thumbs img{
+      width:88px;
+      height:66px;
+      object-fit:cover;
+      border-radius:10px;
+      border:1px solid #e5e7eb;
+      background:#fff;
+      cursor:pointer;
+      transition:transform .15s ease;
+    }
+    .detail-thumbs img:hover{
+      transform:translateY(-2px);
+    }
+
+    /* khối mô tả + thông số */
+    .detail-descblock{
+      padding:12px 18px 18px;
+    }
+
+    /* tiêu đề phụ "Mô tả", "Thông số nhanh" */
+    .detail-h3{
+      font-size:16px;
+      font-weight:700;
+      color:#111827;
+      margin:0 0 10px 0;
+    }
+
+    /* phần mô tả - list dòng */
+    .detail-desc{
+      padding-left:0;
+      text-indent:0;
+      text-align:left;
+      margin-bottom:16px;
+    }
+    .desc-line{
+      font-size:15px;
+      line-height:1.6;
+      color:#1e293b;
+      margin:0 0 8px 0;
+    }
+
+    /* lưới thông số nhanh */
+    .detail-specs{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:10px;
+      margin-top:8px;
+    }
+    .detail-spec{
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius:10px;
+      padding:10px 12px;
+    }
+    .detail-spec .k{
+      color:#667085;
+      font-size:12px;
+    }
+    .detail-spec .v{
+      font-weight:700;
+      color:#111827;
+    }
+
+    /* cột phải (thông tin tóm tắt) */
+    .detail-sticky{
+      position:relative;
+    }
+    @media (min-width:1024px){
+      .detail-sticky{
+        position:sticky;
+        top:18px;
+      }
+    }
+
+    .detail-title{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin:0 0 6px;
+    }
+
+    .detail-badge{
+      background:rgba(244,178,7,.14);
+      color:#a97400;
+      border:1px solid rgba(244,178,7,.35);
+      font-weight:600;
+      font-size:12px;
+      padding:4px 8px;
+      border-radius:999px;
+    }
+
+    .detail-price{
+      font-weight:800;
+      font-size:26px;
+      color:#d10c0c;
+      margin:10px 0 2px;
+    }
+
+    .detail-meta{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-top:8px;
+      color:#111827;
+      font-size:14px;
+    }
+    .detail-meta div{
+      padding:10px 12px;
+      background:#fafafa;
+      border:1px solid #e5e7eb;
+      border-radius:10px;
+    }
+
+    .detail-actions{
+      display:flex;
+      gap:10px;
+      margin-top:16px;
+    }
+
+    /* nút quay về */
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      padding:12px 16px;
+      border-radius:12px;
+      text-decoration:none;
+      font-weight:700;
+      border:1px solid transparent;
+    }
+    .btn-ghost{
+      background:#fff;
+      border-color:#e5e7eb;
+      color:#111827;
+    }
+    .btn-ghost:hover{
+      border-color:#d1d5db;
+    }
+
+    /* responsive */
+    @media (max-width:860px){
+      .detail-grid{
+        grid-template-columns:1fr;
+      }
+      .detail-meta{
+        grid-template-columns:1fr 1fr;
+      }
+      .detail-specs{
+        grid-template-columns:1fr 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  {# Chuẩn hoá nhãn loại sản phẩm để tái dùng #}
+  {% set type_label =
+      'Xe điện' if item.product_type == 'car'
+      else ('Pin xe điện' if item.product_type == 'battery'
+      else (item.product_type or 'Sản phẩm')) %}
+
+  <div class="detail-wrap">
+
+    <!-- Breadcrumb -->
+    <nav class="detail-breadcrumb">
+      <a href="/">Trang chủ</a> <span>/</span>
+      <a href="/?approved=1">{{ type_label }}</a> <span>/</span>
+      <span>{{ item.name }}</span>
+    </nav>
+
+    <div class="detail-grid">
+      <!-- LEFT: ảnh + mô tả -->
+      <section class="detail-card">
+        <!-- Ảnh chính -->
+        <div class="detail-cover">
+          <img
+            id="heroImg"
+            src="{{ item.main_image_url or '/static/images/placeholder.png' }}"
+            alt="{{ item.name }}"
+            onerror="this.onerror=null;this.src='/static/images/placeholder.png'">
+        </div>
+
+        <!-- Ảnh phụ -->
+        {% set thumbs = (item.sub_image_urls or []) %}
+        {% if thumbs|length %}
+          <div class="detail-thumbs">
+            <img onclick="swapImg(this)"
+                 src="{{ item.main_image_url or '/static/images/placeholder.png' }}"
+                 onerror="this.style.display='none'">
+            {% for u in thumbs %}
+              <img onclick="swapImg(this)"
+                   src="{{ u }}"
+                   onerror="this.style.display='none'">
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <!-- Mô tả + Thông số nhanh -->
+        <div class="detail-descblock">
+          <h3 class="detail-h3">Mô tả</h3>
+
+          <div class="detail-desc">
+            {% if item.description %}
+              {% for line in item.description.split('\n') %}
+                <p class="desc-line">{{ line }}</p>
+              {% endfor %}
+            {% else %}
+              <p class="desc-line">Người bán chưa cung cấp mô tả chi tiết.</p>
+            {% endif %}
+          </div>
+
+          <h3 class="detail-h3" style="margin-top:16px">Thông số nhanh</h3>
+
+          <div class="detail-specs">
+            <div class="detail-spec">
+              <div class="k">Thương hiệu</div>
+              <div class="v">{{ item.brand or "-" }}</div>
+            </div>
+
+            <div class="detail-spec">
+              <div class="k">Khu vực</div>
+              <div class="v">{{ item.province or "-" }}</div>
+            </div>
+
+            {% if item.product_type == 'battery' %}
+              <div class="detail-spec">
+                <div class="k">Dung lượng</div>
+                <div class="v">{{ item.battery_capacity or "-" }}</div>
+              </div>
+            {% else %}
+              <div class="detail-spec">
+                <div class="k">Năm SX</div>
+                <div class="v">{{ item.year or "-" }}</div>
+              </div>
+
+              <div class="detail-spec">
+                <div class="k">Số km</div>
+                <div class="v">{{ item.mileage or 0 }}</div>
+              </div>
+
+              <div class="detail-spec">
+                <div class="k">Pin</div>
+                <div class="v">{{ item.battery_capacity or "-" }}</div>
+              </div>
+            {% endif %}
+
+            <div class="detail-spec">
+              <div class="k">Trạng thái</div>
+              <div class="v">{{ "Đã duyệt" if item.approved else "Chờ duyệt" }}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: thông tin tóm tắt / giá -->
+      <aside class="detail-card detail-sticky">
+        <div class="detail-box">
+
+          <div class="detail-title">
+            <span class="detail-badge">{{ type_label|upper }}</span>
+            <h1 style="margin:0;font-size:22px">{{ item.name }}</h1>
+          </div>
+
+          <div class="detail-price">{{ "{:,.0f}".format(item.price) }} đ</div>
+
+          <div class="detail-meta">
+            <div>Hãng: <b>{{ item.brand or "-" }}</b></div>
+            <div>Khu vực: <b>{{ item.province or "-" }}</b></div>
+
+            {% if item.product_type == 'battery' %}
+              <div>Dung lượng: <b>{{ item.battery_capacity or "-" }}</b></div>
+            {% else %}
+              <div>Năm SX: <b>{{ item.year or "-" }}</b></div>
+              <div>Số km: <b>{{ item.mileage or 0 }}</b></div>
+              <div>Pin: <b>{{ item.battery_capacity or "-" }}</b></div>
+            {% endif %}
+
+            <div>Trạng thái: <b>{{ "Đã duyệt" if item.approved else "Chờ duyệt" }}</b></div>
+          </div>
+
+          <div class="detail-actions">
+            <a class="btn btn-ghost" href="/">← Về trang chủ</a>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    function swapImg(el){
+      const hero = document.getElementById('heroImg');
+      if(!hero || !el || !el.src) return;
+      const tmp = hero.src;
+      hero.src = el.src;
+      el.src = tmp;
+    }
+  </script>
+</body>
+</html>
