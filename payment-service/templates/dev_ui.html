@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="vi" data-bs-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Payment Service — Dev Console</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{ --brand:#0d47a1; --ink:#0f172a; --muted:#64748b; --surface:#ffffff; --bg:#f6f7fb; }
+    *{ font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+    body{ background: var(--bg); color: var(--ink); }
+    .container-narrow{ max-width: 1080px; }
+    .appbar{ background:linear-gradient(160deg,#0d47a1,#3256c8); color:#fff; border-radius:18px; padding:20px 24px; box-shadow:0 12px 28px rgba(2,6,23,.18); }
+    .appbar h1{ font-weight:800; letter-spacing:.2px; margin:0; font-size: clamp(22px, 3vw, 28px); }
+    .cardx{ background:var(--surface); border:1px solid #e5e7eb; border-radius:16px; box-shadow:0 12px 28px rgba(2,6,23,.06); }
+    .cardx .card-header{ background:transparent; border-bottom:1px dashed #e5e7eb; }
+    .form-label{ font-weight:600; color:#0f172a; }
+    .footer-note{ color:var(--muted); font-size:13px; }
+    .ghost{ opacity:.7 }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .btn-pill{ border-radius:12px }
+  </style>
+</head>
+<body>
+  <div class="container container-narrow py-4">
+
+    <!-- App bar -->
+    <div class="appbar d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <img src="https://img.icons8.com/?size=100&id=11392&format=png&color=ffffff" alt="" style="height:36px">
+        <div>
+          <h1 class="mb-1">Payment Service — Dev Console</h1>
+          <div class="ghost">Tạo payment ➜ checkout ➜ invoice nhanh để demo</div>
+        </div>
+      </div>
+      <div>
+        <a class="btn btn-light btn-pill" href="/">Trang chủ gateway</a>
+      </div>
+    </div>
+
+    <!-- Grid -->
+    <div class="row g-4 mt-3">
+
+      <!-- Create Payment -->
+      <div class="col-lg-6">
+        <div class="cardx h-100">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <div class="fw-bold">Tạo thanh toán</div>
+            <span class="badge text-bg-primary">/payment/create</span>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-6">
+                <label class="form-label">Order ID</label>
+                <input id="orderId" class="form-control" value="1001">
+              </div>
+              <div class="col-6">
+                <label class="form-label">Số tiền (VND)</label>
+                <input id="amount" class="form-control" value="150000000">
+              </div>
+              <div class="col-6">
+                <label class="form-label">Buyer ID</label>
+                <input id="buyerId" class="form-control" value="501">
+              </div>
+              <div class="col-6">
+                <label class="form-label">Seller ID</label>
+                <input id="sellerId" class="form-control" value="302">
+              </div>
+              <div class="col-6">
+                <label class="form-label">Phương thức</label>
+                <select id="method" class="form-select">
+                  <option value="e-wallet" selected>Ví điện tử</option>
+                  <option value="banking">Ngân hàng</option>
+                  <option value="cash">Tiền mặt</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Provider</label>
+                <input id="provider" class="form-control" value="DemoPay">
+              </div>
+            </div>
+          </div>
+          <div class="card-footer bg-body">
+            <div class="d-grid">
+              <button id="btnCreate" class="btn btn-primary btn-lg btn-pill">Tạo & chuyển tới Checkout</button>
+            </div>
+            <div id="createMsg" class="footer-note mt-2 mono"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contract quick tools -->
+      <div class="col-lg-6">
+        <div class="cardx h-100">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <div class="fw-bold">Hợp đồng số hóa (tùy chọn)</div>
+            <span class="badge text-bg-secondary">/payment/contract/*</span>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label">Payment ID</label>
+                <input id="c_paymentId" class="form-control" placeholder="ID từ bước thanh toán">
+              </div>
+              <div class="col-12">
+                <label class="form-label">Tiêu đề</label>
+                <input id="c_title" class="form-control" value="Hợp đồng mua bán xe điện">
+              </div>
+              <div class="col-12">
+                <label class="form-label">Nội dung</label>
+                <textarea id="c_content" rows="4" class="form-control">Bên A cam kết tình trạng pin theo mô tả; Bên B thanh toán đủ số tiền...</textarea>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer bg-body">
+            <div class="d-flex gap-2 flex-wrap">
+              <button id="btnCreateContract" class="btn btn-dark btn-pill">Tạo hợp đồng</button>
+              <div class="vr"></div>
+              <input id="s_contractId" class="form-control" style="max-width:220px" placeholder="Contract ID">
+              <input id="s_signer" class="form-control" style="max-width:220px" value="Nguyễn Văn B">
+              <button id="btnSign" class="btn btn-outline-primary btn-pill">Ký điện tử</button>
+            </div>
+            <div id="contractMsg" class="footer-note mt-2 mono"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="text-center mt-4 footer-note">
+      © Payment Service – Dev Console
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="position-fixed bottom-0 end-0 p-3" style="z-index:1080">
+    <div id="toast" class="toast text-bg-success border-0" role="alert" data-bs-delay="2200">
+      <div class="d-flex">
+        <div class="toast-body" id="toastBody">Thành công</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const toast = new bootstrap.Toast(document.getElementById('toast'));
+    const toastBody = document.getElementById('toastBody');
+    function okToast(msg){ toastBody.textContent = msg; toast.show(); }
+    function j(url, opts){ return fetch(url, Object.assign({headers:{'Content-Type':'application/json'}}, opts||{})); }
+
+    // Create payment -> redirect checkout
+    document.getElementById('btnCreate').onclick = async () => {
+      const payload = {
+        order_id: +document.getElementById('orderId').value || 0,
+        buyer_id: +document.getElementById('buyerId').value || 0,
+        seller_id: +document.getElementById('sellerId').value || 0,
+        amount: +document.getElementById('amount').value || 0,
+        method: document.getElementById('method').value,
+        provider: document.getElementById('provider').value
+      };
+      const btn = document.getElementById('btnCreate'); btn.disabled = true;
+      const r = await j('/payment/create', {method:'POST', body: JSON.stringify(payload)});
+      const d = await r.json();
+      if(r.ok){
+        okToast('Đã tạo Payment #' + d.payment_id);
+        window.location = d.checkout_url || ('/payment/checkout/' + d.payment_id);
+      }else{
+        document.getElementById('createMsg').textContent = JSON.stringify(d);
+        btn.disabled = false;
+      }
+    };
+
+    // Contract create
+    document.getElementById('btnCreateContract').onclick = async () => {
+      const pid = +document.getElementById('c_paymentId').value || 0;
+      const payload = { payment_id: pid, title: document.getElementById('c_title').value, content: document.getElementById('c_content').value };
+      const r = await j('/payment/contract/create', {method:'POST', body: JSON.stringify(payload)});
+      const d = await r.json();
+      if(r.ok){
+        document.getElementById('s_contractId').value = d.contract_id;
+        okToast('Tạo hợp đồng #' + d.contract_id + ' thành công');
+      }else{
+        document.getElementById('contractMsg').textContent = JSON.stringify(d);
+      }
+    };
+
+    // Sign contract
+    document.getElementById('btnSign').onclick = async () => {
+      const cid = +document.getElementById('s_contractId').value || 0;
+      const signer = document.getElementById('s_signer').value;
+      const r = await j('/payment/contract/sign', {method:'POST', body: JSON.stringify({contract_id:cid, signer_name: signer})});
+      const d = await r.json();
+      if(r.ok){
+        okToast('Đã ký hợp đồng');
+      }else{
+        document.getElementById('contractMsg').textContent = JSON.stringify(d);
+      }
+    };
+  </script>
+</body>
+</html>

@@ -3,6 +3,9 @@ from datetime import datetime
 from enum import Enum as PyEnum
 from sqlalchemy import Enum, Index
 from db import db
+# models.py
+from extensions import db   # hoặc: from db import db
+# ... các lớp Payment, Contract, enum PaymentMethod, PaymentStatus ...
 
 # ---- Payment method: thêm CASH
 class PaymentMethod(PyEnum):

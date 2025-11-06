@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Thanh toán đơn hàng #{{ pid }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body{background:linear-gradient(145deg,#f3f6ff,#eaefff);min-height:100vh}
+    .wrap{max-width:1100px;margin:40px auto}
+    .hero{background:#0d47a1;color:#fff;border-radius:16px;padding:18px 24px;box-shadow:0 8px 20px rgba(13,71,161,.18)}
+    .cardx{background:#fff;border-radius:16px;box-shadow:0 10px 24px rgba(0,0,0,.08);overflow:hidden}
+    .thumb{min-height:260px;background:#f8fafc;display:flex;align-items:center;justify-content:center}
+    .thumb img{max-height:260px;width:100%;object-fit:cover}
+    .info{padding:22px}
+    .info .kv{display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px dashed #e5e7eb}
+    .actions{padding:18px;border-top:1px solid #eef2f7;display:flex;gap:12px;flex-wrap:wrap}
+    .w-280{width:280px;max-width:100%}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero d-flex align-items-center justify-content-between">
+      <h1>Thanh toán đơn hàng</h1>
+      <span class="badge rounded-pill bg-{{ status_cls }} text-uppercase">{{ status }}</span>
+    </div>
+
+    <div class="cardx mt-3">
+      <div class="row g-0">
+        <div class="col-md-5 thumb"><img src="{{ img_url }}" alt="Ảnh"></div>
+        <div class="col-md-7">
+          <div class="info">
+            <div class="kv"><span class="text-muted">Mã giao dịch</span><b>#{{ pid }}</b></div>
+            <div class="kv"><span class="text-muted">Số đơn hàng</span><b>#{{ order_id }}</b></div>
+            <div class="kv"><span class="text-muted">Số tiền</span><b>{{ "{:,.0f}".format(amount) }} VND</b></div>
+            <div class="kv"><span class="text-muted">Nhà cung cấp thanh toán</span><span>{{ provider }}</span></div>
+            <div class="kv">
+              <span class="text-muted">Hình thức thanh toán</span>
+              <div class="d-flex align-items-center gap-2">
+                <select id="methodSel" class="form-select form-select-sm w-280">
+                  <option value="e-wallet" {% if method == "e-wallet" %}selected{% endif %}>Ví điện tử</option>
+                  <option value="banking" {% if method == "banking" %}selected{% endif %}>Ngân hàng</option>
+                  <option value="cash"    {% if method == "cash" %}selected{% endif %}>Tiền mặt</option>
+                </select>
+                <button id="btnSaveMethod" class="btn btn-outline-primary btn-sm">Lưu</button>
+              </div>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="btnPay" class="btn btn-primary px-4 flex-grow-1" data-bs-toggle="modal" data-bs-target="#invoiceModal">
+              ✅ Tạo hóa đơn
+            </button>
+            <a href="/" class="btn btn-light">← Trang chủ</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'payment/_partials.html' %}
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const sel = document.getElementById('methodSel');
+    const selModal = document.getElementById('methodInModal');
+    sel?.addEventListener('change', ()=> { if(selModal) selModal.value = sel.value; });
+
+    document.getElementById('btnSaveMethod')?.addEventListener('click', async () => {
+      const btn = document.getElementById('btnSaveMethod');
+      btn.disabled = true; btn.textContent = 'Đang lưu...';
+      try{
+        const res = await fetch('/payment/update_method/{{ pid }}', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ method: sel.value })});
+        const data = await res.json();
+        if(res.ok){ if(selModal) selModal.value = sel.value; alert('Đã lưu: ' + data.method); }
+        else{ alert('Lỗi: ' + (data.error || 'Không lưu được.')); }
+      }catch(e){ alert('Lỗi kết nối.'); }
+      finally{ btn.disabled = false; btn.textContent = 'Lưu'; }
+    });
+  </script>
+</body>
+</html>
