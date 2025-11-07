@@ -1,4 +1,4 @@
-# gateway/app.py — unified for posting listings
+# gateway/app.py 
 from flask import Flask, render_template, redirect, url_for, request, session, flash, Response, jsonify
 import os, requests, jwt, time, json, re
 from functools import wraps
@@ -302,23 +302,31 @@ def add_listing():
         except requests.RequestException:
             flash("Không kết nối được Listing service.", "error")
             return render_template("post_product.html")
-
-        # --- Quan trọng: luôn trả về response ---
         if r.status_code == 201:
             flash("Đăng tin thành công! Bài đang chờ admin duyệt.", "success")
             return redirect(url_for("home"))
-        else:
-            ct = r.headers.get("content-type", "")
-            msg = None
-            if ct.startswith("application/json"):
-                try:
-                    msg = r.json().get("error")
-                except Exception:
-                    pass
-            flash(f"Đăng tin thất bại (HTTP {r.status_code}). {msg or (r.text or '')[:200]}", "error")
-            return render_template("post_product.html"), r.status_code
 
-    # GET form
+        if r.status_code == 403:
+            msg = None
+            try:
+                if r.headers.get("content-type","").startswith("application/json"):
+                    msg = (r.json() or {}).get("error")
+            except Exception:
+                pass
+            flash(msg or "Tài khoản của bạn đang bị hạn chế đăng tin (spam).", "error")
+            return render_template("post_product.html"), 403
+
+        ct = r.headers.get("content-type", "")
+        msg = None
+        if ct.startswith("application/json"):
+            try:
+                msg = r.json().get("error")
+            except Exception:
+                pass
+        flash(f"Đăng tin thất bại (HTTP {r.status_code}). {msg or (r.text or '')[:200]}", "error")
+        return render_template("post_product.html"), r.status_code
+
+
     return render_template("post_product.html")
 
 
@@ -431,11 +439,20 @@ def approve_product(pid):
         session["next_after_login"] = url_for("approve_product", pid=pid)
         return redirect(url_for("login_page"))
     try:
-        requests.put(
+        r = requests.put(
             f"{LISTING_URL}/listings/{pid}/approve",
             headers={"Authorization": f"Bearer {session.get('access_token','')}"}
         )
-        flash("✅ Đã duyệt bài đăng.", "success")
+        if r.ok:
+            flash("✅ Đã duyệt bài đăng.", "success")
+        else:
+            msg = None
+            try:
+                if r.headers.get("content-type","").startswith("application/json"):
+                    msg = (r.json() or {}).get("error")
+            except Exception:
+                pass
+            flash(msg or f"Không duyệt được (HTTP {r.status_code}).", "error")
     except requests.RequestException:
         flash("Không kết nối được listing service.", "error")
     return redirect(url_for("admin_page"))
@@ -456,23 +473,46 @@ def reject_product(pid):
 
 
 @app.post("/admin/mark_spam/<int:pid>")
+@app.get("/admin/mark_spam/<int:pid>")
 def mark_spam(pid):
     if not is_admin_session():
         session["next_after_login"] = url_for("mark_spam", pid=pid)
         return redirect(url_for("login_page"))
-    note = request.form.get("note")
-    requests.put(f"{LISTING_URL}/listings/{pid}/mark_spam",
-                 json={"note": note},
-                 headers={"Authorization": f"Bearer {session.get('access_token','')}"})
+    note = request.values.get("note")  
+    try:
+        r = requests.put(
+            f"{LISTING_URL}/listings/{pid}/mark_spam",
+            json={"note": note} if note else None,
+            headers={"Authorization": f"Bearer {session.get('access_token','')}"}
+        )
+        if r.ok:
+            flash("🚫 Đã gắn spam & chặn user đăng bài mới.", "success")
+        else:
+            msg = None
+            try:
+                if r.headers.get("content-type","").startswith("application/json"):
+                    msg = (r.json() or {}).get("error")
+            except Exception:
+                pass
+            flash(msg or f"Đánh dấu spam thất bại (HTTP {r.status_code}).", "error")
+    except requests.RequestException:
+        flash("Không kết nối được listing service.", "error")
     return redirect(url_for("admin_page"))
 
 @app.post("/admin/unspam/<int:pid>")
+@app.get("/admin/unspam/<int:pid>")
 def unspam(pid):
     if not is_admin_session():
         session["next_after_login"] = url_for("unspam", pid=pid)
         return redirect(url_for("login_page"))
-    requests.put(f"{LISTING_URL}/listings/{pid}/unspam",
-                 headers={"Authorization": f"Bearer {session.get('access_token','')}"})
+    try:
+        r = requests.put(
+            f"{LISTING_URL}/listings/{pid}/unspam",
+            headers={"Authorization": f"Bearer {session.get('access_token','')}"}
+        )
+        flash("✅ Đã bỏ spam (mở khoá nếu không còn bài spam).", "success" if r.ok else "error")
+    except requests.RequestException:
+        flash("Không kết nối được listing service.", "error")
     return redirect(url_for("admin_page"))
 
 @app.post("/admin/verify/<int:pid>")
@@ -507,18 +547,39 @@ def delete_product(pid):
         flash("Không kết nối được listing service.", "error")
     return redirect(url_for("admin_page"))
 
-@app.route("/admin/approve_user/<int:user_id>", methods=["POST", "GET"])
+
+def _try_patch(urls_with_payload, headers, timeout=8):
+    last_err = "No targets"
+    for url, payload in urls_with_payload:
+        try:
+            r = requests.patch(url, json=payload, headers=headers, timeout=timeout)
+            if r.ok:
+                return True, r
+            last_err = f"{url} -> HTTP {r.status_code} {r.text[:200]}"
+        except requests.RequestException as e:
+            last_err = f"{url} -> {e}"
+    return False, last_err
+
+@app.route("/admin/approve_user/<int:user_id>", methods=["POST","GET"])
 def approve_user(user_id):
     if not is_admin_session():
         session["next_after_login"] = url_for("approve_user", user_id=user_id)
         return redirect(url_for("login_page"))
-    try:
-        headers = {"Authorization": f"Bearer {session['access_token']}", "Content-Type": "application/json"}
-        r = requests.patch(f"{ADMIN_URL}/admin/users/{user_id}/status",
-                           json={"status": "approved"}, headers=headers, timeout=8)
-        flash("Đã duyệt tài khoản." if r.ok else "Duyệt thất bại.", "success" if r.ok else "error")
-    except requests.RequestException:
-        flash("Không kết nối được admin service.", "error")
+
+    headers = {"Authorization": f"Bearer {session['access_token']}",
+               "Content-Type": "application/json"}
+
+    targets = [
+        (f"{ADMIN_URL}/admin/users/{user_id}/status", {"status": "approved"}),
+        (f"{AUTH_URL}/auth/admin/users/{user_id}/status", {"status": "approved"}),
+        (f"{AUTH_URL}/auth/users/{user_id}/status", {"status": "approved"}),
+        (f"{AUTH_URL}/auth/admin/users/{user_id}", {"approved": True}),
+    ]
+    ok, res = _try_patch(targets, headers)
+    if ok:
+        flash("✅ Đã duyệt tài khoản.", "success")
+    else:
+        flash(f"Không duyệt được: {res}", "error")
     return redirect(url_for("admin_page"))
 
 @app.route("/admin/delete_user/<int:user_id>", methods=["POST","GET"])
@@ -526,14 +587,23 @@ def delete_user(user_id):
     if not is_admin_session():
         session["next_after_login"] = url_for("delete_user", user_id=user_id)
         return redirect(url_for("login_page"))
-    try:
-        headers = {"Authorization": f"Bearer {session['access_token']}", "Content-Type": "application/json"}
-        r = requests.patch(f"{ADMIN_URL}/admin/users/{user_id}/status",
-                           json={"status": "locked"}, headers=headers, timeout=8)
-        flash("Đã khóa tài khoản." if r.ok else "Khóa tài khoản thất bại.", "success" if r.ok else "error")
-    except requests.RequestException:
-        flash("Không kết nối được admin service.", "error")
+
+    headers = {"Authorization": f"Bearer {session['access_token']}",
+               "Content-Type": "application/json"}
+    targets = [
+        (f"{ADMIN_URL}/admin/users/{user_id}/status", {"status": "locked"}),
+        (f"{AUTH_URL}/auth/admin/users/{user_id}/status", {"status": "locked"}),
+        (f"{AUTH_URL}/auth/users/{user_id}/status", {"status": "locked"}),
+        (f"{AUTH_URL}/auth/admin/users/{user_id}", {"locked": True}),
+    ]
+    ok, res = _try_patch(targets, headers)
+    if ok:
+        flash("🔒 Đã khóa tài khoản.", "success")
+    else:
+        flash(f"Không khóa được: {res}", "error")
     return redirect(url_for("admin_page"))
+
+ 
 
 # ===================== AI price suggest =====================
 @app.post("/ai/price_suggest")
@@ -582,7 +652,264 @@ def profile_page():
 def policy_page():
     return render_template("policy.html")
 
-# ===================== Run =====================
+
+_AI_PRICE_CACHE = {}  
+_AI_PRICE_TTL_S = 300  
+
+def _ai_cache_get(key):
+    now = __import__("time").time()
+    v = _AI_PRICE_CACHE.get(key)
+    if not v:
+        return None
+    exp, data = v
+    if now > exp:
+        _AI_PRICE_CACHE.pop(key, None)
+        return None
+    return data
+
+def _ai_cache_set(key, data, ttl=_AI_PRICE_TTL_S):
+    now = __import__("time").time()
+    _AI_PRICE_CACHE[key] = (now + ttl, data)
+
+def _ai_hash_payload(payload: dict) -> str:
+    m = __import__("hashlib").sha256()
+    m.update(__import__("json").dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8"))
+    return m.hexdigest()
+
+def _ai_num(x):
+    try:
+        return _num(x) 
+    except Exception:
+        import re
+        if x is None:
+            return None
+        m = re.search(r"\d+(?:\.\d+)?", str(x))
+        return float(m.group(0)) if m else None
+
+def _ai_build_predict_payload(raw: dict) -> dict:
+    pt = (raw.get("product_type") or raw.get("item_type") or "car").strip().lower()
+    name = (raw.get("name") or "").strip()
+    brand = (raw.get("brand") or "").strip()
+    province = (raw.get("province") or "").strip()
+    year = _ai_num(raw.get("year"))
+    mileage = _ai_num(raw.get("mileage"))
+    cap_kwh = _ai_num(raw.get("battery_capacity_kwh") or raw.get("battery_capacity"))
+    description = (raw.get("description") or "").strip()
+    return {
+        "product_type": pt,
+        "name": name,
+        "brand": brand,
+        "province": province,
+        "year": int(year) if year is not None else None,
+        "mileage": int(mileage) if mileage is not None else None,
+        "battery_capacity_kwh": float(cap_kwh) if cap_kwh is not None else None,
+        "description": description,
+    }
+
+def _ai_safe_jsonify(obj, status=200):
+    from flask import jsonify
+    return jsonify(obj), status
+
+@app.post("/ai/price_suggest_v2")
+def ai_price_suggest_v2():
+    import os, requests, json
+    if (getattr(request, "content_type", "") or "").startswith("application/json"):
+        raw = request.get_json(silent=True) or {}
+    else:
+        raw = request.form.to_dict()
+
+    payload = _ai_build_predict_payload(raw)
+    cache_key = _ai_hash_payload(payload)
+    cached = _ai_cache_get(cache_key)
+    if cached is not None:
+        return _ai_safe_jsonify({"cached": True, "data": cached})
+
+    PRICING_URL = os.getenv("PRICING_URL", "http://pricing_service:5003")
+    try:
+        r = requests.post(f"{PRICING_URL}/predict", json=payload, timeout=(5, 90))
+    except requests.exceptions.ReadTimeout as e:
+        app.logger.exception("pricing-service read timeout (v2)")
+        return _ai_safe_jsonify({"error": "pricing-service quá thời gian phản hồi", "detail": str(e)}, 504)
+    except requests.exceptions.RequestException as e:
+        app.logger.exception("price_suggest_v2 failed: %s", e)
+        return _ai_safe_jsonify({"error": "Không kết nối được pricing-service", "detail": str(e)}, 502)
+
+    ct = (r.headers.get("content-type") or "")
+    if ct.startswith("application/json"):
+        try:
+            data = r.json()
+            _ai_cache_set(cache_key, data)
+            return _ai_safe_jsonify({"cached": False, "data": data}, r.status_code)
+        except Exception:
+            pass
+    try:
+        _ai_cache_set(cache_key, {"text": r.text, "content_type": ct})
+    except Exception:
+        pass
+    return (r.text, r.status_code, {"Content-Type": ct or "text/plain"})
+
+
+@app.get("/ai/estimate_from_listing/<int:pid>")
+def ai_estimate_from_listing(pid: int):
+    import os, requests
+    LISTING_URL = os.getenv("LISTING_URL", "http://listing_service:5002")
+    PRICING_URL = os.getenv("PRICING_URL", "http://pricing_service:5003")
+
+    headers = {}
+    tok = session.get("access_token")
+    if tok:
+        headers["Authorization"] = f"Bearer {tok}"
+    try:
+        r = requests.get(f"{LISTING_URL}/listings/{pid}", headers=headers, timeout=8)
+        if not r.ok or not (r.headers.get("content-type","").startswith("application/json")):
+            return _ai_safe_jsonify({"error": "Không tải được thông tin sản phẩm.", "status": r.status_code}, 502)
+        item = r.json()
+    except requests.RequestException as e:
+        return _ai_safe_jsonify({"error": "Không kết nối được listing-service", "detail": str(e)}, 502)
+
+    raw = {
+        "product_type": item.get("item_type") or item.get("product_type") or "car",
+        "name": item.get("name"),
+        "brand": item.get("brand"),
+        "province": item.get("province"),
+        "year": item.get("year"),
+        "mileage": item.get("mileage"),
+        "battery_capacity_kwh": item.get("battery_capacity_kwh") or item.get("battery_capacity"),
+        "description": item.get("description"),
+    }
+    payload = _ai_build_predict_payload(raw)
+
+    cache_key = "id:" + str(pid) + ":" + _ai_hash_payload(payload)
+    cached = _ai_cache_get(cache_key)
+    if cached is not None:
+        return _ai_safe_jsonify({"cached": True, "listing": item, "data": cached})
+
+    try:
+        r2 = requests.post(f"{PRICING_URL}/predict", json=payload, timeout=(5, 90))
+    except requests.exceptions.ReadTimeout as e:
+        app.logger.exception("pricing-service read timeout (from_listing)")
+        return _ai_safe_jsonify({"error": "pricing-service quá thời gian phản hồi", "detail": str(e)}, 504)
+    except requests.exceptions.RequestException as e:
+        app.logger.exception("estimate_from_listing failed: %s", e)
+        return _ai_safe_jsonify({"error": "Không kết nối được pricing-service", "detail": str(e)}, 502)
+
+    ct2 = (r2.headers.get("content-type") or "")
+    if ct2.startswith("application/json"):
+        try:
+            data = r2.json()
+            _ai_cache_set(cache_key, data)
+            return _ai_safe_jsonify({"cached": False, "listing": item, "data": data}, r2.status_code)
+        except Exception:
+            pass
+    return (r2.text, r2.status_code, {"Content-Type": ct2 or "text/plain"})
+
+@app.post("/ai/bulk_price_suggest")
+def ai_bulk_price_suggest():
+    import requests, os
+    PRICING_URL = os.getenv("PRICING_URL", "http://pricing_service:5003")
+
+    payloads = []
+    if (getattr(request, "content_type", "") or "").startswith("application/json"):
+        data = request.get_json(silent=True) or {}
+        payloads = data.get("items") or []
+    else:
+        import json as _json
+        try:
+            payloads = _json.loads(request.form.get("items") or "[]")
+        except Exception:
+            payloads = []
+
+    if not isinstance(payloads, list) or not payloads:
+        return _ai_safe_jsonify({"error": "Thiếu danh sách items"}, 400)
+
+    results = []
+    for raw in payloads:
+        pl = _ai_build_predict_payload(raw or {})
+        key = _ai_hash_payload(pl)
+        cached = _ai_cache_get(key)
+        if cached is not None:
+            results.append({"input": pl, "cached": True, "data": cached})
+            continue
+        try:
+            r = requests.post(f"{PRICING_URL}/predict", json=pl, timeout=(5, 90))
+            if (r.headers.get("content-type") or "").startswith("application/json"):
+                data = r.json()
+                _ai_cache_set(key, data)
+                results.append({"input": pl, "cached": False, "data": data, "status": r.status_code})
+            else:
+                results.append({"input": pl, "cached": False, "text": r.text, "content_type": r.headers.get("content-type"), "status": r.status_code})
+        except requests.RequestException as e:
+            results.append({"input": pl, "error": str(e)})
+
+    return _ai_safe_jsonify({"items": results}, 200)
+
+@app.get("/ai/upstream_status")
+def ai_upstream_status():
+    import os, requests
+    urls = {
+        "auth": os.getenv("AUTH_URL", "http://auth_service:5001"),
+        "listing": os.getenv("LISTING_URL", "http://listing_service:5002"),
+        "pricing": os.getenv("PRICING_URL", "http://pricing_service:5003"),
+    }
+    out = {}
+    for name, base in urls.items():
+        try:
+            # ưu tiên endpoint health; fallback GET /
+            for path in ("/health", "/"):
+                try_url = base.rstrip("/") + path
+                r = requests.get(try_url, timeout=4)
+                out[name] = {
+                    "url": try_url,
+                    "ok": r.ok,
+                    "status": r.status_code,
+                    "content_type": r.headers.get("content-type"),
+                }
+                break
+            if name not in out:
+                out[name] = {"url": base, "ok": False, "status": None}
+        except requests.RequestException as e:
+            out[name] = {"url": base, "ok": False, "error": str(e)}
+    return _ai_safe_jsonify(out, 200)
+
+@app.post("/ai/normalize_fields")
+def ai_normalize_fields():
+    if (getattr(request, "content_type", "") or "").startswith("application/json"):
+        raw = request.get_json(silent=True) or {}
+    else:
+        raw = request.form.to_dict()
+    return _ai_safe_jsonify(_ai_build_predict_payload(raw), 200)
+
+@app.get("/ai/upstream_status_v2")
+def ai_upstream_status_v2():
+    import os, requests
+    checks = {
+        "auth": os.getenv("AUTH_URL", "http://auth_service:5001"),
+        "listing": os.getenv("LISTING_URL", "http://listing_service:5002"),
+        "pricing": os.getenv("PRICING_URL", "http://pricing_service:5003"),
+    }
+    out = {}
+    for name, base in checks.items():
+        base = base.rstrip("/")
+        tried = []
+        for path in ("/health", "/"):
+            url = base + path
+            tried.append(url)
+            try:
+                r = requests.get(url, timeout=4)
+                out[name] = {
+                    "url": url,
+                    "ok": r.ok,
+                    "status": r.status_code,
+                    "content_type": r.headers.get("content-type"),
+                }
+                if r.ok:
+                    break
+            except requests.RequestException as e:
+                out[name] = {"url": url, "ok": False, "error": str(e)}
+        out[name]["tried"] = tried
+    return (out, 200)
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
     app.run(host="0.0.0.0", port=port, debug=True)

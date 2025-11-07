@@ -1,6 +1,6 @@
 # listing-service/routes.py
 from flask import Blueprint, request, jsonify
-from models import db, Product, ProductStatus, ItemType 
+from models import db, Product, ProductStatus, ItemType, BlockedUser
 from sqlalchemy import or_
 import os, jwt, json
 from datetime import datetime
@@ -157,7 +157,7 @@ def list_products():
 
     status = request.args.get("status")
     if status in {"pending", "approved", "rejected", "spam"}:
-     q = q.filter(Product.status == ProductStatus(status))
+        q = q.filter(Product.status == ProductStatus(status))
 
     verified = request.args.get("verified")
     if verified in ["1", "true", "True", "0", "false", "False"]:
@@ -195,6 +195,9 @@ def create_product():
     user, err = require_auth()
     if err:
         return err
+    if BlockedUser.query.filter_by(username=user["username"]).first():
+        return jsonify(error="Tài khoản của bạn đã bị chặn đăng bài. Liên hệ hỗ trợ để được mở khoá."), 403
+
 
     data = request.get_json(force=True)
     name = (data.get("name") or "").strip()
@@ -345,3 +348,42 @@ def unverify_product(pid):
     p.verified = False
     db.session.commit()
     return jsonify(message="Unverified", item=to_json(p)), 200
+@bp.put("/<int:pid>/mark_spam")
+def mark_spam(pid):
+    admin, err = require_admin()
+    if err: return err
+    p = Product.query.get_or_404(pid)
+
+    note = (request.get_json(silent=True) or {}).get("note")
+    p.status = ProductStatus.spam
+    p.approved = False
+    p.approved_at = None
+    p.approved_by = None
+    if note:
+        p.moderation_notes = ((p.moderation_notes or "") + f"\n[spam] {note}").strip()
+
+    if not BlockedUser.query.filter_by(username=p.owner).first():
+        db.session.add(BlockedUser(username=p.owner, reason=note or "spam"))
+
+    db.session.commit()
+    return jsonify(message="Đã gắn spam & chặn tài khoản đăng bài.", item=to_json(p)), 200
+
+
+@bp.put("/<int:pid>/unspam")
+def unspam(pid):
+    admin, err = require_admin()
+    if err: return err
+    p = Product.query.get_or_404(pid)
+
+    p.status = ProductStatus.pending
+    db.session.commit()
+
+    cnt = Product.query.filter(
+        Product.owner == p.owner,
+        Product.status == ProductStatus.spam
+    ).count()
+    if cnt == 0:
+        BlockedUser.query.filter_by(username=p.owner).delete()
+        db.session.commit()
+
+    return jsonify(message="Đã bỏ spam. Mở khoá tài khoản nếu không còn bài spam." , item=to_json(p)), 200

@@ -44,3 +44,11 @@ class Product(db.Model):
     status           = db.Column(SAEnum(ProductStatus), default=ProductStatus.pending, nullable=False)
     verified         = db.Column(db.Boolean, default=False)
     moderation_notes = db.Column(db.Text)
+
+class BlockedUser(db.Model):
+    __tablename__ = "blocked_users"
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, index=True, nullable=False)
+    reason = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
