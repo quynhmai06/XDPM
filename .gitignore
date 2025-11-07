@@ -5,3 +5,5 @@
 **/*.pyc
 gateway/static/uploads/
 .vscode/
+.env
+**/.env
