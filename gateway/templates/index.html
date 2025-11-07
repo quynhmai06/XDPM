@@ -38,7 +38,7 @@
             </div>
           </div>
 
-          <a href="/add" class="post-button">Đăng tin</a>
+          <a href="{{ url_for('add_listing') }}" class="post-button">Đăng tin</a>
         {% else %}
           <a href="{{ url_for('login_page') }}" class="user-menu-item">Đăng nhập</a>
           <a href="{{ url_for('register_page') }}" class="user-menu-item">Đăng ký</a>
@@ -69,32 +69,76 @@
       <h2 class="section-title">Xe điện nổi bật</h2>
       <a href="#" class="view-all">Xem tất cả</a>
     </div>
+
     <div class="product-grid">
-      <a href="#" class="product-card">
-        <img src="/static/images/v1.jpg" alt="VinFast VF e34" class="product-image"/>
-        <div class="product-info">
-          <h3 class="product-title">VinFast VF e34 2023 - Như mới</h3>
-          <div class="product-price">590.000.000 đ</div>
-          <div class="product-location"><i class="fas fa-map-marker-alt"></i> TP. Hồ Chí Minh</div>
-        </div>
-      </a>
-      <a href="#" class="product-card">
-        <img src="/static/images/v3.jpg" alt="Tesla Model 3" class="product-image"/>
-        <div class="product-info">
-          <h3 class="product-title">Tesla Model 3 Standard Range Plus 2022</h3>
-          <div class="product-price">1.090.000.000 đ</div>
-          <div class="product-location"><i class="fas fa-map-marker-alt"></i> Hà Nội</div>
-        </div>
-      </a>
+      {% if cars and cars|length %}
+        {% for p in cars %}
+          <a href="/listings/{{ p.id }}" class="product-card">
+            {% if p.verified %}
+              <span class="badge-verified">ĐÃ KIỂM ĐỊNH</span>
+            {% endif %}
+            {% if p.item_type == 'vehicle' %}
+              <span class="badge-type">Ô TÔ</span>
+            {% elif p.item_type == 'battery' %}
+              <span class="badge-type battery">PIN</span>
+            {% endif %}
+            <img
+              src="{{ p.main_image_url or '/static/images/placeholder.png' }}"
+              alt="{{ p.name }}"
+              class="product-image"
+              onerror="this.onerror=null;this.src='/static/images/placeholder.png'"/>
+            <div class="product-info">
+              <h3 class="product-title">{{ p.name }}</h3>
+              <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
+              <div class="product-location">
+                <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
+              </div>
+            </div>
+          </a>
+        {% endfor %}
+      {% else %}
+        <p>Chưa có xe nào được duyệt.</p>
+      {% endif %}
     </div>
   </section>
 
+  <!-- =========== PIN XE ĐIỆN =========== -->
   <section class="product-section">
     <div class="section-header">
       <h2 class="section-title">Pin xe điện mới về</h2>
       <a href="#" class="view-all">Xem tất cả</a>
     </div>
-    <div class="product-grid"></div>
+
+    <div class="product-grid">
+      {% if batts and batts|length %}
+        {% for p in batts %}
+          <a href="/listings/{{ p.id }}" class="product-card">
+            {% if p.verified %}
+              <span class="badge-verified">ĐÃ KIỂM ĐỊNH</span>
+            {% endif %}
+            {% if p.item_type == 'vehicle' %}
+              <span class="badge-type">Ô TÔ</span>
+            {% elif p.item_type == 'battery' %}
+              <span class="badge-type battery">PIN</span>
+            {% endif %}
+            <img
+              src="{{ p.main_image_url or '/static/images/placeholder.png' }}"
+              alt="{{ p.name }}"
+              class="product-image"
+              onerror="this.onerror=null;this.src='/static/images/placeholder.png'"/>
+            <div class="product-info">
+              <h3 class="product-title">{{ p.name }}</h3>
+              <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
+              <div class="product-location">
+                <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
+              </div>
+            </div>
+          </a>
+        {% endfor %}
+      {% else %}
+        <p>Chưa có pin nào được duyệt.</p>
+      {% endif %}
+    </div>
   </section>
   <div id="authModal" class="modal" style="display:none">
     <div class="modal-content">

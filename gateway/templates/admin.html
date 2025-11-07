@@ -123,14 +123,17 @@
     </section>
 
     <section class="admin-card" id="products">
-      <div class="section-head">
-        <h2 class="section-title"><i class="fa-solid fa-car"></i> Duyệt bài đăng</h2>
-      </div>
       <div class="section-tools">
-        <select id="filterPosts" class="select">
-          <option value="all">Tất cả trạng thái</option>
-          <option value="pending">Chờ duyệt</option>
-          <option value="approved">Đã duyệt</option>
+        <select id="filterPostsStatus" class="select">
+          <option value=""  {{ ''==cur_status and 'selected' or '' }}>Tất cả trạng thái</option>
+          <option value="pending"  {{ 'pending'==cur_status and 'selected' or '' }}>Chờ duyệt</option>
+          <option value="approved" {{ 'approved'==cur_status and 'selected' or '' }}>Đã duyệt</option>
+          <option value="spam"     {{ 'spam'==cur_status and 'selected' or '' }}>Spam</option>
+        </select>
+        <select id="filterPostsVerified" class="select">
+          <option value=""  {{ ''==cur_verified and 'selected' or '' }}>Tất cả kiểm định</option>
+          <option value="1" {{ '1'==cur_verified and 'selected' or '' }}>Đã kiểm định</option>
+          <option value="0" {{ '0'==cur_verified and 'selected' or '' }}>Chưa kiểm định</option>
         </select>
       </div>
       <div class="table-wrap">
@@ -151,7 +154,10 @@
               <tr data-status="{{ 'approved' if p.approved else 'pending' }}">
               <tr>
                 <td>{{ p.id }}</td>
-                <td class="td-strong">{{ p.name }}</td>
+                <td class="td-strong">
+                  <a href="{{ url_for('product_detail', pid=p.id) }}">{{ p.name }}</a>
+                  {% if p.verified %}<span class="chip chip-success" style="margin-left:6px;">ĐÃ KIỂM ĐỊNH</span>{% endif %}
+                </td>
                 <td>{{ p.owner.username if p.owner is mapping else p.owner }}</td>
                 <td>{{ "{:,.0f}".format(p.price) }} đ</td>
                 <td>
@@ -161,10 +167,38 @@
                 </td>
                 <td class="td-actions">
                   {% if not p.approved %}
-                  <a class="btn btn-ghost success" href="/admin/approve/{{ p.id }}"><i class="fa-regular fa-circle-check"></i> Duyệt</a>
+                    <a class="btn btn-ghost success" href="/admin/approve/{{ p.id }}">
+                      <i class="fa-regular fa-circle-check"></i> Duyệt
+                    </a>
                   {% endif %}
-                  <a class="btn btn-ghost danger" href="/admin/delete/{{ p.id }}"><i class="fa-regular fa-trash-can"></i> Xóa</a>
+
+                  {# Spam / Unspam #}
+                  {% if p.status == 'spam' %}
+                    <form action="{{ url_for('unspam', pid=p.id) }}" method="post" style="display:inline">
+                      <button class="btn btn-ghost warning"><i class="fa-solid fa-rotate-left"></i> Bỏ spam</button>
+                    </form>
+                  {% else %}
+                    <form action="{{ url_for('mark_spam', pid=p.id) }}" method="post" style="display:inline">
+                      <button class="btn btn-ghost warning"><i class="fa-solid fa-ban"></i> Spam</button>
+                    </form>
+                  {% endif %}
+
+                  {# Verify / Unverify #}
+                  {% if p.verified %}
+                    <form action="{{ url_for('unverify', pid=p.id) }}" method="post" style="display:inline">
+                      <button class="btn btn-ghost danger"><i class="fa-regular fa-circle-xmark"></i> Bỏ kiểm định</button>
+                    </form>
+                  {% else %}
+                    <form action="{{ url_for('verify', pid=p.id) }}" method="post" style="display:inline">
+                      <button class="btn btn-ghost success"><i class="fa-solid fa-shield-halved"></i> Gắn kiểm định</button>
+                    </form>
+                  {% endif %}
+
+                  <a class="btn btn-ghost danger" href="/admin/delete/{{ p.id }}">
+                    <i class="fa-regular fa-trash-can"></i> Xóa
+                  </a>
                 </td>
+
               </tr>
               {% endfor %}
             {% else %}
@@ -240,7 +274,22 @@
       </form>
     </div>
   </div>
-
+    <script>
+  (function(){
+    const s = document.getElementById('filterPostsStatus');
+    const v = document.getElementById('filterPostsVerified');
+    function go(){
+      const u = new URL(location.href);
+      const S = (s && s.value || '').trim();
+      const V = (v && v.value || '').trim();
+      if (S) u.searchParams.set('status', S); else u.searchParams.delete('status');
+      if (V) u.searchParams.set('verified', V); else u.searchParams.delete('verified');
+      location.href = u.toString();
+    }
+    if (s) s.addEventListener('change', go);
+    if (v) v.addEventListener('change', go);
+  })();
+  </script>
   <script>
     function openAdminLogin(e){ if(e) e.preventDefault(); document.getElementById('adminLoginModal').style.display='block'; }
     function closeAdminLogin(){ document.getElementById('adminLoginModal').style.display='none'; }

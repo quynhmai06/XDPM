@@ -1,20 +1,23 @@
 # listing-service/routes.py
 from flask import Blueprint, request, jsonify
-from models import db, Product
+from models import db, Product, ProductStatus, ItemType 
+from sqlalchemy import or_
 import os, jwt, json
 from datetime import datetime
 
+
 bp = Blueprint("listing", __name__, url_prefix="/listings")
 JWT_SECRET = os.getenv("JWT_SECRET", "devsecret")
+STATIC_UPLOAD_PREFIX = "/static/uploads/"
 
 # ---------- Auth helpers ----------
 def current_user():
     auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer "): 
+    if not auth.startswith("Bearer "):
         return None
     token = auth.split(" ", 1)[1].strip()
     try:
-        return jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        return jwt.decode(token, JWT_SECRET, algorithms=["HS256"], options={"verify_sub": False})
     except Exception:
         return None
 
@@ -26,12 +29,48 @@ def require_auth():
 
 def require_admin():
     u = current_user()
-    if not u or u.get("role") != "admin":
+    if not u or str(u.get("role", "")).lower() != "admin":
         return None, (jsonify(error="Forbidden"), 403)
     return u, None
 
+# ---------- Image path helpers ----------
+def _norm_img(url: str | None) -> str | None:
+    """Chuẩn hóa URL ảnh để client hiển thị đúng."""
+    if not url:
+        return None
+    url = url.strip()
+    if url.lower().startswith(("http://", "https://")):
+        return url
+    if url.startswith("/"):
+        return url
+    if url.startswith("uploads/"):
+        url = url[len("uploads/"):]
+    return STATIC_UPLOAD_PREFIX + url
+
+def _strip_prefix(u: str | None) -> str | None:
+    """Loại bỏ prefix /static/uploads/ khi lưu DB."""
+    if not u:
+        return None
+    u = u.strip()
+    if u.startswith(STATIC_UPLOAD_PREFIX):
+        return u[len(STATIC_UPLOAD_PREFIX):]
+    if u.startswith("/uploads/"):
+        return u[len("/uploads/"):]
+    if u.startswith("uploads/"):
+        return u[len("uploads/"):]
+    return u
+
 # ---------- Utils ----------
 def to_json(p: Product):
+    """Chuyển Product sang dict JSON trả về cho client."""
+    sub_urls = []
+    try:
+        sub_urls = json.loads(p.sub_image_urls or "[]")
+        if not isinstance(sub_urls, list):
+            sub_urls = []
+    except Exception:
+        sub_urls = []
+
     return {
         "id": p.id,
         "name": p.name,
@@ -43,57 +82,58 @@ def to_json(p: Product):
         "mileage": p.mileage,
         "battery_capacity": p.battery_capacity,
         "owner": p.owner,
-        "main_image_url": p.main_image_url,
-        "sub_image_urls": json.loads(p.sub_image_urls or "[]"),
-        "approved": p.approved,
+        "main_image_url": _norm_img(p.main_image_url),
+        "sub_image_urls": [_norm_img(u) for u in sub_urls],
+        "approved": bool(p.approved),
         "approved_at": p.approved_at.isoformat() if p.approved_at else None,
         "approved_by": p.approved_by,
         "created_at": p.created_at.isoformat(),
         "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+        "status": p.status.value if p.status else "pending",
+        "verified": bool(p.verified),
+        "moderation_notes": p.moderation_notes,
     }
 
 def parse_int(v, default=None, minv=None, maxv=None):
-    if v is None or v == "": return default
+    if v is None or v == "":
+        return default
     try:
         n = int(v)
-        if minv is not None and n < minv: return default
-        if maxv is not None and n > maxv: return default
+        if minv is not None and n < minv:
+            return default
+        if maxv is not None and n > maxv:
+            return default
         return n
     except:
         return default
 
 # ---------- Endpoints ----------
-
 @bp.get("/")
 def list_products():
-    """
-    Query params:
-      q (search in name/description), brand, province,
-      min_price, max_price, year_from, year_to, mileage_max,
-      approved (0/1), owner (username),
-      sort (created_desc|created_asc|price_asc|price_desc),
-      page (default 1), per_page (<=50)
-    """
     q = Product.query
 
-    # Filters
-    kw = request.args.get("q", "").strip()
+    # --- search ---
+    kw = (request.args.get("q") or "").strip()
     if kw:
         like = f"%{kw}%"
-        q = q.filter(db.or_(Product.name.ilike(like), Product.description.ilike(like)))
+        q = q.filter(or_(Product.name.ilike(like), Product.description.ilike(like)))
 
+    # --- filters ---
     brand = request.args.get("brand")
-    if brand: q = q.filter(Product.brand == brand)
+    if brand:
+        q = q.filter(Product.brand == brand)
 
     province = request.args.get("province")
-    if province: q = q.filter(Product.province == province)
+    if province:
+        q = q.filter(Product.province == province)
 
     owner = request.args.get("owner")
-    if owner: q = q.filter(Product.owner == owner)
+    if owner:
+        q = q.filter(Product.owner == owner)
 
     approved = request.args.get("approved")
     if approved is not None:
-        q = q.filter(Product.approved == (approved in ["1","true","True"]))
+        q = q.filter(Product.approved == (approved in ["1", "true", "True"]))
 
     min_price = parse_int(request.args.get("min_price"), None, 0)
     if min_price is not None:
@@ -115,7 +155,19 @@ def list_products():
     if mileage_max is not None:
         q = q.filter(Product.mileage <= mileage_max)
 
-    # Sort
+    status = request.args.get("status")
+    if status in {"pending", "approved", "rejected", "spam"}:
+     q = q.filter(Product.status == ProductStatus(status))
+
+    verified = request.args.get("verified")
+    if verified in ["1", "true", "True", "0", "false", "False"]:
+        q = q.filter(Product.verified == (verified.lower() in ["1", "true"]))
+
+    item_type = (request.args.get("item_type") or "").strip().lower()
+    if item_type in {"vehicle", "battery"}:
+        q = q.filter(Product.item_type == ItemType(item_type))
+
+
     sort = request.args.get("sort", "created_desc")
     if sort == "created_asc":
         q = q.order_by(Product.created_at.asc())
@@ -126,7 +178,6 @@ def list_products():
     else:
         q = q.order_by(Product.created_at.desc())
 
-    # Pagination
     page = parse_int(request.args.get("page"), 1, 1)
     per_page = parse_int(request.args.get("per_page"), 12, 1, 50)
     page_obj = q.paginate(page=page, per_page=per_page, error_out=False)
@@ -142,7 +193,8 @@ def list_products():
 @bp.post("/")
 def create_product():
     user, err = require_auth()
-    if err: return err
+    if err:
+        return err
 
     data = request.get_json(force=True)
     name = (data.get("name") or "").strip()
@@ -150,12 +202,15 @@ def create_product():
     if not name or price <= 0:
         return jsonify(error="Thiếu tên hoặc giá không hợp lệ."), 400
 
-    # Validate số
     year = parse_int(data.get("year"))
     mileage = parse_int(data.get("mileage"))
     sub_urls = data.get("sub_image_urls") or []
     if not isinstance(sub_urls, list):
         return jsonify(error="sub_image_urls phải là danh sách URL."), 400
+
+    raw_item_type = (data.get("item_type") or "vehicle").strip().lower()
+    if raw_item_type not in {"vehicle", "battery"}:
+        raw_item_type = "vehicle"
 
     p = Product(
         name=name,
@@ -167,12 +222,15 @@ def create_product():
         mileage=mileage,
         battery_capacity=data.get("battery_capacity"),
         owner=user["username"],
-        main_image_url=data.get("main_image_url"),
-        sub_image_urls=json.dumps(sub_urls),
+        item_type=ItemType(raw_item_type), 
+        main_image_url=_strip_prefix(data.get("main_image_url")),
+        sub_image_urls=json.dumps([_strip_prefix(u) for u in sub_urls if u]),
     )
+
     db.session.add(p)
     db.session.commit()
     return jsonify(id=p.id, message="Đăng tin thành công.", item=to_json(p)), 201
+
 
 @bp.get("/<int:pid>")
 def get_product(pid):
@@ -182,13 +240,13 @@ def get_product(pid):
 @bp.patch("/<int:pid>")
 def update_product(pid):
     user, err = require_auth()
-    if err: return err
+    if err:
+        return err
     p = Product.query.get_or_404(pid)
 
-    # chỉ owner mới sửa, và chỉ sửa khi chưa duyệt
-    if user["username"] != p.owner and user.get("role") != "admin":
+    if user["username"] != p.owner and str(user.get("role", "")).lower() != "admin":
         return jsonify(error="Forbidden"), 403
-    if p.approved and user.get("role") != "admin":
+    if p.approved and str(user.get("role", "")).lower() != "admin":
         return jsonify(error="Đã duyệt, không thể sửa."), 400
 
     data = request.get_json(force=True)
@@ -196,27 +254,35 @@ def update_product(pid):
         if not (data["name"] or "").strip():
             return jsonify(error="Tên không hợp lệ."), 400
         p.name = data["name"].strip()
-    if "description" in data: p.description = data["description"]
+    if "description" in data:
+        p.description = data["description"]
     if "price" in data:
-        price = parse_int(data["price"], None, 1)
-        if price is None: return jsonify(error="Giá không hợp lệ."), 400
-        p.price = price
-    if "brand" in data: p.brand = data["brand"]
-    if "province" in data: p.province = data["province"]
+        val = parse_int(data["price"], None, 1)
+        if val is None:
+            return jsonify(error="Giá không hợp lệ."), 400
+        p.price = val
+    if "brand" in data:
+        p.brand = data["brand"]
+    if "province" in data:
+        p.province = data["province"]
     if "year" in data:
         y = parse_int(data["year"])
-        if y is None: return jsonify(error="Năm không hợp lệ."), 400
+        if y is None:
+            return jsonify(error="Năm không hợp lệ."), 400
         p.year = y
     if "mileage" in data:
         m = parse_int(data["mileage"], None, 0)
-        if m is None: return jsonify(error="Số km không hợp lệ."), 400
+        if m is None:
+            return jsonify(error="Số km không hợp lệ."), 400
         p.mileage = m
-    if "battery_capacity" in data: p.battery_capacity = data["battery_capacity"]
-    if "main_image_url" in data: p.main_image_url = data["main_image_url"]
+    if "battery_capacity" in data:
+        p.battery_capacity = data["battery_capacity"]
+    if "main_image_url" in data:
+        p.main_image_url = _strip_prefix(data["main_image_url"])
     if "sub_image_urls" in data:
         if not isinstance(data["sub_image_urls"], list):
             return jsonify(error="sub_image_urls phải là danh sách."), 400
-        p.sub_image_urls = json.dumps(data["sub_image_urls"])
+        p.sub_image_urls = json.dumps([_strip_prefix(u) for u in data["sub_image_urls"] if u])
 
     db.session.commit()
     return jsonify(message="Đã cập nhật.", item=to_json(p))
@@ -224,7 +290,8 @@ def update_product(pid):
 @bp.put("/<int:pid>/approve")
 def approve_product(pid):
     admin, err = require_admin()
-    if err: return err
+    if err:
+        return err
     p = Product.query.get_or_404(pid)
     p.approved = True
     p.approved_at = datetime.utcnow()
@@ -235,7 +302,8 @@ def approve_product(pid):
 @bp.put("/<int:pid>/unapprove")
 def unapprove_product(pid):
     admin, err = require_admin()
-    if err: return err
+    if err:
+        return err
     p = Product.query.get_or_404(pid)
     p.approved = False
     p.approved_at = None
@@ -246,11 +314,11 @@ def unapprove_product(pid):
 @bp.delete("/<int:pid>")
 def delete_product(pid):
     u, err = require_auth()
-    if err: return err
+    if err:
+        return err
     p = Product.query.get_or_404(pid)
 
-    # owner xóa được nếu chưa duyệt; admin xóa được luôn
-    if u.get("role") == "admin":
+    if str(u.get("role", "")).lower() == "admin":
         pass
     elif u["username"] == p.owner and not p.approved:
         pass
@@ -260,3 +328,20 @@ def delete_product(pid):
     db.session.delete(p)
     db.session.commit()
     return jsonify(message="Đã xoá.")
+@bp.put("/<int:pid>/verify")
+def verify_product(pid):
+    admin, err = require_admin()
+    if err: return err
+    p = Product.query.get_or_404(pid)
+    p.verified = True
+    db.session.commit()
+    return jsonify(message="Verified", item=to_json(p)), 200
+
+@bp.put("/<int:pid>/unverify")
+def unverify_product(pid):
+    admin, err = require_admin()
+    if err: return err
+    p = Product.query.get_or_404(pid)
+    p.verified = False
+    db.session.commit()
+    return jsonify(message="Unverified", item=to_json(p)), 200
