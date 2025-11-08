@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 AUTH_URL     = os.getenv("AUTH_URL",     "http://auth_service:5001")
 ADMIN_URL    = os.getenv("ADMIN_URL",    "http://admin_service:5003")
 LISTING_URL  = os.getenv("LISTING_URL",  "http://listing_service:5002")
+SEARCH_URL   = os.getenv("SEARCH_URL",   "http://search_service:5003")
 PRICING_URL  = os.getenv("PRICING_URL",  "http://pricing_service:5003")
 
 JWT_SECRET = os.getenv("JWT_SECRET", "devsecret")
@@ -97,6 +98,69 @@ def __routes():
 # ===================== Home =====================
 @app.route("/", endpoint="home")
 def home():
+    """Homepage with search and listings"""
+    # Check if we have any search parameters
+    has_search_params = any([
+        request.args.get("q"),
+        request.args.get("brand"),
+        request.args.get("province"),
+        request.args.get("item_type"),
+        request.args.get("min_price"),
+        request.args.get("max_price"),
+        request.args.get("year_from"),
+        request.args.get("year_to"),
+        request.args.get("mileage_max"),
+        request.args.get("battery_capacity_min"),
+        request.args.get("battery_capacity_max"),
+        request.args.get("sort"),
+    ])
+    
+    if has_search_params:
+        # User is searching - call search service
+        params = {}
+        
+        # Build search parameters
+        for key in ["q", "brand", "province", "item_type", "min_price", "max_price",
+                    "year_from", "year_to", "mileage_min", "mileage_max",
+                    "battery_capacity", "battery_capacity_min", "battery_capacity_max", "sort"]:
+            val = request.args.get(key, "").strip()
+            if val:
+                params[key] = val
+        
+        # Always filter approved items
+        params["approved"] = "1"
+        
+        # Pagination
+        page = request.args.get("page", "1")
+        per_page = request.args.get("per_page", "20")
+        params["page"] = page
+        params["per_page"] = per_page
+        
+        # Call search service
+        try:
+            resp = requests.get(f"{SEARCH_URL}/search/listings", params=params, timeout=10)
+            if resp.ok:
+                data = resp.json()
+                search_results = data.get("items", [])
+                total = data.get("total", 0)
+                pages = data.get("pages", 1)
+                current_page = data.get("page", 1)
+                
+                return render_template(
+                    "index.html",
+                    cars=[],  # Don't show default cars when searching
+                    batts=[],  # Don't show default batts when searching
+                    search_results=search_results,
+                    total=total,
+                    pages=pages,
+                    current_page=current_page,
+                    query_params=params,
+                    is_search=True
+                )
+        except requests.RequestException:
+            pass
+    
+    # Default homepage - show featured cars and batteries
     def fetch(params):
         try:
             r = requests.get(f"{LISTING_URL}/listings/", params=params, timeout=6)
@@ -120,7 +184,7 @@ def home():
         "per_page": 12,
     })
 
-    return render_template("index.html", cars=cars, batts=batts)
+    return render_template("index.html", cars=cars, batts=batts, is_search=False)
 
 
 

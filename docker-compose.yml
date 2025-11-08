@@ -55,6 +55,25 @@ services:
     ports: ["5002:5002"]
     restart: unless-stopped
 
+  search_service:
+    build: ./search-service
+    container_name: search_service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@postgres:5432/evdb
+      PORT: 5003
+    depends_on:
+      postgres:
+        condition: service_healthy
+      listing_service:
+        condition: service_started
+    ports: ["5010:5003"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys; \ntry:\n  r=urllib.request.urlopen('http://127.0.0.1:5003/search/',timeout=2)\n  sys.exit(0 if r.getcode()==200 else 1)\nexcept Exception:\n  sys.exit(1)\nPY"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s 
   pricing_service:
     build: ./pricing-service
     container_name: pricing_service
@@ -86,6 +105,7 @@ services:
       AUTH_URL: ${AUTH_URL_INTERNAL:-http://auth_service:5001}
       ADMIN_URL: ${ADMIN_URL_INTERNAL:-http://admin_service:5003}
       LISTING_URL: http://listing_service:5002
+      SEARCH_URL: http://search_service:5003
       PRICING_URL: http://pricing_service:5003 
       JWT_SECRET: ${JWT_SECRET}
       GATEWAY_SECRET: ${GATEWAY_SECRET:-dev_gateway_secret}
@@ -96,6 +116,8 @@ services:
       admin_service:
         condition: service_started   
       listing_service:
+        condition: service_started
+      search_service:
         condition: service_started
     ports: ["8000:8000"]
     restart: unless-stopped
