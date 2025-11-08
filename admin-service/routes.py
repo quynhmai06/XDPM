@@ -42,3 +42,5 @@ def create_bp(require_admin, auth_url: str):
             return jsonify({"error": "upstream_unreachable", "detail": str(e)}), 502
 
     return bp
+
+    
