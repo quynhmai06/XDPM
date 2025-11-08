@@ -20,6 +20,27 @@ services:
       retries: 10
       start_period: 15s
 
+
+  favorites_service:
+    build: ./favorites-service
+    container_name: favorites_service
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ev:evpass@postgres:5432/evdb
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 5004
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports: ["5004:5004"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys; \ntry:\n  r=urllib.request.urlopen('http://127.0.0.1:5004/',timeout=2)\n  sys.exit(0 if r.getcode()==200 else 1)\nexcept Exception:\n  sys.exit(1)\nPY"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
   admin_service:
     build: { context: ./admin-service }
     image: ev/admin-service:latest
@@ -106,7 +127,8 @@ services:
       ADMIN_URL: ${ADMIN_URL_INTERNAL:-http://admin_service:5003}
       LISTING_URL: http://listing_service:5002
       SEARCH_URL: http://search_service:5003
-      PRICING_URL: http://pricing_service:5003 
+      PRICING_URL: http://pricing_service:5003
+      FAVORITES_URL: http://favorites_service:5004
       JWT_SECRET: ${JWT_SECRET}
       GATEWAY_SECRET: ${GATEWAY_SECRET:-dev_gateway_secret}
       PORT: 8000
@@ -118,6 +140,8 @@ services:
       listing_service:
         condition: service_started
       search_service:
+        condition: service_started
+      favorites_service:
         condition: service_started
     ports: ["8000:8000"]
     restart: unless-stopped

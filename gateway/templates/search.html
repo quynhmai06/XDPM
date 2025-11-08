@@ -683,6 +683,11 @@
   </style>
 </head>
 <body>
+  <!-- Floating Compare Button -->
+  <button id="compareBtn" onclick="goToCompare()" style="display:none; position:fixed; bottom:20px; right:20px; z-index:1000; padding:12px 24px; background:#ff6f00; color:white; border:none; border-radius:50px; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.2); font-weight:600;">
+    So sánh (0)
+  </button>
+  
   <!-- Header -->
   <header class="header">
     <div class="header-container">
@@ -861,43 +866,55 @@
     {% if results %}
     <div class="results-grid">
       {% for item in results %}
-      <div class="product-card" onclick="window.location.href='{{ url_for('product_detail', pid=item.id) }}'">
-        {% if item.main_image_url %}
-        <img src="{{ item.main_image_url }}" alt="{{ item.name }}" class="product-image">
-        {% else %}
-        <div class="product-image">
-          <i class="fas fa-{% if item.item_type == 'battery' %}battery-full{% else %}car{% endif %}"></i>
-        </div>
-        {% endif %}
+      <div class="product-card" style="position: relative; cursor: pointer;">
         
-        <div class="product-badge">
-          {% if item.item_type == 'battery' %}
-          <i class="fas fa-battery-full"></i> Pin
+        <!-- Action Buttons -->
+        <div class="product-actions" onclick="event.preventDefault(); event.stopPropagation();">
+          <button class="product-action-btn" onclick="addToFavorites({{ item.id }}, '{{ item.item_type }}')" title="Thêm vào yêu thích">
+            <i class="far fa-heart"></i>
+          </button>
+          <button class="product-action-btn" onclick="toggleCompare({{ item.id }})" title="So sánh">
+            <i class="fas fa-chart-bar"></i>
+          </button>
+        </div>
+        
+        <div onclick="window.location.href='{{ url_for('product_detail', pid=item.id) }}'">
+          {% if item.main_image_url %}
+          <img src="{{ item.main_image_url }}" alt="{{ item.name }}" class="product-image">
           {% else %}
-          <i class="fas fa-car"></i> Xe điện
+          <div class="product-image">
+            <i class="fas fa-{% if item.item_type == 'battery' %}battery-full{% else %}car{% endif %}"></i>
+          </div>
           {% endif %}
-        </div>
-        
-        <div class="product-body">
-          <h3 class="product-title">{{ item.name }}</h3>
           
-          <div class="product-specs">
-            {% if item.brand %}
-            <div class="spec-item">
-              <i class="fas fa-copyright"></i>
-              <span>{{ item.brand }}</span>
-            </div>
+          <div class="product-badge">
+            {% if item.item_type == 'battery' %}
+            <i class="fas fa-battery-full"></i> Pin
+            {% else %}
+            <i class="fas fa-car"></i> Xe điện
             {% endif %}
+          </div>
+          
+          <div class="product-body">
+            <h3 class="product-title">{{ item.name }}</h3>
             
-            {% if item.year %}
-            <div class="spec-item">
-              <i class="fas fa-calendar"></i>
-              <span>{{ item.year }}</span>
-            </div>
-            {% endif %}
-            
-            {% if item.mileage and item.item_type != 'battery' %}
-            <div class="spec-item">
+            <div class="product-specs">
+              {% if item.brand %}
+              <div class="spec-item">
+                <i class="fas fa-copyright"></i>
+                <span>{{ item.brand }}</span>
+              </div>
+              {% endif %}
+              
+              {% if item.year %}
+              <div class="spec-item">
+                <i class="fas fa-calendar"></i>
+                <span>{{ item.year }}</span>
+              </div>
+              {% endif %}
+              
+              {% if item.mileage and item.item_type != 'battery' %}
+              <div class="spec-item">
               <i class="fas fa-tachometer-alt"></i>
               <span>{{ "{:,}".format(item.mileage) }} km</span>
             </div>
@@ -921,6 +938,7 @@
           <div class="product-price">
             {{ "{:,.0f}".format(item.price) }} ₫
           </div>
+        </div>
         </div>
       </div>
       {% endfor %}
@@ -1007,6 +1025,77 @@
       window.location.href = url.toString();
     }
     
+    // Add to favorites
+    function addToFavorites(itemId, itemType) {
+      fetch('/favorites/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          item_id: itemId,
+          item_type: itemType || 'vehicle'
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          if (data.error.includes('Already')) {
+            alert('Sản phẩm đã có trong danh sách yêu thích!');
+          } else {
+            alert('Lỗi: ' + data.error);
+          }
+        } else {
+          alert('Đã thêm vào yêu thích!');
+        }
+      })
+      .catch(err => {
+        alert('Không thể thêm vào yêu thích. Vui lòng đăng nhập!');
+      });
+    }
+
+    // Compare items
+    let compareList = JSON.parse(localStorage.getItem('compareList') || '[]');
+    
+    function toggleCompare(itemId) {
+      // Ensure itemId is a number
+      itemId = parseInt(itemId);
+      if (isNaN(itemId)) return;
+      
+      const idx = compareList.indexOf(itemId);
+      if (idx > -1) {
+        compareList.splice(idx, 1);
+        alert('Đã xóa khỏi danh sách so sánh');
+      } else {
+        if (compareList.length >= 4) {
+          alert('Chỉ có thể so sánh tối đa 4 sản phẩm');
+          return;
+        }
+        compareList.push(itemId);
+        alert('Đã thêm vào danh sách so sánh');
+      }
+      localStorage.setItem('compareList', JSON.stringify(compareList));
+      updateCompareButton();
+    }
+
+    function updateCompareButton() {
+      const btn = document.getElementById('compareBtn');
+      if (btn) {
+        btn.style.display = compareList.length > 0 ? 'block' : 'none';
+        btn.textContent = `So sánh (${compareList.length})`;
+      }
+    }
+
+    function goToCompare() {
+      if (compareList.length < 2) {
+        alert('Vui lòng chọn ít nhất 2 sản phẩm để so sánh');
+        return;
+      }
+      // Ensure all IDs are numbers
+      const validIds = compareList.filter(id => !isNaN(parseInt(id))).map(id => parseInt(id));
+      window.location.href = '/compare?ids=' + validIds.join(',');
+    }
+    
     // Set active tab based on URL parameter
     window.addEventListener('DOMContentLoaded', function() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -1020,6 +1109,9 @@
       });
       
       document.getElementById('itemTypeInput').value = itemType;
+      
+      // Initialize compare button
+      updateCompareButton();
     });
   </script>
 </body>

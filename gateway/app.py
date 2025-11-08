@@ -10,6 +10,7 @@ ADMIN_URL    = os.getenv("ADMIN_URL",    "http://admin_service:5003")
 LISTING_URL  = os.getenv("LISTING_URL",  "http://listing_service:5002")
 SEARCH_URL   = os.getenv("SEARCH_URL",   "http://search_service:5003")
 PRICING_URL  = os.getenv("PRICING_URL",  "http://pricing_service:5003")
+FAVORITES_URL = os.getenv("FAVORITES_URL", "http://favorites_service:5004")
 
 JWT_SECRET = os.getenv("JWT_SECRET", "devsecret")
 JWT_ALGOS  = ["HS256"]
@@ -184,7 +185,28 @@ def home():
         "per_page": 12,
     })
 
-    return render_template("index.html", cars=cars, batts=batts, is_search=False)
+    # Enrich with current user's favorites (IDs + mapping) for heart state in template
+    favorites_ids = set()
+    favorites_map = {}
+    user = session.get("user") or {}
+    uid = user.get("id")
+    token = session.get("access_token")
+    if uid and token:
+        try:
+            r = requests.get(f"{FAVORITES_URL}/favorites/me", params={"user_id": uid}, timeout=5,
+                              headers={"Authorization": f"Bearer {token}"})
+            if r.ok and r.headers.get("content-type", "").startswith("application/json"):
+                data = (r.json() or {}).get("data", [])
+                for f in data:
+                    fid = f.get("item_id")
+                    if fid:
+                        favorites_ids.add(fid)
+                        favorites_map[fid] = f.get("id")  # map listing -> favorite row id
+        except Exception as e:
+            print("[gateway] load favorites for home failed", e)
+
+    return render_template("index.html", cars=cars, batts=batts, is_search=False,
+                           favorites_ids=favorites_ids, favorites_map=favorites_map)
 
 
 
@@ -215,7 +237,11 @@ def login_page():
                 flash("Token không hợp lệ.", "error")
                 return render_template("login.html")
             session["access_token"] = token
-            session["user"] = {"username": payload.get("username"), "role": payload.get("role")}
+            session["user"] = {
+                "id": payload.get("sub"),  # user ID from JWT
+                "username": payload.get("username"),
+                "role": payload.get("role")
+            }
             next_url = request.args.get("next") or session.pop("next_after_login", None)
             return redirect(next_url or (url_for("admin_page") if is_admin_session() else url_for("home")))
         flash("Đăng nhập thất bại.", "error")
@@ -485,7 +511,11 @@ def admin_login():
         flash("Tài khoản không phải admin.", "error")
         return redirect(url_for("admin_page"))
     session["access_token"] = token
-    session["user"] = {"username": payload.get("username"), "role": payload.get("role")}
+    session["user"] = {
+        "id": payload.get("sub"),
+        "username": payload.get("username"),
+        "role": payload.get("role")
+    }
     flash("Đăng nhập admin thành công!", "success")
     return redirect(url_for("admin_page"))
 
@@ -715,6 +745,218 @@ def profile_page():
 @app.route("/policy", methods=["GET"], endpoint="policy_page")
 def policy_page():
     return render_template("policy.html")
+
+# ===================== Favorites =====================
+@app.route("/favorites", methods=["GET"])
+@login_required()
+def favorites_page():
+    """Display user's favorite listings"""
+    token = session.get("access_token")
+    user = session.get("user", {})
+    user_id = user.get("id")
+    
+    if not user_id:
+        flash("Không tìm thấy thông tin người dùng.", "error")
+        return redirect(url_for("home"))
+    
+    try:
+        # Get favorites from favorites service
+        headers = {"Authorization": f"Bearer {token}"}
+        resp = requests.get(f"{FAVORITES_URL}/favorites/me", params={"user_id": user_id}, headers=headers, timeout=5)
+        view_favs = []
+        if resp.ok and (resp.headers.get("content-type","" ).startswith("application/json")):
+            favs = resp.json().get("data", [])
+            # Fetch full listing details for each favorite, attach into expected template shape
+            for fav in favs:
+                item = None
+                try:
+                    r2 = requests.get(f"{LISTING_URL}/listings/{fav['item_id']}", headers=headers, timeout=6)
+                    if r2.ok and r2.headers.get("content-type","" ).startswith("application/json"):
+                        item = r2.json()
+                except Exception:
+                    item = None
+                view_favs.append({
+                    "id": fav.get("id"),
+                    "item_type": fav.get("item_type"),
+                    "item_id": fav.get("item_id"),
+                    "item": item,
+                })
+        
+        return render_template("favorites.html", favs=view_favs)
+    except requests.RequestException:
+        flash("Không thể tải danh sách yêu thích.", "error")
+        return render_template("favorites.html", favs=[])
+
+@app.post("/favorites/add")
+@login_required()
+def add_favorite():
+    """Add item to favorites"""
+    token = session.get("access_token")
+    user = session.get("user", {})
+
+    def _resolve_user_id():
+        # 1. session
+        uid = user.get("id") or user.get("user_id")
+        if uid:
+            return uid
+        # 2. decode token
+        if token:
+            try:
+                payload = decode_token(token)
+                uid = payload.get("sub")
+                if uid:
+                    return uid
+            except Exception as e:
+                print("[gateway] decode_token failed", e)
+        # 3. call /auth/me (final fallback)
+        if token:
+            try:
+                r = requests.get(f"{AUTH_URL}/auth/me", headers={"Authorization": f"Bearer {token}"}, timeout=4)
+                if r.ok and r.headers.get("content-type","" ).startswith("application/json"):
+                    uid = (r.json() or {}).get("sub")
+                    return uid
+            except requests.RequestException as e:
+                print("[gateway] /auth/me fallback failed", e)
+        return None
+
+    user_id = _resolve_user_id()
+    if user_id and not user.get("id"):
+        # persist to session for next requests
+        user["id"] = user_id
+        session["user"] = user
+        session.modified = True
+
+    print(f"[gateway] favorites/add session_user={user}")
+    print(f"[gateway] favorites/add resolved_user_id={user_id}")
+    if not user_id:
+        return jsonify(error="not_logged_in", detail="Không xác định được người dùng"), 400
+    
+    data = request.get_json() or {}
+    item_id = data.get("item_id")
+    item_type = data.get("item_type", "vehicle")
+    
+    if not item_id:
+        return jsonify(error="missing_item_id"), 400
+    
+    try:
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        payload = {"user_id": int(user_id), "item_type": str(item_type), "item_id": int(item_id)}
+        print(f"DEBUG favorites/add payload -> {payload}")
+        resp = requests.post(f"{FAVORITES_URL}/favorites", json=payload, headers=headers, timeout=5)
+        print(f"DEBUG favorites/add upstream status={resp.status_code} body={resp.text[:200]}")
+        
+        if resp.ok:
+            return jsonify(resp.json()), 201
+        elif resp.status_code == 409:
+            return jsonify(error="already_exists"), 409
+        elif resp.status_code == 400:
+            try:
+                upstream = resp.json()
+            except Exception:
+                upstream = {"raw": resp.text[:200]}
+            return jsonify(error="upstream_400", upstream=upstream), 400
+        else:
+            return jsonify(error="upstream_failure", status=resp.status_code, body=resp.text[:300]), resp.status_code
+    except requests.RequestException as e:
+        print(f"[gateway] favorites/add exception: {str(e)}")
+        return jsonify(error=str(e)), 500
+
+@app.post("/favorites/remove_by_item")
+@login_required()
+def remove_favorite_by_item():
+    """Remove favorite by listing item_id (convenience endpoint for toggle UI)."""
+    token = session.get("access_token")
+    user = session.get("user") or {}
+    uid = user.get("id")
+    if not uid:
+        return jsonify(error="not_logged_in"), 401
+    payload = request.get_json() or {}
+    item_id = payload.get("item_id")
+    try:
+        item_id = int(item_id)
+    except Exception:
+        return jsonify(error="invalid_item_id"), 400
+    # Fetch favorites to locate the favorite record id
+    try:
+        r = requests.get(f"{FAVORITES_URL}/favorites/me", params={"user_id": uid}, timeout=5,
+                          headers={"Authorization": f"Bearer {token}"})
+        fav_id = None
+        if r.ok and r.headers.get("content-type", "").startswith("application/json"):
+            for f in (r.json() or {}).get("data", []):
+                if f.get("item_id") == item_id:
+                    fav_id = f.get("id")
+                    break
+        if not fav_id:
+            return jsonify(error="favorite_not_found"), 404
+        del_resp = requests.delete(f"{FAVORITES_URL}/favorites/{fav_id}", timeout=5,
+                                   headers={"Authorization": f"Bearer {token}"})
+        if del_resp.ok:
+            return jsonify(ok=True, removed=fav_id)
+        return jsonify(error="upstream_delete_failed", status=del_resp.status_code,
+                       body=del_resp.text[:200]), del_resp.status_code
+    except requests.RequestException as e:
+        return jsonify(error="upstream_unreachable", detail=str(e)), 502
+
+@app.delete("/favorites/<int:fav_id>")
+@login_required()
+def remove_favorite(fav_id):
+    """Remove item from favorites"""
+    token = session.get("access_token")
+    
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        resp = requests.delete(f"{FAVORITES_URL}/favorites/{fav_id}", headers=headers, timeout=5)
+        
+        if resp.ok:
+            return jsonify(ok=True), 200
+        else:
+            return jsonify(error="Failed to remove"), resp.status_code
+    except requests.RequestException as e:
+        return jsonify(error=str(e)), 500
+
+# ===================== Compare =====================
+@app.route("/compare", methods=["GET"])
+def compare_page():
+    """Compare multiple vehicles/batteries"""
+    ids = request.args.get("ids", "").split(",")
+    ids = [i.strip() for i in ids if i.strip().isdigit()]
+    
+    if not ids:
+        return render_template("compare.html", items=[])
+    
+    items = []
+    token = session.get("access_token")
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    
+    for item_id in ids[:4]:  # Limit to 4 items max
+        try:
+            resp = requests.get(f"{LISTING_URL}/listings/{item_id}", headers=headers, timeout=5)
+            if resp.ok:
+                items.append(resp.json())
+        except Exception:
+            pass
+    
+    return render_template("compare.html", items=items)
+
+
+# Lightweight JSON proxy for listings (used by compare page and potential clients)
+@app.get("/api/listings/<int:pid>")
+def api_get_listing(pid: int):
+    headers = {}
+    if session.get("access_token"):
+        headers["Authorization"] = f"Bearer {session['access_token']}"
+    try:
+        r = requests.get(f"{LISTING_URL}/listings/{pid}", headers=headers, timeout=8)
+    except requests.RequestException as e:
+        return jsonify(error="listing_upstream_unreachable", detail=str(e)), 502
+    ct = r.headers.get("content-type", "")
+    if ct.startswith("application/json"):
+        try:
+            return jsonify(r.json()), r.status_code
+        except Exception:
+            pass
+    # Fallback: return raw
+    return (r.text, r.status_code, {"Content-Type": ct or "text/plain"})
 
 
 _AI_PRICE_CACHE = {}  

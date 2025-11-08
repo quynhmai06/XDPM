@@ -11,6 +11,29 @@
     />
   </head>
   <body>
+    <!-- Floating Compare Button -->
+    <button
+      id="compareBtn"
+      onclick="goToCompare()"
+      style="
+        display: none;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        padding: 12px 24px;
+        background: #ff6f00;
+        color: white;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        font-weight: 600;
+      "
+    >
+      So sánh (0)
+    </button>
+
     <header class="header">
       <div class="header-container">
         <div class="logo-section">
@@ -29,11 +52,14 @@
             ><i class="far fa-bell"></i> Thông báo</a
           >
 
-          {% if session.get('user') %} {% set display_name =
-          session.get('display_name') or session.get('user',
-          {}).get('full_name') or session.get('user', {}).get('username') or
-          'User' %} {% set avatar_initial = (display_name[:1] if display_name
-          else 'U') | upper %}
+          {% if session.get('user') %}
+          <a href="{{ url_for('favorites_page') }}" class="user-menu-item">
+            <i class="fas fa-heart"></i> Yêu thích
+          </a>
+          {% set display_name = session.get('display_name') or
+          session.get('user', {}).get('full_name') or session.get('user',
+          {}).get('username') or 'User' %} {% set avatar_initial =
+          (display_name[:1] if display_name else 'U') | upper %}
 
           <div class="user-avatar-wrap">
             <button class="avatar-btn" onclick="toggleUserMenu(event)">
@@ -242,10 +268,10 @@
           <span class="badge-type battery">PIN</span>
           {% endif %}
           <img
-            src="{{ p.main_image_url or '/static/images/placeholder.png' }}"
+            src="{{ p.main_image_url or '/static/images/logo.png' }}"
             alt="{{ p.name }}"
             class="product-image"
-            onerror="this.onerror=null;this.src='/static/images/placeholder.png'"
+            onerror="this.onerror=null;this.src='/static/images/logo.png'"
           />
           <div class="product-info">
             <h3 class="product-title">{{ p.name }}</h3>
@@ -309,7 +335,7 @@
 
       <div class="product-grid">
         {% if cars and cars|length %} {% for p in cars %}
-        <a href="/listings/{{ p.id }}" class="product-card">
+        <div class="product-card" style="position: relative">
           {% if p.verified %}
           <span class="badge-verified">ĐÃ KIỂM ĐỊNH</span>
           {% endif %} {% if p.item_type == 'vehicle' %}
@@ -317,20 +343,53 @@
           {% elif p.item_type == 'battery' %}
           <span class="badge-type battery">PIN</span>
           {% endif %}
-          <img
-            src="{{ p.main_image_url or '/static/images/placeholder.png' }}"
-            alt="{{ p.name }}"
-            class="product-image"
-            onerror="this.onerror=null;this.src='/static/images/placeholder.png'"
-          />
-          <div class="product-info">
-            <h3 class="product-title">{{ p.name }}</h3>
-            <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
-            <div class="product-location">
-              <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
-            </div>
+
+          <!-- Action Buttons -->
+          <div
+            class="product-actions"
+            onclick="event.preventDefault(); event.stopPropagation();"
+          >
+            {% set is_fav = favorites_ids and (p.id in favorites_ids) %}
+            <button
+              class="product-action-btn favorite-btn {% if is_fav %}favorited{% endif %}"
+              data-item-id="{{ p.id }}"
+              data-item-type="{{ p.item_type }}"
+              data-fav-id="{{ favorites_map.get(p.id) }}"
+              onclick="toggleFavorite(this, {{ p.id }}, '{{ p.item_type }}')"
+              title="Yêu thích"
+            >
+              <i
+                class="{% if is_fav %}fas{% else %}far{% endif %} fa-heart"
+              ></i>
+            </button>
+            <button
+              class="product-action-btn"
+              onclick="toggleCompare({{ p.id }})"
+              title="So sánh"
+            >
+              <i class="fas fa-chart-bar"></i>
+            </button>
           </div>
-        </a>
+
+          <a
+            href="/listings/{{ p.id }}"
+            style="text-decoration: none; color: inherit"
+          >
+            <img
+              src="{{ p.main_image_url or '/static/images/logo.png' }}"
+              alt="{{ p.name }}"
+              class="product-image"
+              onerror="this.onerror=null;this.src='/static/images/logo.png'"
+            />
+            <div class="product-info">
+              <h3 class="product-title">{{ p.name }}</h3>
+              <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
+              <div class="product-location">
+                <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
+              </div>
+            </div>
+          </a>
+        </div>
         {% endfor %} {% else %}
         <p>Chưa có xe nào được duyệt.</p>
         {% endif %}
@@ -346,7 +405,7 @@
 
       <div class="product-grid">
         {% if batts and batts|length %} {% for p in batts %}
-        <a href="/listings/{{ p.id }}" class="product-card">
+        <div class="product-card" style="position: relative">
           {% if p.verified %}
           <span class="badge-verified">ĐÃ KIỂM ĐỊNH</span>
           {% endif %} {% if p.item_type == 'vehicle' %}
@@ -354,20 +413,53 @@
           {% elif p.item_type == 'battery' %}
           <span class="badge-type battery">PIN</span>
           {% endif %}
-          <img
-            src="{{ p.main_image_url or '/static/images/placeholder.png' }}"
-            alt="{{ p.name }}"
-            class="product-image"
-            onerror="this.onerror=null;this.src='/static/images/placeholder.png'"
-          />
-          <div class="product-info">
-            <h3 class="product-title">{{ p.name }}</h3>
-            <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
-            <div class="product-location">
-              <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
-            </div>
+
+          <!-- Action Buttons -->
+          <div
+            class="product-actions"
+            onclick="event.preventDefault(); event.stopPropagation();"
+          >
+            {% set is_fav_b = favorites_ids and (p.id in favorites_ids) %}
+            <button
+              class="product-action-btn favorite-btn {% if is_fav_b %}favorited{% endif %}"
+              data-item-id="{{ p.id }}"
+              data-item-type="{{ p.item_type }}"
+              data-fav-id="{{ favorites_map.get(p.id) }}"
+              onclick="toggleFavorite(this, {{ p.id }}, '{{ p.item_type }}')"
+              title="Yêu thích"
+            >
+              <i
+                class="{% if is_fav_b %}fas{% else %}far{% endif %} fa-heart"
+              ></i>
+            </button>
+            <button
+              class="product-action-btn"
+              onclick="toggleCompare({{ p.id }})"
+              title="So sánh"
+            >
+              <i class="fas fa-chart-bar"></i>
+            </button>
           </div>
-        </a>
+
+          <a
+            href="/listings/{{ p.id }}"
+            style="text-decoration: none; color: inherit"
+          >
+            <img
+              src="{{ p.main_image_url or '/static/images/logo.png' }}"
+              alt="{{ p.name }}"
+              class="product-image"
+              onerror="this.onerror=null;this.src='/static/images/logo.png'"
+            />
+            <div class="product-info">
+              <h3 class="product-title">{{ p.name }}</h3>
+              <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
+              <div class="product-location">
+                <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
+              </div>
+            </div>
+          </a>
+        </div>
         {% endfor %} {% else %}
         <p>Chưa có pin nào được duyệt.</p>
         {% endif %}
@@ -565,6 +657,112 @@
         // Reload without params
         window.location.href = window.location.pathname;
       }
+
+      // Favorites state preload from server-render
+      var FAVORITES_IDS = new Set([
+        {% if favorites_ids %}{% for fid in favorites_ids %}{{ fid }},{% endfor %}{% endif %}
+      ]);
+      var FAVORITES_MAP = { {% if favorites_map %}{% for k,v in favorites_map.items() %} {{ k }}: {{ v }},{% endfor %}{% endif %} };
+
+      function toggleFavorite(btn, itemId, itemType) {
+        if (!btn) return;
+        const isFav = btn.classList.contains('favorited');
+        if (isFav) {
+          // Remove
+            fetch('/favorites/remove_by_item', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ item_id: itemId })
+            })
+            .then(r => r.json().then(j => ({ok: r.ok, j})))
+            .then(res => {
+              if (res.ok && res.j.ok) {
+                FAVORITES_IDS.delete(itemId);
+                delete FAVORITES_MAP[itemId];
+                btn.classList.remove('favorited');
+                const icon = btn.querySelector('i');
+                if (icon) { icon.classList.remove('fas'); icon.classList.add('far'); }
+              } else {
+                alert('Không xóa được yêu thích: ' + (res.j.error || 'lỗi')); }
+            })
+            .catch(() => alert('Lỗi kết nối khi xóa yêu thích'));
+        } else {
+          // Add
+          fetch('/favorites/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ item_id: itemId, item_type: itemType || 'vehicle' })
+          })
+          .then(r => r.json().then(j => ({ok: r.ok, status: r.status, j})))
+          .then(res => {
+            if (res.ok || res.status === 201) {
+              FAVORITES_IDS.add(itemId);
+              if (res.j.id) FAVORITES_MAP[itemId] = res.j.id;
+              btn.classList.add('favorited');
+              const icon = btn.querySelector('i');
+              if (icon) { icon.classList.remove('far'); icon.classList.add('fas'); }
+            } else if (res.status === 409) {
+              // already exists treat as success and reflect state
+              FAVORITES_IDS.add(itemId);
+              btn.classList.add('favorited');
+              const icon = btn.querySelector('i');
+              if (icon) { icon.classList.remove('far'); icon.classList.add('fas'); }
+            } else {
+              alert('Không thể thêm yêu thích: ' + (res.j.error || 'lỗi'));
+            }
+          })
+          .catch(() => alert('Lỗi kết nối khi thêm yêu thích'));
+        }
+      }
+
+      // Compare items
+      let compareList = JSON.parse(localStorage.getItem("compareList") || "[]");
+
+      function toggleCompare(itemId) {
+        // Ensure itemId is a number
+        itemId = parseInt(itemId);
+        if (isNaN(itemId)) return;
+
+        const idx = compareList.indexOf(itemId);
+        if (idx > -1) {
+          compareList.splice(idx, 1);
+          alert("Đã xóa khỏi danh sách so sánh");
+        } else {
+          if (compareList.length >= 4) {
+            alert("Chỉ có thể so sánh tối đa 4 sản phẩm");
+            return;
+          }
+          compareList.push(itemId);
+          alert("Đã thêm vào danh sách so sánh");
+        }
+        localStorage.setItem("compareList", JSON.stringify(compareList));
+        updateCompareButton();
+      }
+
+      function updateCompareButton() {
+        const btn = document.getElementById("compareBtn");
+        if (btn) {
+          btn.style.display = compareList.length > 0 ? "block" : "none";
+          btn.textContent = `So sánh (${compareList.length})`;
+        }
+      }
+
+      function goToCompare() {
+        if (compareList.length < 2) {
+          alert("Vui lòng chọn ít nhất 2 sản phẩm để so sánh");
+          return;
+        }
+        // Ensure all IDs are numbers
+        const validIds = compareList
+          .filter((id) => !isNaN(parseInt(id)))
+          .map((id) => parseInt(id));
+        window.location.href = "/compare?ids=" + validIds.join(",");
+      }
+
+      // Initialize compare button
+      document.addEventListener("DOMContentLoaded", function () {
+        updateCompareButton();
+      });
     </script>
   </body>
 </html>

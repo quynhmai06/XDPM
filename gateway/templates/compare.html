@@ -284,6 +284,9 @@
     </div>
 
     <script>
+      // Items passed from server
+      const serverItems = {{ items | tojson | safe }};
+
       const fmtMoney = (v) => (Number(v) || 0).toLocaleString("vi-VN") + " đ";
 
       // Load compare items from localStorage (support both keys)
@@ -335,6 +338,22 @@
       }
 
       async function loadCompareData() {
+        // Use server items if available (from URL params)
+        if (serverItems && serverItems.length > 0) {
+          const countEl = document.getElementById("compareCount");
+          countEl.textContent = `${serverItems.length} sản phẩm đang so sánh`;
+
+          // Normalize items
+          const validItems = serverItems.map(item => ({
+            ...item,
+            _type: (item.item_type || item.product_type || 'vehicle').toString().toLowerCase()
+          }));
+
+          renderCompareTable(validItems);
+          return;
+        }
+
+        // Fallback to localStorage
         const items = getCompareItems();
         const countEl = document.getElementById("compareCount");
         countEl.textContent = `${items.length} sản phẩm đang so sánh`;
@@ -351,14 +370,19 @@
           return;
         }
 
-        // Fetch data for all items
+        // Fetch data for all items from localStorage
         const promises = items.map(async (item) => {
           try {
-            const url = `/api/listings/${item.id}`;
-            const res = await fetch(url);
+            const id = item.id || item;
+            // Prefer JSON API first for robustness
+            let res = await fetch(`/api/listings/${id}`);
+            if (!res.ok) {
+              // Fallback to HTML endpoint (expect JSON only in newer versions)
+              res = await fetch(`/listings/${id}`);
+            }
             if (res.ok) {
               const data = await res.json();
-              const normType = (data.product_type || item.type || "")
+              const normType = (data.product_type || data.item_type || item.type || "")
                 .toString()
                 .toLowerCase();
               return { ...data, _type: normType };
@@ -411,11 +435,11 @@
                     <img
                       src="${safe(
                         item.main_image_url,
-                        "/static/images/placeholder.png"
+                        "/static/images/logo.png"
                       )}"
                       alt="${safe(item.name, "Product")}"
                       class="compare-img"
-                      onerror="this.onerror=null;this.src='/static/images/placeholder.png'"
+                      onerror="this.onerror=null;this.src='/static/images/logo.png'"
                     />
                   </td>`
               )

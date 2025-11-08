@@ -290,10 +290,10 @@
           {% if it %}
           <a href="/listings/{{ it.id }}" style="display: block">
             <img 
-              src="{{ it.main_image_url or '/static/images/placeholder.png' }}" 
+              src="{{ it.main_image_url or '/static/images/logo.png' }}" 
               alt="{{ it.name or 'Product' }}" 
               class="product-image"
-              onerror="this.onerror=null;this.src='/static/images/placeholder.png'"
+              onerror="this.onerror=null;this.src='/static/images/logo.png'"
             />
           </a>
           <div class="product-info">
@@ -313,7 +313,7 @@
               {% if it.battery_capacity %}• {{ it.battery_capacity }}{% endif %}
             </div>
             {% else %}
-            <img src="/static/images/placeholder.png" alt="unavailable" class="product-image" />
+            <img src="/static/images/logo.png" alt="unavailable" class="product-image" />
             <div class="product-info">
             <h3 class="product-title" style="color: #999;">Sản phẩm không còn khả dụng</h3>
             {% endif %}
@@ -340,12 +340,17 @@
 
     <script>
       async function removeFav(id) {
-        const res = await fetch(`/api/favorites/${id}`, { method: "DELETE" });
-        if (res.ok) location.reload();
-        else alert("Không xóa được.");
+        if (!confirm('Bạn có chắc muốn xóa khỏi yêu thích?')) return;
+        const res = await fetch(`/favorites/${id}`, { method: "DELETE" });
+        if (res.ok) {
+          alert('Đã xóa khỏi yêu thích!');
+          location.reload();
+        } else {
+          alert("Không xóa được.");
+        }
       }
 
-      // Compare selection logic (min 2, max 5, same type only)
+      // Compare selection logic (min 2, max 4, same type recommended)
       (function () {
         const sel = new Set();
         const MAX_COMPARE = 5;

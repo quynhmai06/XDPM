@@ -39,12 +39,10 @@ def _norm_img(url: str | None) -> str | None:
     if not url:
         return None
     url = url.strip()
-    if url.lower().startswith(("http://", "https://")):
+    # Nếu đã có http/https hoặc / đầu => giữ nguyên
+    if url.lower().startswith(("http://", "https://", "/")):
         return url
-    if url.startswith("/"):
-        return url
-    if url.startswith("uploads/"):
-        url = url[len("uploads/"):]
+    # Nếu chỉ là tên file (không có prefix) => thêm /static/uploads/
     return STATIC_UPLOAD_PREFIX + url
 
 def _strip_prefix(u: str | None) -> str | None:
