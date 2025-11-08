@@ -1,211 +1,570 @@
 <!DOCTYPE html>
 <html lang="vi">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Second-hand EV & Battery Trading Platform</title>
-  <link rel="stylesheet" href="/static/style.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
-</head>
-<body>
-  <header class="header">
-    <div class="header-container">
-      <div class="logo-section">
-        <button class="menu-toggle"><i class="fas fa-bars"></i></button>
-        <img src="/static/images/logo.png" alt="EV Trading" class="logo"/>
-      </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sàn Giao Dịch Xe Điện & Pin - XDPM</title>
+    <link rel="stylesheet" href="/static/style.css?v=4.0" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-container">
+        <div class="logo-section">
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <img src="/static/images/logo.png" alt="EV Trading" class="logo" />
+        </div>
 
-      <div class="user-menu">
-        <a href="{{ url_for('policy_page') }}" class="user-menu-item">Chính sách</a>
-        <a href="#" class="user-menu-item"><i class="far fa-comment"></i> Chat</a>
-        <a href="#" class="user-menu-item"><i class="far fa-bell"></i> Thông báo</a>
+        <div class="user-menu">
+          <a href="{{ url_for('policy_page') }}" class="user-menu-item"
+            >Chính sách</a
+          >
+          <a href="#" class="user-menu-item"
+            ><i class="far fa-comment"></i> Chat</a
+          >
+          <a href="#" class="user-menu-item"
+            ><i class="far fa-bell"></i> Thông báo</a
+          >
 
-        {% if session.get('user') %}
-          {% set display_name = session.get('display_name')
-                                or session.get('user', {}).get('full_name')
-                                or session.get('user', {}).get('username')
-                                or 'User' %}
-          {% set avatar_initial = (display_name[:1] if display_name else 'U') | upper %}
+          {% if session.get('user') %} {% set display_name =
+          session.get('display_name') or session.get('user',
+          {}).get('full_name') or session.get('user', {}).get('username') or
+          'User' %} {% set avatar_initial = (display_name[:1] if display_name
+          else 'U') | upper %}
 
           <div class="user-avatar-wrap">
             <button class="avatar-btn" onclick="toggleUserMenu(event)">
               <span class="avatar-circle">{{ avatar_initial }}</span>
             </button>
-            <div id="userDropdown" class="user-dropdown" style="display:none">
+            <div id="userDropdown" class="user-dropdown" style="display: none">
               <div class="dropdown-name">{{ display_name }}</div>
-              <a href="{{ url_for('profile') }}" class="dropdown-item">Quản lý hồ sơ</a>
-              <a href="{{ url_for('logout_page') }}" class="dropdown-item">Đăng xuất</a>
+              <a href="{{ url_for('profile') }}" class="dropdown-item"
+                >Quản lý hồ sơ</a
+              >
+              <a href="{{ url_for('logout_page') }}" class="dropdown-item"
+                >Đăng xuất</a
+              >
             </div>
           </div>
 
-          <a href="{{ url_for('add_listing') }}" class="post-button">Đăng tin</a>
-        {% else %}
-          <a href="{{ url_for('login_page') }}" class="user-menu-item">Đăng nhập</a>
-          <a href="{{ url_for('register_page') }}" class="user-menu-item">Đăng ký</a>
+          <a href="{{ url_for('add_listing') }}" class="post-button"
+            >Đăng tin</a
+          >
+          {% else %}
+          <a href="{{ url_for('login_page') }}" class="user-menu-item"
+            >Đăng nhập</a
+          >
+          <a href="{{ url_for('register_page') }}" class="user-menu-item"
+            >Đăng ký</a
+          >
+          {% endif %}
+        </div>
+      </div>
+    </header>
+
+    <section class="search-section">
+      <div class="search-container">
+        <h1 class="search-title">Sàn Giao Dịch Xe Điện & Pin Cũ</h1>
+        <h2 class="search-subtitle">
+          Tìm kiếm xe điện và pin chất lượng với giá tốt nhất
+        </h2>
+
+        <form action="/" method="GET" class="search-box-wrapper">
+          <div class="search-box">
+            <div class="search-input-group">
+              <i class="fas fa-search search-icon"></i>
+              <input
+                type="text"
+                name="q"
+                class="search-input"
+                placeholder="Tìm kiếm theo tên, hãng, model..."
+              />
+            </div>
+
+            <!-- Province selector removed to simplify UI -->
+
+            <select name="item_type" class="type-dropdown">
+              <option value="">Tất cả</option>
+              <option value="vehicle">Xe điện</option>
+              <option value="battery">Pin</option>
+            </select>
+
+            <button type="submit" class="search-button">
+              <i class="fas fa-search"></i> Tìm kiếm
+            </button>
+          </div>
+
+          <div class="quick-filters">
+            <a href="?item_type=vehicle" class="quick-filter">
+              <i class="fas fa-car"></i> Xe điện
+            </a>
+            <a href="?item_type=battery" class="quick-filter">
+              <i class="fas fa-battery-full"></i> Pin
+            </a>
+            <button
+              type="button"
+              class="quick-filter advanced-toggle"
+              onclick="toggleAdvancedFilters()"
+            >
+              <i class="fas fa-sliders-h"></i> Bộ lọc nâng cao
+            </button>
+          </div>
+        </form>
+
+        <!-- Advanced Filters Section (Hidden by default) -->
+        <div
+          id="advancedFilters"
+          class="advanced-filters"
+          style="display: none"
+        >
+          <div class="filters-container">
+            <div class="filter-row">
+              <div class="filter-group">
+                <label><i class="fas fa-tag"></i> Hãng xe/pin</label>
+                <input
+                  type="text"
+                  id="brand"
+                  placeholder="VinFast, Tesla, CATL..."
+                />
+              </div>
+              <div class="filter-group">
+                <label><i class="fas fa-dollar-sign"></i> Giá từ (VNĐ)</label>
+                <input type="number" id="min_price" placeholder="Từ" min="0" />
+              </div>
+              <div class="filter-group">
+                <label><i class="fas fa-dollar-sign"></i> Giá đến (VNĐ)</label>
+                <input type="number" id="max_price" placeholder="Đến" />
+              </div>
+            </div>
+
+            <div class="filter-row">
+              <div class="filter-group">
+                <label><i class="fas fa-calendar"></i> Năm từ</label>
+                <input
+                  type="number"
+                  id="year_from"
+                  placeholder="2020"
+                  min="2015"
+                  max="2025"
+                />
+              </div>
+              <div class="filter-group">
+                <label><i class="fas fa-calendar"></i> Năm đến</label>
+                <input
+                  type="number"
+                  id="year_to"
+                  placeholder="2024"
+                  min="2015"
+                  max="2025"
+                />
+              </div>
+              <div class="filter-group">
+                <label><i class="fas fa-road"></i> Số km tối đa</label>
+                <input type="number" id="mileage_max" placeholder="50000" />
+              </div>
+            </div>
+
+            <div class="filter-row">
+              <div class="filter-group">
+                <label
+                  ><i class="fas fa-battery-three-quarters"></i> Dung lượng pin
+                  từ (kWh)</label
+                >
+                <input
+                  type="number"
+                  id="battery_capacity_min"
+                  placeholder="40"
+                />
+              </div>
+              <div class="filter-group">
+                <label
+                  ><i class="fas fa-battery-full"></i> Dung lượng pin đến
+                  (kWh)</label
+                >
+                <input
+                  type="number"
+                  id="battery_capacity_max"
+                  placeholder="100"
+                />
+              </div>
+              <div class="filter-group">
+                <label><i class="fas fa-sort"></i> Sắp xếp theo</label>
+                <select id="sort">
+                  <option value="newest">Mới nhất</option>
+                  <option value="price_asc">Giá tăng dần</option>
+                  <option value="price_desc">Giá giảm dần</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="filter-actions">
+              <button
+                type="button"
+                class="btn-apply-filters"
+                onclick="applyAdvancedFilters()"
+              >
+                <i class="fas fa-check"></i> Áp dụng bộ lọc
+              </button>
+              <button
+                type="button"
+                class="btn-reset-filters"
+                onclick="resetFilters()"
+              >
+                <i class="fas fa-redo"></i> Đặt lại
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Search Results Section (shows when searching) -->
+    {% if is_search %}
+    <section class="product-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          Kết quả tìm kiếm {% if total %}({{ total }} sản phẩm){% endif %}
+        </h2>
+      </div>
+
+      <div class="product-grid">
+        {% if search_results and search_results|length %} {% for p in
+        search_results %}
+        <a href="/listings/{{ p.id }}" class="product-card">
+          {% if p.verified %}
+          <span class="badge-verified">ĐÃ KIỂM ĐỊNH</span>
+          {% endif %} {% if p.item_type == 'vehicle' %}
+          <span class="badge-type">Ô TÔ</span>
+          {% elif p.item_type == 'battery' %}
+          <span class="badge-type battery">PIN</span>
+          {% endif %}
+          <img
+            src="{{ p.main_image_url or '/static/images/placeholder.png' }}"
+            alt="{{ p.name }}"
+            class="product-image"
+            onerror="this.onerror=null;this.src='/static/images/placeholder.png'"
+          />
+          <div class="product-info">
+            <h3 class="product-title">{{ p.name }}</h3>
+            <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
+            <div class="product-location">
+              <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
+            </div>
+          </div>
+        </a>
+        {% endfor %} {% else %}
+        <div class="no-results">
+          <i
+            class="fas fa-search"
+            style="font-size: 48px; color: #ccc; margin-bottom: 15px"
+          ></i>
+          <p>Không tìm thấy sản phẩm phù hợp</p>
+          <button
+            onclick="resetFilters()"
+            class="btn-reset-filters"
+            style="margin-top: 15px"
+          >
+            <i class="fas fa-redo"></i> Đặt lại bộ lọc
+          </button>
+        </div>
         {% endif %}
       </div>
-    </div>
-  </header>
 
-  <section class="search-section">
-    <div class="search-container">
-      <h1 class="search-title">Second-hand EV & Battery Trading Platform</h1>
-      <h2 class="search-subtitle">Nền tảng giao dịch pin và xe điện qua sử dụng</h2>
-      <div class="search-box">
-        <input type="text" class="search-input" placeholder="Tìm kiếm xe điện, pin..."/>
-        <select class="location-dropdown">
-          <option value="">Chọn khu vực</option>
-          <option value="hcm">TP. Hồ Chí Minh</option>
-          <option value="hn">Hà Nội</option>
-          <option value="dn">Đà Nẵng</option>
-        </select>
-        <button class="search-button">Tìm kiếm</button>
+      <!-- Pagination -->
+      {% if pages and pages > 1 %}
+      <div class="pagination">
+        {% if current_page > 1 %}
+        <a
+          href="?{{ query_params|urlencode }}&page={{ current_page - 1 }}"
+          class="page-link"
+        >
+          <i class="fas fa-chevron-left"></i> Trước
+        </a>
+        {% endif %}
+
+        <span class="page-info">Trang {{ current_page }} / {{ pages }}</span>
+
+        {% if current_page < pages %}
+        <a
+          href="?{{ query_params|urlencode }}&page={{ current_page + 1 }}"
+          class="page-link"
+        >
+          Sau <i class="fas fa-chevron-right"></i>
+        </a>
+        {% endif %}
       </div>
-    </div>
-  </section>
+      {% endif %}
+    </section>
+    {% else %}
 
-  <section class="product-section">
-    <div class="section-header">
-      <h2 class="section-title">Xe điện nổi bật</h2>
-      <a href="#" class="view-all">Xem tất cả</a>
-    </div>
+    <!-- Default Featured Listings (shows when not searching) -->
+    <section class="product-section">
+      <div class="section-header">
+        <h2 class="section-title">Xe điện nổi bật</h2>
+        <a href="#" class="view-all">Xem tất cả</a>
+      </div>
 
-    <div class="product-grid">
-      {% if cars and cars|length %}
-        {% for p in cars %}
-          <a href="/listings/{{ p.id }}" class="product-card">
-            {% if p.verified %}
-              <span class="badge-verified">ĐÃ KIỂM ĐỊNH</span>
-            {% endif %}
-            {% if p.item_type == 'vehicle' %}
-              <span class="badge-type">Ô TÔ</span>
-            {% elif p.item_type == 'battery' %}
-              <span class="badge-type battery">PIN</span>
-            {% endif %}
-            <img
-              src="{{ p.main_image_url or '/static/images/placeholder.png' }}"
-              alt="{{ p.name }}"
-              class="product-image"
-              onerror="this.onerror=null;this.src='/static/images/placeholder.png'"/>
-            <div class="product-info">
-              <h3 class="product-title">{{ p.name }}</h3>
-              <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
-              <div class="product-location">
-                <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
-              </div>
+      <div class="product-grid">
+        {% if cars and cars|length %} {% for p in cars %}
+        <a href="/listings/{{ p.id }}" class="product-card">
+          {% if p.verified %}
+          <span class="badge-verified">ĐÃ KIỂM ĐỊNH</span>
+          {% endif %} {% if p.item_type == 'vehicle' %}
+          <span class="badge-type">Ô TÔ</span>
+          {% elif p.item_type == 'battery' %}
+          <span class="badge-type battery">PIN</span>
+          {% endif %}
+          <img
+            src="{{ p.main_image_url or '/static/images/placeholder.png' }}"
+            alt="{{ p.name }}"
+            class="product-image"
+            onerror="this.onerror=null;this.src='/static/images/placeholder.png'"
+          />
+          <div class="product-info">
+            <h3 class="product-title">{{ p.name }}</h3>
+            <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
+            <div class="product-location">
+              <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
             </div>
-          </a>
-        {% endfor %}
-      {% else %}
+          </div>
+        </a>
+        {% endfor %} {% else %}
         <p>Chưa có xe nào được duyệt.</p>
-      {% endif %}
-    </div>
-  </section>
+        {% endif %}
+      </div>
+    </section>
 
-  <!-- =========== PIN XE ĐIỆN =========== -->
-  <section class="product-section">
-    <div class="section-header">
-      <h2 class="section-title">Pin xe điện mới về</h2>
-      <a href="#" class="view-all">Xem tất cả</a>
-    </div>
+    <!-- =========== PIN XE ĐIỆN =========== -->
+    <section class="product-section">
+      <div class="section-header">
+        <h2 class="section-title">Pin xe điện mới về</h2>
+        <a href="#" class="view-all">Xem tất cả</a>
+      </div>
 
-    <div class="product-grid">
-      {% if batts and batts|length %}
-        {% for p in batts %}
-          <a href="/listings/{{ p.id }}" class="product-card">
-            {% if p.verified %}
-              <span class="badge-verified">ĐÃ KIỂM ĐỊNH</span>
-            {% endif %}
-            {% if p.item_type == 'vehicle' %}
-              <span class="badge-type">Ô TÔ</span>
-            {% elif p.item_type == 'battery' %}
-              <span class="badge-type battery">PIN</span>
-            {% endif %}
-            <img
-              src="{{ p.main_image_url or '/static/images/placeholder.png' }}"
-              alt="{{ p.name }}"
-              class="product-image"
-              onerror="this.onerror=null;this.src='/static/images/placeholder.png'"/>
-            <div class="product-info">
-              <h3 class="product-title">{{ p.name }}</h3>
-              <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
-              <div class="product-location">
-                <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
-              </div>
+      <div class="product-grid">
+        {% if batts and batts|length %} {% for p in batts %}
+        <a href="/listings/{{ p.id }}" class="product-card">
+          {% if p.verified %}
+          <span class="badge-verified">ĐÃ KIỂM ĐỊNH</span>
+          {% endif %} {% if p.item_type == 'vehicle' %}
+          <span class="badge-type">Ô TÔ</span>
+          {% elif p.item_type == 'battery' %}
+          <span class="badge-type battery">PIN</span>
+          {% endif %}
+          <img
+            src="{{ p.main_image_url or '/static/images/placeholder.png' }}"
+            alt="{{ p.name }}"
+            class="product-image"
+            onerror="this.onerror=null;this.src='/static/images/placeholder.png'"
+          />
+          <div class="product-info">
+            <h3 class="product-title">{{ p.name }}</h3>
+            <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
+            <div class="product-location">
+              <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
             </div>
-          </a>
-        {% endfor %}
-      {% else %}
+          </div>
+        </a>
+        {% endfor %} {% else %}
         <p>Chưa có pin nào được duyệt.</p>
-      {% endif %}
-    </div>
-  </section>
-  <div id="authModal" class="modal" style="display:none">
-    <div class="modal-content">
-      <span class="close" onclick="document.getElementById('authModal').style.display='none'">&times;</span>
-      <div class="auth-tabs">
-        <button onclick="showTab('login')">Đăng nhập</button>
-        <button onclick="showTab('register')">Đăng ký</button>
+        {% endif %}
       </div>
-      <div id="loginTab" class="tab-content">
-        <form id="loginForm" method="POST" action="{{ url_for('login_page') }}">
-          <input type="text" name="username" placeholder="Tên đăng nhập hoặc email" required/>
-          <input type="password" name="password" placeholder="Mật khẩu" required/>
-          <button type="submit">Đăng nhập</button>
+    </section>
+    {% endif %}
+    <!-- End of featured sections -->
+
+    <div id="authModal" class="modal" style="display: none">
+      <div class="modal-content">
+        <span
+          class="close"
+          onclick="document.getElementById('authModal').style.display='none'"
+          >&times;</span
+        >
+        <div class="auth-tabs">
+          <button onclick="showTab('login')">Đăng nhập</button>
+          <button onclick="showTab('register')">Đăng ký</button>
+        </div>
+        <div id="loginTab" class="tab-content">
+          <form
+            id="loginForm"
+            method="POST"
+            action="{{ url_for('login_page') }}"
+          >
+            <input
+              type="text"
+              name="username"
+              placeholder="Tên đăng nhập hoặc email"
+              required
+            />
+            <input
+              type="password"
+              name="password"
+              placeholder="Mật khẩu"
+              required
+            />
+            <button type="submit">Đăng nhập</button>
+          </form>
+        </div>
+        <div id="registerTab" class="tab-content" style="display: none">
+          <form
+            id="registerForm"
+            method="POST"
+            action="{{ url_for('register_page') }}"
+          >
+            <input
+              type="text"
+              name="username"
+              placeholder="Tên đăng nhập"
+              required
+            />
+            <input type="email" name="email" placeholder="Email" required />
+            <input type="text" name="phone" placeholder="Số điện thoại" />
+            <input
+              type="password"
+              name="password"
+              placeholder="Mật khẩu"
+              required
+            />
+            <input
+              type="password"
+              name="confirm_password"
+              placeholder="Xác nhận mật khẩu"
+              required
+            />
+            <button type="submit">Đăng ký</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div id="profileModal" class="modal" style="display: none">
+      <div class="modal-content">
+        <span
+          class="close"
+          onclick="document.getElementById('profileModal').style.display='none'"
+          >&times;</span
+        >
+        <h2>Hồ sơ cá nhân</h2>
+        <form id="profileForm">
+          <input type="text" name="name" placeholder="Tên" />
+          <input type="date" name="dob" placeholder="Ngày sinh" />
+          <input type="text" name="address" placeholder="Địa chỉ" />
+          <input type="file" name="avatar" accept="image/*" />
+          <button type="submit">Cập nhật hồ sơ</button>
         </form>
-      </div>
-      <div id="registerTab" class="tab-content" style="display:none">
-        <form id="registerForm" method="POST" action="{{ url_for('register_page') }}">
-          <input type="text"  name="username" placeholder="Tên đăng nhập" required/>
-          <input type="email" name="email"    placeholder="Email" required/>
-          <input type="text"  name="phone"    placeholder="Số điện thoại"/>
-          <input type="password" name="password"         placeholder="Mật khẩu" required/>
-          <input type="password" name="confirm_password" placeholder="Xác nhận mật khẩu" required/>
-          <button type="submit">Đăng ký</button>
-        </form>
+        <div id="roleInfo"></div>
       </div>
     </div>
-  </div>
 
-  <div id="profileModal" class="modal" style="display:none">
-    <div class="modal-content">
-      <span class="close" onclick="document.getElementById('profileModal').style.display='none'">&times;</span>
-      <h2>Hồ sơ cá nhân</h2>
-      <form id="profileForm">
-        <input type="text" name="name" placeholder="Tên"/>
-        <input type="date" name="dob" placeholder="Ngày sinh"/>
-        <input type="text" name="address" placeholder="Địa chỉ"/>
-        <input type="file" name="avatar" accept="image/*"/>
-        <button type="submit">Cập nhật hồ sơ</button>
-      </form>
-      <div id="roleInfo"></div>
-    </div>
-  </div>
+    <footer class="footer">
+      <p>© 2025 EV Trading Platform. Tất cả quyền được bảo lưu.</p>
+    </footer>
 
-  <footer class="footer">
-    <p>© 2025 EV Trading Platform. Tất cả quyền được bảo lưu.</p>
-  </footer>
+    <script>
+      function showTab(tab) {
+        document.getElementById("loginTab").style.display =
+          tab === "login" ? "block" : "none";
+        document.getElementById("registerTab").style.display =
+          tab === "register" ? "block" : "none";
+      }
+      function openAuthModal() {
+        showTab("login");
+        document.getElementById("authModal").style.display = "block";
+      }
+      function toggleUserMenu(e) {
+        e.preventDefault();
+        const dd = document.getElementById("userDropdown");
+        dd.style.display =
+          !dd.style.display || dd.style.display === "none" ? "block" : "none";
+      }
+      document.addEventListener("click", function (ev) {
+        const wrap = document.querySelector(".user-avatar-wrap");
+        const dd = document.getElementById("userDropdown");
+        if (!wrap || !dd) return;
+        if (!wrap.contains(ev.target)) dd.style.display = "none";
+      });
 
-  <script>
-    function showTab(tab){
-      document.getElementById("loginTab").style.display = (tab === "login") ? "block" : "none";
-      document.getElementById("registerTab").style.display = (tab === "register") ? "block" : "none";
-    }
-    function openAuthModal(){
-      showTab("login");
-      document.getElementById("authModal").style.display = "block";
-    }
-    function toggleUserMenu(e){
-      e.preventDefault();
-      const dd = document.getElementById('userDropdown');
-      dd.style.display = (!dd.style.display || dd.style.display === 'none') ? 'block' : 'none';
-    }
-    document.addEventListener('click', function(ev){
-      const wrap = document.querySelector('.user-avatar-wrap');
-      const dd = document.getElementById('userDropdown');
-      if (!wrap || !dd) return;
-      if (!wrap.contains(ev.target)) dd.style.display = 'none';
-    });
-  </script>
-</body>
+      // Advanced Filters Toggle
+      function toggleAdvancedFilters() {
+        const filters = document.getElementById("advancedFilters");
+        if (filters.style.display === "none") {
+          filters.style.display = "block";
+        } else {
+          filters.style.display = "none";
+        }
+      }
+
+      // Apply Advanced Filters
+      function applyAdvancedFilters() {
+        const params = new URLSearchParams(window.location.search);
+
+        // Get values from advanced filter inputs
+        const brand = document.getElementById("brand").value;
+        const minPrice = document.getElementById("min_price").value;
+        const maxPrice = document.getElementById("max_price").value;
+        const yearFrom = document.getElementById("year_from").value;
+        const yearTo = document.getElementById("year_to").value;
+        const mileageMax = document.getElementById("mileage_max").value;
+        const batteryMin = document.getElementById(
+          "battery_capacity_min"
+        ).value;
+        const batteryMax = document.getElementById(
+          "battery_capacity_max"
+        ).value;
+        const sort = document.getElementById("sort").value;
+
+        // Build query params
+        const newParams = new URLSearchParams();
+        if (brand) newParams.set("brand", brand);
+        if (minPrice) newParams.set("min_price", minPrice);
+        if (maxPrice) newParams.set("max_price", maxPrice);
+        if (yearFrom) newParams.set("year_from", yearFrom);
+        if (yearTo) newParams.set("year_to", yearTo);
+        if (mileageMax) newParams.set("mileage_max", mileageMax);
+        if (batteryMin) newParams.set("battery_capacity_min", batteryMin);
+        if (batteryMax) newParams.set("battery_capacity_max", batteryMax);
+        if (sort && sort !== "newest") newParams.set("sort", sort);
+
+        // Keep existing q, province, item_type from main form
+        const q = document.querySelector('input[name="q"]').value;
+        const provinceEl = document.querySelector('select[name="province"]');
+        const province = provinceEl ? provinceEl.value : "";
+        const itemType = document.querySelector(
+          'select[name="item_type"]'
+        ).value;
+
+        if (q) newParams.set("q", q);
+        if (province) newParams.set("province", province);
+        if (itemType) newParams.set("item_type", itemType);
+
+        // Reload page with new params
+        window.location.href = "?" + newParams.toString();
+      }
+
+      // Reset Filters
+      function resetFilters() {
+        document.getElementById("brand").value = "";
+        document.getElementById("min_price").value = "";
+        document.getElementById("max_price").value = "";
+        document.getElementById("year_from").value = "";
+        document.getElementById("year_to").value = "";
+        document.getElementById("mileage_max").value = "";
+        document.getElementById("battery_capacity_min").value = "";
+        document.getElementById("battery_capacity_max").value = "";
+        document.getElementById("sort").value = "newest";
+
+        // Also reset main form
+        document.querySelector('input[name="q"]').value = "";
+        const provEl = document.querySelector('select[name="province"]');
+        if (provEl) provEl.value = "";
+        document.querySelector('select[name="item_type"]').value = "";
+
+        // Reload without params
+        window.location.href = window.location.pathname;
+      }
+    </script>
+  </body>
 </html>
