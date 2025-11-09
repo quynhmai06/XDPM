@@ -742,6 +742,14 @@ def price_suggest():
 def profile_page():
     return render_template("profile.html")
 
+
+# ===================== Cart (UI) =====================
+@app.get("/cart", endpoint="cart_page")
+def cart_page():
+    """Render cart page. Cart is mainly managed client-side via localStorage.
+    Server may optionally pass `items` for server-side carts; absent by default."""
+    return render_template("cart.html")
+
 @app.route("/policy", methods=["GET"], endpoint="policy_page")
 def policy_page():
     return render_template("policy.html")

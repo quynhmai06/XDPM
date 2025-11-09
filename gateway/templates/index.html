@@ -11,30 +11,7 @@
     />
   </head>
   <body>
-    <!-- Floating Compare Button -->
-    <button
-      id="compareBtn"
-      onclick="goToCompare()"
-      style="
-        display: none;
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 1000;
-        padding: 12px 24px;
-        background: #ff6f00;
-        color: white;
-        border: none;
-        border-radius: 50px;
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        font-weight: 600;
-      "
-    >
-      So sánh (0)
-    </button>
-
-    <header class="header">
+    <div class="header">
       <div class="header-container">
         <div class="logo-section">
           <button class="menu-toggle"><i class="fas fa-bars"></i></button>
@@ -69,6 +46,21 @@
               <div class="dropdown-name">{{ display_name }}</div>
               <a href="{{ url_for('profile') }}" class="dropdown-item"
                 >Quản lý hồ sơ</a
+              >
+              <a href="/cart" class="dropdown-item"
+                >Giỏ hàng
+                <span
+                  id="hdrCartCount"
+                  style="
+                    background: #ff6f00;
+                    color: #fff;
+                    padding: 2px 6px;
+                    border-radius: 12px;
+                    font-size: 12px;
+                    margin-left: 8px;
+                  "
+                  >0</span
+                ></a
               >
               <a href="{{ url_for('logout_page') }}" class="dropdown-item"
                 >Đăng xuất</a
@@ -259,7 +251,7 @@
       <div class="product-grid">
         {% if search_results and search_results|length %} {% for p in
         search_results %}
-        <a href="/listings/{{ p.id }}" class="product-card">
+        <div class="product-card">
           {% if p.verified %}
           <span class="badge-verified">ĐÃ KIỂM ĐỊNH</span>
           {% endif %} {% if p.item_type == 'vehicle' %}
@@ -267,21 +259,37 @@
           {% elif p.item_type == 'battery' %}
           <span class="badge-type battery">PIN</span>
           {% endif %}
-          <img
-            src="{{ p.main_image_url or '/static/images/logo.png' }}"
-            alt="{{ p.name }}"
-            class="product-image"
-            onerror="this.onerror=null;this.src='/static/images/logo.png'"
-          />
-          <div class="product-info">
-            <h3 class="product-title">{{ p.name }}</h3>
-            <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
-            <div class="product-location">
-              <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
+          <a href="/listings/{{ p.id }}" style="text-decoration: none; color: inherit">
+            <img
+              src="{{ p.main_image_url or '/static/images/logo.png' }}"
+              alt="{{ p.name }}"
+              class="product-image"
+              onerror="this.onerror=null;this.src='/static/images/logo.png'"
+            />
+            <div class="product-info">
+              <h3 class="product-title">{{ p.name }}</h3>
+              <div class="product-price">{{ "{:,.0f}".format(p.price) }} đ</div>
+              <div class="product-location">
+                <i class="fas fa-map-marker-alt"></i> {{ p.province or '—' }}
+              </div>
             </div>
-          </div>
-        </a>
-        {% endfor %} {% else %}
+          </a>
+        <div class="product-card-actions">
+          <button
+            class="btn-buy-now"
+            onclick="event.stopPropagation(); buyNowFromCard('{{ p.item_type }}', {{ p.id }}, {{ p.price }})"
+          >
+            <i class="fas fa-bolt"></i> Mua ngay
+          </button>
+          <button
+            class="btn-add-cart"
+            onclick="event.stopPropagation(); addToCartFromCard('{{ p.item_type }}', {{ p.id }}, {{ p.price }})"
+          >
+            <i class="fas fa-shopping-cart"></i> Giỏ hàng
+          </button>
+  </div>
+  </div>
+  {% endfor %} {% else %}
         <div class="no-results">
           <i
             class="fas fa-search"
@@ -369,6 +377,7 @@
             >
               <i class="fas fa-chart-bar"></i>
             </button>
+            <!-- Purchase actions moved below to avoid overlapping -->
           </div>
 
           <a
@@ -389,6 +398,20 @@
               </div>
             </div>
           </a>
+          <div class="product-card-actions">
+            <button
+              class="btn-buy-now"
+              onclick="event.stopPropagation(); buyNowFromCard('{{ p.item_type }}', {{ p.id }}, {{ p.price }})"
+            >
+              <i class="fas fa-bolt"></i> Mua ngay
+            </button>
+            <button
+              class="btn-add-cart"
+              onclick="event.stopPropagation(); addToCartFromCard('{{ p.item_type }}', {{ p.id }}, {{ p.price }})"
+            >
+              <i class="fas fa-shopping-cart"></i> Giỏ hàng
+            </button>
+          </div>
         </div>
         {% endfor %} {% else %}
         <p>Chưa có xe nào được duyệt.</p>
@@ -439,6 +462,7 @@
             >
               <i class="fas fa-chart-bar"></i>
             </button>
+            <!-- Purchase actions moved below to avoid overlapping -->
           </div>
 
           <a
@@ -459,6 +483,20 @@
               </div>
             </div>
           </a>
+          <div class="product-card-actions">
+            <button
+              class="btn-buy-now"
+              onclick="event.stopPropagation(); buyNowFromCard('{{ p.item_type }}', {{ p.id }}, {{ p.price }})"
+            >
+              <i class="fas fa-bolt"></i> Mua ngay
+            </button>
+            <button
+              class="btn-add-cart"
+              onclick="event.stopPropagation(); addToCartFromCard('{{ p.item_type }}', {{ p.id }}, {{ p.price }})"
+            >
+              <i class="fas fa-shopping-cart"></i> Giỏ hàng
+            </button>
+          </div>
         </div>
         {% endfor %} {% else %}
         <p>Chưa có pin nào được duyệt.</p>
@@ -762,7 +800,60 @@
       // Initialize compare button
       document.addEventListener("DOMContentLoaded", function () {
         updateCompareButton();
+        // update header cart count from localStorage
+        try {
+          const cart = JSON.parse(localStorage.getItem('cart')||'[]');
+          const el = document.getElementById('hdrCartCount');
+          if (el) el.textContent = (cart && cart.length) ? cart.length : 0;
+        } catch(e){}
       });
+
+      // --- Purchase helper functions ---
+      function buyNowFromCard(itemType, itemId, price) {
+        // Add item to client-side cart (qty=1 or increment) then go to cart for checkout
+        try { itemId = parseInt(itemId); } catch (e) {}
+        if (!itemId) return alert('Sản phẩm không hợp lệ');
+        try {
+          const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+          const idx = cart.findIndex(c => c.item_id === itemId);
+          if (idx >= 0) {
+            cart[idx].qty = (cart[idx].qty || 1) + 1;
+          } else {
+            cart.push({ item_type: itemType, item_id: itemId, price: price || 0, qty: 1 });
+          }
+          localStorage.setItem('cart', JSON.stringify(cart));
+          // update header badge if present
+          try {
+            const el = document.getElementById('hdrCartCount');
+            if (el) el.textContent = cart.reduce((s, c) => s + (c.qty || 0), 0);
+          } catch (e) {}
+        } catch (e) {
+          console.error('cart error', e);
+        }
+        // send user to cart to complete checkout
+        window.location.href = '/cart';
+      }
+
+      function addToCartFromCard(itemType, itemId, price) {
+        try {
+          itemId = parseInt(itemId);
+        } catch (e) {}
+        if (!itemId) return alert('Sản phẩm không hợp lệ');
+        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        const exists = cart.find(c => c.item_id === itemId);
+        if (exists) {
+          alert('Sản phẩm đã có trong giỏ hàng');
+          return;
+        }
+        cart.push({ item_type: itemType, item_id: itemId, price: price || 0, qty: 1 });
+        localStorage.setItem('cart', JSON.stringify(cart));
+        // update header badge if present
+        try {
+          const el = document.getElementById('hdrCartCount');
+          if (el) el.textContent = cart.reduce((s, c) => s + (c.qty || 0), 0);
+        } catch (e) {}
+        alert('Đã thêm vào giỏ hàng');
+      }
     </script>
   </body>
 </html>
