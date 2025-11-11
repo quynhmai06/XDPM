@@ -1402,6 +1402,20 @@ def gw_payment_admin_reject(payment_id: int):
         return Response(r.content, status=r.status_code, content_type=ctype)
     except requests.RequestException as e:
         return jsonify(error="payment_upstream_unreachable", detail=str(e)), 502
+    
+@app.route("/auth/<path:path>")
+def proxy_auth(path):
+    target = f"http://auth_service:5001/auth/{path}"
+    resp = requests.request(
+        method=request.method,
+        url=target,
+        headers={k: v for k, v in request.headers if k.lower() != "host"},
+        allow_redirects=False
+    )
+    excluded_headers = ["content-encoding", "content-length", "transfer-encoding", "connection"]
+    headers = [(name, value) for (name, value) in resp.raw.headers.items() if name.lower() not in excluded_headers]
+    response = Response(resp.content, resp.status_code, headers)
+    return response
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))

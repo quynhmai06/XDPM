@@ -2,7 +2,10 @@ from sqlalchemy import or_
 import os
 import re
 import jwt
-from flask import send_from_directory, url_for
+import time
+from urllib.parse import urlencode, parse_qs
+from oauth_client import oauth
+from flask import send_from_directory, url_for, current_app
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, session, render_template, current_app, flash, redirect
 from types import SimpleNamespace
@@ -12,6 +15,7 @@ from pathlib import Path
 import uuid
 from models import db, User, UserProfile
 
+WEB_BASE_URL = os.getenv("WEB_BASE_URL", "http://localhost:8000")
 ALLOWED_IMAGE_EXTS = {"png", "jpg", "jpeg", "gif", "webp"}
 AVATAR_DIR = "uploads/avatars"  
 
@@ -371,3 +375,85 @@ def get_avatar(name):
     if not file_path.exists():
         return {"error": "not_found"}, 404
     return send_from_directory(avatar_dir, name)
+
+@bp.get("/login/google")
+def login_google():
+    redirect_uri = url_for("auth.callback_google", _external=True)
+    client = oauth.create_client("google")
+    return client.authorize_redirect(redirect_uri)
+
+@bp.get("/callback/google")
+def callback_google():
+    client = oauth.create_client("google")
+    token = client.authorize_access_token()  # exchange code -> token
+    info = client.get("userinfo").json()     # {id, email, name, picture, ...}
+
+    email = normalize_email(info.get("email"))
+    sub   = info.get("id") or info.get("sub")
+    name  = info.get("name") or (email or "").split("@")[0]
+    avatar = info.get("picture") or ""
+
+    # Tạo hoặc lấy user
+    u = User.query.filter(
+        or_(User.email == email, User.username == email.split("@")[0])
+    ).first()
+    if not u:
+        u = User(
+            username=(email or f"gg_{sub}")[:30],
+            email=email,
+            password=generate_password_hash(os.urandom(8).hex()),
+            role="member",
+            approved=True,   # xã hội: có thể cho auto-approve
+            locked=False,
+            phone=None,
+        )
+        db.session.add(u); db.session.commit()
+
+        # tạo profile kèm avatar (nếu muốn)
+        p = UserProfile(user_id=u.id, full_name=name or u.username)
+        if avatar:
+            p.avatar_url = avatar
+        db.session.add(p); db.session.commit()
+
+    # cấp JWT
+    token_jwt = _make_token(u)
+    # Redirect về web (gateway/UI) với token
+    return redirect(f"{WEB_BASE_URL}/auth/callback?provider=google&token={token_jwt}")
+
+@bp.get("/login/facebook")
+def login_facebook():
+    redirect_uri = url_for("auth.callback_facebook", _external=True)
+    client = oauth.create_client("facebook")
+    return client.authorize_redirect(redirect_uri)
+
+@bp.get("/callback/facebook")
+def callback_facebook():
+    client = oauth.create_client("facebook")
+    token = client.authorize_access_token()
+    me = client.get("me?fields=id,name,email,picture{url}").json()
+
+    email = normalize_email(me.get("email"))
+    sub   = me.get("id")
+    name  = me.get("name")
+    avatar = ((me.get("picture") or {}).get("data") or {}).get("url")
+
+    u = User.query.filter(
+        or_(User.email == email, User.username == (email or f"fb_{sub}").split("@")[0])
+    ).first()
+    if not u:
+        u = User(
+            username=(email or f"fb_{sub}")[:30],
+            email=email,
+            password=generate_password_hash(os.urandom(8).hex()),
+            role="member",
+            approved=True,
+            locked=False,
+        )
+        db.session.add(u); db.session.commit()
+        p = UserProfile(user_id=u.id, full_name=name or u.username)
+        if avatar:
+            p.avatar_url = avatar
+        db.session.add(p); db.session.commit()
+
+    token_jwt = _make_token(u)
+    return redirect(f"{WEB_BASE_URL}/auth/callback?provider=facebook&token={token_jwt}")
