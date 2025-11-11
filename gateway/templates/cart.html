@@ -263,7 +263,7 @@
         {% endif %}
       </div>
 
-      <!-- Cart summary is rendered client-side if no server items provided -->
+      <!-- Cart summary -->
       <div
         id="cartSummary"
         class="cart-summary"
@@ -288,9 +288,10 @@
             endif %}</span
           >
         </div>
-        <a id="checkoutBtn" href="/checkout" class="checkout-btn">
+        <button id="checkoutBtn" type="button" class="checkout-btn">
           <i class="fas fa-lock"></i> Tiến hành thanh toán
-        </a>
+        </button>
+
         <a
           href="/"
           style="
@@ -306,8 +307,13 @@
       </div>
     </div>
 
+    <!-- expose user id từ session -->
     <script>
-      // Client-side cart rendering using localStorage
+      const CURRENT_USER_ID = {{ (session.get('user') or {}).get('id') or 'null' }};
+    </script>
+
+    <script>
+      // ===== Local cart utils =====
       function getCart() {
         try {
           return JSON.parse(localStorage.getItem("cart") || "[]");
@@ -315,11 +321,9 @@
           return [];
         }
       }
-
       function saveCart(cart) {
         localStorage.setItem("cart", JSON.stringify(cart || []));
       }
-
       async function fetchListing(id) {
         try {
           const r = await fetch("/api/listings/" + id);
@@ -330,7 +334,6 @@
           return null;
         }
       }
-
       function formatVnd(n) {
         try {
           return new Intl.NumberFormat("vi-VN").format(Math.round(n)) + " đ";
@@ -339,26 +342,27 @@
         }
       }
 
+      // ===== Render cart (client) =====
       async function renderCart() {
         const cart = getCart();
         const container = document.querySelector(".cart-items");
         const summary = document.getElementById("cartSummary");
         if (!container) return;
-        // If no items, show empty-cart block and hide summary
+
         if (!cart || cart.length === 0) {
-          // Remove existing dynamic items
-          container.innerHTML = `\n            <div class="empty-cart">\n              <i class="fas fa-shopping-cart"></i>\n              <p>Giỏ hàng trống</p>\n              <a href="/" style="color: #ff6b35">← Tiếp tục mua sắm</a>\n            </div>`;
+          container.innerHTML = `
+            <div class="empty-cart">
+              <i class="fas fa-shopping-cart"></i>
+              <p>Giỏ hàng trống</p>
+              <a href="/" style="color: #ff6b35">← Tiếp tục mua sắm</a>
+            </div>`;
           if (summary) summary.style.display = "none";
           return;
         }
-        // Show summary container
         if (summary) summary.style.display = "";
 
-        // Fetch listing details
-        const details = await Promise.all(
-          cart.map((c) => fetchListing(c.item_id))
-        );
-        // Build HTML
+        const details = await Promise.all(cart.map((c) => fetchListing(c.item_id)));
+
         let subtotal = 0;
         const html = cart
           .map((line, idx) => {
@@ -382,16 +386,10 @@
                 }</div>
                 <div class="cart-item-price">${formatVnd(price)}</div>
                 <div class="cart-qty-controls">
-                  <button class="qty-btn" data-action="decr" data-id="${
-                    line.item_id
-                  }">−</button>
+                  <button class="qty-btn" data-action="decr" data-id="${line.item_id}">−</button>
                   <span class="qty-display">${line.qty || 1}</span>
-                  <button class="qty-btn" data-action="incr" data-id="${
-                    line.item_id
-                  }">+</button>
-                  <button class="remove-btn" data-id="${
-                    line.item_id
-                  }"><i class="fas fa-trash"></i> Xóa</button>
+                  <button class="qty-btn" data-action="incr" data-id="${line.item_id}">+</button>
+                  <button class="remove-btn" data-id="${line.item_id}"><i class="fas fa-trash"></i> Xóa</button>
                 </div>
               </div>
             </div>`;
@@ -399,15 +397,13 @@
           .join("\n");
         container.innerHTML = html;
 
-        // Update summary values
         const subtotalEl = document.getElementById("summarySubtotal");
         const totalEl = document.getElementById("summaryTotal");
         if (subtotalEl) subtotalEl.textContent = formatVnd(subtotal);
         if (totalEl) totalEl.textContent = formatVnd(subtotal);
 
-        // Wire up buttons
         container.querySelectorAll(".qty-btn").forEach((btn) => {
-          btn.addEventListener("click", (e) => {
+          btn.addEventListener("click", () => {
             const id = Number(btn.dataset.id);
             const action = btn.dataset.action;
             const c = getCart();
@@ -421,7 +417,7 @@
           });
         });
         container.querySelectorAll(".remove-btn").forEach((btn) => {
-          btn.addEventListener("click", (e) => {
+          btn.addEventListener("click", () => {
             const id = Number(btn.dataset.id);
             const c = getCart().filter((x) => Number(x.item_id) !== id);
             saveCart(c);
@@ -430,7 +426,6 @@
         });
       }
 
-      // When user clicks updateQty/removeItem server endpoints are not required anymore
       function updateQty(type, id, qty) {
         const cart = getCart();
         const idx = cart.findIndex((c) => Number(c.item_id) === Number(id));
@@ -447,9 +442,120 @@
         renderCart();
       }
 
-      // Initialize client-side render
+      // ===== Checkout: luôn gửi buyer_id & seller_id =====
+      async function handleCheckout(e) {
+        e.preventDefault();
+
+        const cart = getCart();
+        if (!cart || cart.length === 0) {
+          alert("Giỏ hàng trống");
+          return;
+        }
+
+        // Phải có buyer_id
+        const buyerId = (typeof CURRENT_USER_ID !== "undefined" && CURRENT_USER_ID) ? Number(CURRENT_USER_ID) : null;
+        if (!buyerId) {
+          window.location.href = "/login?next=" + encodeURIComponent(location.pathname);
+          return;
+        }
+
+        let amount = 0;
+        const items = [];
+        const sellerIds = new Set();
+
+        for (const line of cart) {
+          // Ưu tiên seller_id đã lưu trong cart (nếu lúc add-to-cart có lưu)
+          let sId = line.seller_id ?? null;
+
+          // Lấy thông tin listing để lấy giá/tên & fallback seller_id
+          const it = await fetchListing(line.item_id);
+          if (!it) {
+            alert("Không tải được thông tin sản phẩm #" + line.item_id);
+            return;
+          }
+
+          // Tính tiền
+          const price = Number(line.price || it.price || 0);
+          const qty = Number(line.qty || 1);
+          amount += price * qty;
+
+          // Fallback seller_id từ nhiều khóa phổ biến trong listing
+          if (!sId) {
+            sId =
+              it.seller_id ??
+              it.owner_id ??
+              it.user_id ??
+              (it.seller && it.seller.id) ??
+              (it.owner && it.owner.id) ??
+              (it.user && it.user.id) ??
+              null;
+          }
+
+          // Nếu vẫn chưa có, thử cố định 1 (tạm) — bạn có thể bỏ nếu API chắc chắn trả seller
+          if (!sId) {
+            console.warn("Không tìm thấy seller_id trong listing, dùng fallback tạm = 1");
+            sId = 1; // <-- có thể đổi hoặc bỏ khi API đã trả seller_id đúng
+          }
+
+          sellerIds.add(String(sId));
+
+          items.push({
+            item_id: line.item_id,
+            item_type: line.item_type || "vehicle",
+            qty,
+            price,
+            seller_id: sId,
+            name: it.name || ("SP#" + line.item_id)
+          });
+        }
+
+        // Nếu giỏ có nhiều người bán -> bắt user tách đơn (hoặc bạn có thể nhóm theo seller để tạo nhiều payment)
+        if (sellerIds.size > 1) {
+          alert("Giỏ hàng có nhiều người bán khác nhau. Vui lòng thanh toán theo từng người bán.");
+          return;
+        }
+
+        const sellerId = Number([...sellerIds][0]);
+
+        const payload = {
+          order_id: "ORD-" + Date.now(),
+          method: "momo",
+          amount: Math.round(amount),
+          buyer_id: buyerId,
+          seller_id: sellerId,
+          items
+        };
+
+        try {
+          const res = await fetch("/payment/create", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+
+          if (res.status === 401) {
+            window.location.href = "/login?next=" + encodeURIComponent(location.pathname);
+            return;
+          }
+
+          if (res.ok && data.checkout_url) {
+            window.location.href = data.checkout_url;            // /payment/checkout/<id>
+          } else if (data.payment_id) {
+            window.location.href = "/payment/checkout/" + data.payment_id;
+          } else {
+            alert(data.error || "Không tạo được thanh toán");
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Lỗi khi kết nối payment service");
+        }
+      }
+
       document.addEventListener("DOMContentLoaded", function () {
         renderCart();
+        const btn = document.getElementById("checkoutBtn");
+        if (btn) btn.addEventListener("click", handleCheckout);
       });
     </script>
   </body>

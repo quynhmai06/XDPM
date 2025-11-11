@@ -11,6 +11,7 @@ LISTING_URL  = os.getenv("LISTING_URL",  "http://listing_service:5002")
 SEARCH_URL   = os.getenv("SEARCH_URL",   "http://search_service:5003")
 PRICING_URL  = os.getenv("PRICING_URL",  "http://pricing_service:5003")
 FAVORITES_URL = os.getenv("FAVORITES_URL", "http://favorites_service:5004")
+PAYMENT_URL = os.getenv("PAYMENT_URL", "http://payment_service:5003")
 
 JWT_SECRET = os.getenv("JWT_SECRET", "devsecret")
 JWT_ALGOS  = ["HS256"]
@@ -1222,7 +1223,185 @@ def ai_upstream_status_v2():
                 out[name] = {"url": url, "ok": False, "error": str(e)}
         out[name]["tried"] = tried
     return (out, 200)
+# ===================== Payment (proxy) =====================
+def _forward_auth_headers():
+    """Forward Authorization header if user logged in."""
+    headers = {}
+    tok = session.get("access_token")
+    if tok:
+        headers["Authorization"] = f"Bearer {tok}"
+    return headers
 
+@app.post("/payment/create")
+def gw_payment_create():
+    """Tạo paymentId rồi trả về checkout_url"""
+    try:
+        r = requests.post(
+            f"{PAYMENT_URL}/payment/create",
+            json=(request.get_json(silent=True) or {}),
+            headers={**_forward_auth_headers(), "Content-Type": "application/json"},
+            timeout=10
+        )
+        ctype = r.headers.get("content-type") or "application/json"
+        return Response(r.content, status=r.status_code, content_type=ctype)
+    except requests.RequestException as e:
+        return jsonify(error="payment_upstream_unreachable", detail=str(e)), 502
+
+@app.route("/payment/checkout/<int:payment_id>", methods=["GET", "POST"])
+def gw_payment_checkout(payment_id: int):
+    """
+    Proxy trang Checkout (GET hiển thị form / POST confirm tạo invoice)
+    """
+    try:
+        if request.method == "GET":
+            r = requests.get(
+                f"{PAYMENT_URL}/payment/checkout/{payment_id}",
+                headers=_forward_auth_headers(),
+                timeout=12,
+            )
+        else:
+            # POST confirm từ form checkout
+            # Hỗ trợ cả form-urlencoded & application/json
+            if (request.content_type or "").startswith("application/json"):
+                r = requests.post(
+                    f"{PAYMENT_URL}/payment/checkout/{payment_id}",
+                    json=request.get_json(silent=True) or {},
+                    headers={**_forward_auth_headers(), "Content-Type": "application/json"},
+                    timeout=15,
+                )
+            else:
+                r = requests.post(
+                    f"{PAYMENT_URL}/payment/checkout/{payment_id}",
+                    data=request.form,
+                    headers=_forward_auth_headers(),
+                    timeout=15,
+                )
+        ctype = r.headers.get("content-type") or "text/html"
+        return Response(r.content, status=r.status_code, content_type=ctype)
+    except requests.RequestException as e:
+        return Response(f"Payment upstream error: {e}", status=502)
+
+@app.get("/payment/invoice/<path:contract_id>")
+def gw_payment_invoice(contract_id: str):
+    """Proxy trang invoice"""
+    try:
+        r = requests.get(
+            f"{PAYMENT_URL}/payment/invoice/{contract_id}",
+            headers=_forward_auth_headers(),
+            timeout=12,
+        )
+        ctype = r.headers.get("content-type") or "text/html"
+        return Response(r.content, status=r.status_code, content_type=ctype)
+    except requests.RequestException as e:
+        return Response(f"Payment upstream error: {e}", status=502)
+
+@app.post("/payment/simulate/<int:payment_id>")
+def gw_payment_simulate(payment_id: int):
+    """Tiện test: đặt trạng thái đã thanh toán (nếu upstream có)."""
+    try:
+        r = requests.post(
+            f"{PAYMENT_URL}/payment/simulate/{payment_id}",
+            headers=_forward_auth_headers(),
+            timeout=10,
+        )
+        ctype = r.headers.get("content-type") or "application/json"
+        return Response(r.content, status=r.status_code, content_type=ctype)
+    except requests.RequestException as e:
+        return jsonify(error="payment_upstream_unreachable", detail=str(e)), 502
+# ==== Catch-all proxy cho mọi đường /payment/* ====
+import os, requests
+from flask import request, Response, jsonify
+
+PAYMENT_URL = os.getenv("PAYMENT_URL", "http://payment_service:5003")
+ADMIN_TOKEN  = os.getenv("ADMIN_TOKEN", "changeme-super-admin-token")
+
+@app.route("/payment/<path:subpath>", methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS"])
+def proxy_payment_catchall(subpath):
+    """
+    Proxy mọi request /payment/* sang payment-service (500x/compose).
+    Các route cụ thể (nếu có) sẽ được Flask match trước; cái này là lưới an toàn.
+    """
+    upstream = f"{PAYMENT_URL}/payment/{subpath}"
+
+    headers = {k: v for k, v in request.headers if k.lower() != "host"}
+
+    # nếu là đường admin/* và phía payment yêu cầu X-Admin-Token, thì tự chèn
+    if subpath.startswith("admin/") and "X-Admin-Token" not in headers:
+        headers["X-Admin-Token"] = ADMIN_TOKEN
+
+    try:
+        resp = requests.request(
+            method=request.method,
+            url=upstream,
+            params=request.args,
+            data=request.get_data(),
+            headers=headers,
+            cookies=request.cookies,
+            allow_redirects=False,
+            timeout=20,
+        )
+    except requests.RequestException as e:
+        return jsonify(error="payment_upstream_unreachable", detail=str(e)), 502
+
+    excluded = {"content-encoding", "content-length", "transfer-encoding", "connection"}
+    out_headers = [(k, v) for k, v in resp.headers.items() if k.lower() not in excluded]
+    return Response(resp.content, resp.status_code, out_headers)
+
+# --------- Đường dẫn ngắn /checkout ----------
+@app.get("/checkout")
+def short_checkout_query():
+    """
+    Hỗ trợ: /checkout?payment_id=123 hoặc ?id=123
+    """
+    pid = request.args.get("payment_id") or request.args.get("id")
+    if pid and str(pid).isdigit():
+        return redirect(url_for("gw_payment_checkout", payment_id=int(pid)))
+    # Không truyền id thì thông báo rõ cách dùng
+    return Response("Thiếu payment_id. Dùng /checkout?payment_id=<id> hoặc /checkout/<id>", status=400)
+
+@app.get("/checkout/<int:payment_id>")
+def short_checkout(payment_id: int):
+    return redirect(url_for("gw_payment_checkout", payment_id=payment_id))
+
+# --- Admin reports / approve / reject (proxy qua payment-service) ---
+GATEWAY_ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", os.getenv("GATEWAY_ADMIN_TOKEN", "changeme-super-admin-token"))
+
+@app.get("/payment/admin/reports")
+def gw_payment_admin_reports():
+    """Proxy danh sách giao dịch cho trang Admin"""
+    try:
+        r = requests.get(f"{PAYMENT_URL}/payment/admin/reports",
+                         headers=_forward_auth_headers(), timeout=10)
+        ctype = r.headers.get("content-type") or "application/json"
+        return Response(r.content, status=r.status_code, content_type=ctype)
+    except requests.RequestException as e:
+        return jsonify(error="payment_upstream_unreachable", detail=str(e)), 502
+
+@app.post("/payment/admin/approve/<int:payment_id>")
+def gw_payment_admin_approve(payment_id: int):
+    """Proxy duyệt giao dịch"""
+    try:
+        r = requests.post(f"{PAYMENT_URL}/payment/admin/approve/{payment_id}",
+                          headers={**_forward_auth_headers(),
+                                   "X-Admin-Token": GATEWAY_ADMIN_TOKEN},
+                          timeout=10)
+        ctype = r.headers.get("content-type") or "application/json"
+        return Response(r.content, status=r.status_code, content_type=ctype)
+    except requests.RequestException as e:
+        return jsonify(error="payment_upstream_unreachable", detail=str(e)), 502
+
+@app.post("/payment/admin/reject/<int:payment_id>")
+def gw_payment_admin_reject(payment_id: int):
+    """Proxy từ chối giao dịch"""
+    try:
+        r = requests.post(f"{PAYMENT_URL}/payment/admin/reject/{payment_id}",
+                          headers={**_forward_auth_headers(),
+                                   "X-Admin-Token": GATEWAY_ADMIN_TOKEN},
+                          timeout=10)
+        ctype = r.headers.get("content-type") or "application/json"
+        return Response(r.content, status=r.status_code, content_type=ctype)
+    except requests.RequestException as e:
+        return jsonify(error="payment_upstream_unreachable", detail=str(e)), 502
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))

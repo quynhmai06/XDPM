@@ -1,4 +1,5 @@
 name: ev-platform
+
 services:
   auth_service:
     build: { context: ./auth-service }
@@ -6,12 +7,13 @@ services:
     container_name: auth_service
     env_file: [.env]
     environment:
-      DATABASE_URL: sqlite:////data/auth.db 
+      DATABASE_URL: sqlite:////data/auth.db
       JWT_SECRET: ${JWT_SECRET}
       PORT: 5001
     volumes:
       - auth_data:/data
-    ports: ["5001:5001"]
+    ports:
+      - "5001:5001"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys; \ntry:\n  r=urllib.request.urlopen('http://localhost:5001/health',timeout=2)\n  sys.exit(0 if r.getcode()==200 else 1)\nexcept Exception:\n  sys.exit(1)\nPY"]
@@ -20,9 +22,9 @@ services:
       retries: 10
       start_period: 15s
 
-
   favorites_service:
     build: ./favorites-service
+    image: ev/favorites-service:latest
     container_name: favorites_service
     env_file: [.env]
     environment:
@@ -32,7 +34,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    ports: ["5004:5004"]
+    ports:
+      - "5004:5004"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys; \ntry:\n  r=urllib.request.urlopen('http://127.0.0.1:5004/',timeout=2)\n  sys.exit(0 if r.getcode()==200 else 1)\nexcept Exception:\n  sys.exit(1)\nPY"]
@@ -54,7 +57,8 @@ services:
     depends_on:
       auth_service:
         condition: service_healthy
-    ports: ["5003:5003"]
+    ports:
+      - "5003:5003"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys; \ntry:\n  r=urllib.request.urlopen('http://127.0.0.1:5003/health',timeout=2)\n  sys.exit(0 if r.getcode()==200 else 1)\nexcept Exception:\n  sys.exit(1)\nPY"]
@@ -65,19 +69,23 @@ services:
 
   listing_service:
     build: ./listing-service
-    env_file: [.env]
+    image: ev/listing-service:latest
     container_name: listing_service
+    env_file: [.env]
     environment:
       DATABASE_URL: postgresql+psycopg2://ev:evpass@postgres:5432/evdb
       JWT_SECRET: ${JWT_SECRET}
+      PORT: 5002
     depends_on:
       postgres:
         condition: service_healthy
-    ports: ["5002:5002"]
+    ports:
+      - "5002:5002"
     restart: unless-stopped
 
   search_service:
     build: ./search-service
+    image: ev/search-service:latest
     container_name: search_service
     environment:
       DATABASE_URL: postgresql+psycopg2://ev:evpass@postgres:5432/evdb
@@ -87,16 +95,19 @@ services:
         condition: service_healthy
       listing_service:
         condition: service_started
-    ports: ["5010:5003"]
+    ports:
+      - "5010:5003"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys; \ntry:\n  r=urllib.request.urlopen('http://127.0.0.1:5003/search/',timeout=2)\n  sys.exit(0 if r.getcode()==200 else 1)\nexcept Exception:\n  sys.exit(1)\nPY"]
       interval: 10s
       timeout: 3s
       retries: 5
-      start_period: 10s 
+      start_period: 10s
+
   pricing_service:
     build: ./pricing-service
+    image: ev/platform-pricing:latest
     container_name: pricing_service
     env_file: [.env]
     environment:
@@ -108,7 +119,9 @@ services:
       SOFT_TIMEOUT: ${SOFT_TIMEOUT:-8}
       HARD_TIMEOUT: ${HARD_TIMEOUT:-15}
       CACHE_TTL: ${CACHE_TTL:-600}
-    ports: ["5009:5003"]
+      PORT: 5003
+    ports:
+      - "5009:5003"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5003/').read()"]
@@ -116,6 +129,34 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+
+  payment_service:
+    build: ./payment-service
+    image: ev/payment-service:latest
+    container_name: payment_service
+    env_file: [.env]
+    environment:
+      PORT: 5003
+      JWT_SECRET: ${JWT_SECRET}
+      PAYMENT_PUBLIC_BASE: http://localhost:5008
+      # DATABASE_URL: postgresql+psycopg2://ev:evpass@postgres:5432/evdb
+    depends_on:
+      auth_service:
+        condition: service_started
+      listing_service:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5008:5003"   # host:container
+    restart: unless-stopped
+    healthcheck:
+      # Sửa đúng endpoint: /payment/health (vì có url_prefix="/payment")
+      test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys; \ntry:\n  r=urllib.request.urlopen('http://127.0.0.1:5003/payment/health',timeout=2)\n  sys.exit(0 if r.getcode()==200 else 1)\nexcept Exception:\n  sys.exit(1)\nPY"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
 
   gateway:
     build: { context: ./gateway }
@@ -129,6 +170,8 @@ services:
       SEARCH_URL: http://search_service:5003
       PRICING_URL: http://pricing_service:5003
       FAVORITES_URL: http://favorites_service:5004
+      PAYMENT_URL: http://payment_service:5003
+      PAYMENT_PUBLIC_BASE: http://localhost:5008
       JWT_SECRET: ${JWT_SECRET}
       GATEWAY_SECRET: ${GATEWAY_SECRET:-dev_gateway_secret}
       PORT: 8000
@@ -136,23 +179,26 @@ services:
       auth_service:
         condition: service_healthy
       admin_service:
-        condition: service_started   
+        condition: service_started
       listing_service:
         condition: service_started
       search_service:
         condition: service_started
       favorites_service:
         condition: service_started
-    ports: ["8000:8000"]
+      payment_service:
+        condition: service_started
+    ports:
+      - "8000:8000"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8000/ >/dev/null || exit 1"]
     volumes:
-    - ./gateway/static/uploads:/app/static/uploads
-    
+      - ./gateway/static/uploads:/app/static/uploads
 
   postgres:
     image: postgres:16
+    container_name: ev-platform-postgres-1
     environment:
       POSTGRES_USER: ev
       POSTGRES_PASSWORD: evpass
@@ -160,7 +206,8 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - ev_pgdata:/var/lib/postgresql/data
-    ports: ["5433:5432"]
+    ports:
+      - "5433:5432"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ev -d evdb"]

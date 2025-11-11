@@ -10,6 +10,7 @@
       .detail-wrap {
         max-width: 1100px;
         margin: 28px auto;
+còn product-detail
         padding: 0 16px;
       }
 
@@ -351,13 +352,14 @@
               </div>
             </div>
 
-            <div class="detail-actions">
-              <a class="btn btn-ghost" href="/">← Về trang chủ</a>
-            </div>
-          </div>
-        </aside>
-      </div>
-    </div>
+      <div class="detail-actions">
+  <a class="btn btn-ghost" href="/">← Về trang chủ</a>
+  <button id="buyNowBtn" class="btn"
+    style="background:linear-gradient(135deg,#ff6b35,#ff8c61);color:white;border:none;">
+    ⚡ Mua ngay
+  </button>
+</div>
+
 
     <script>
       function swapImg(el) {
@@ -368,5 +370,99 @@
         el.src = tmp;
       }
     </script>
+
+    <!-- LẤY USER ID TỪ SESSION (KHÔNG ĐỘNG VÀO HTML KHÁC) -->
+    <script>
+      const CURRENT_USER_ID = {{ (session.get('user') or {}).get('id') or 'null' }};
+    </script>
+
+    <!-- CHỈ SỬA HÀM THANH TOÁN: BỔ SUNG buyer_id & seller_id -->
+    <script>
+async function handleBuyNow() {
+  // Lấy thông tin sản phẩm từ template Jinja
+  const item = {
+    id: {{ item.id }},
+    item_type: "{{ item.item_type or item.product_type or 'vehicle' }}",
+    name: "{{ (item.name or '').replace('"','\\"') }}",
+    price: Number({{ item.price or 0 }}),
+    // mở rộng fallback seller: seller_id || owner_id || user_id
+    seller_id: {{ item.seller_id or item.owner_id or item.user_id or 'null' }},
+  };
+
+  // --- Lấy buyer_id từ session, nếu chưa có thì fallback /auth/me ---
+  let buyer_id = CURRENT_USER_ID;
+  if (!buyer_id) {
+    try {
+      const r = await fetch("/auth/me");
+      if (r.ok) {
+        const me = await r.json();
+        buyer_id = me && (me.sub || me.id);
+      }
+    } catch (_) {}
+  }
+  if (!buyer_id) {
+    // chưa đăng nhập
+    return (window.location.href = "/login?next=" + encodeURIComponent(window.location.pathname));
+  }
+
+  // --- Xác nhận seller_id ---
+  if (!item.seller_id) {
+    alert("Không xác định được người bán (seller_id).");
+    return;
+  }
+
+  // Payload gửi sang payment-service (BỔ SUNG buyer_id & seller_id)
+  const payload = {
+    order_id: "ORD-" + Date.now(),   // tạm sinh mã đơn
+    amount: Math.round(item.price),
+    method: "momo",                  // hoặc "banking" nếu cần
+    items: [{
+      item_id: item.id,
+      item_type: item.item_type,
+      qty: 1,
+      price: item.price,
+      name: item.name
+    }],
+    buyer_id: Number(buyer_id),
+    seller_id: Number(item.seller_id),
+    note: "Buy now from product detail page"
+  };
+
+  try {
+    const res = await fetch("/payment/create", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+
+    if (res.status === 401) {
+      // Nếu chưa đăng nhập, chuyển hướng login
+      return window.location.href = "/login?next=" + encodeURIComponent(window.location.pathname);
+    }
+
+    const data = await res.json();
+    console.log("Payment create result:", data);
+
+    if (res.ok && data.checkout_url) {
+      // Đi tới trang checkout UI
+      window.location.href = data.checkout_url; // /payment/checkout/<payment_id>
+    } else if (data.payment_id) {
+      window.location.href = "/payment/checkout/" + data.payment_id;
+    } else {
+      alert(data.error || "Không tạo được thanh toán.");
+    }
+  } catch (e) {
+    console.error("Payment create failed:", e);
+    alert("Lỗi kết nối đến payment-service");
+  }
+}
+
+// Gán sự kiện cho nút Mua ngay
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("buyNowBtn");
+  if (btn) btn.addEventListener("click", (e)=>{ e.preventDefault(); handleBuyNow(); });
+});
+</script>
+
   </body>
 </html>

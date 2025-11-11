@@ -240,6 +240,7 @@
       <div class="section-head">
         <h2 class="section-title"><i class="fa-solid fa-receipt"></i> Báo cáo giao dịch</h2>
       </div>
+      <!-- =========== CHỈNH Ở ĐÂY: payment (same-origin) =========== -->
       <div class="table-wrap">
         <table class="table">
           <thead>
@@ -249,29 +250,84 @@
               <th>Người mua</th>
               <th>Ngày giao dịch</th>
               <th>Trạng thái</th>
+              <th>Số tiền</th>
+              <th>Thao tác</th>
             </tr>
           </thead>
-          <tbody>
-            {% if transactions is defined and transactions|length %}
-              {% for t in transactions %}
-              <tr>
-                <td>{{ t.id }}</td>
-                <td class="td-strong">{{ t.product.name if t.product is mapping else t.product }}</td>
-                <td>{{ t.buyer.username if t.buyer is mapping else t.buyer }}</td>
-                <td>{{ t.date if t.date is string else t.date.strftime('%d/%m/%Y') }}</td>
-                <td>
-                  <span class="chip {{ 'chip-success' if t.status in ['Hoàn tất','Completed'] else 'chip-muted' }}">
-                    {{ t.status }}
-                  </span>
-                </td>
-              </tr>
-              {% endfor %}
-            {% else %}
-              <tr><td colspan="5" class="td-empty">Chưa có dữ liệu</td></tr>
-            {% endif %}
+          <tbody id="tx-body">
+            <tr><td colspan="7" style="text-align:center;color:#999">Đang tải dữ liệu…</td></tr>
           </tbody>
         </table>
       </div>
+
+      <script>
+(async function loadReports(){
+  try {
+    // Gọi same-origin -> gateway proxy sang payment-service
+    const r = await fetch('/payment/admin/reports?limit=100', { credentials: 'omit' });
+    if (!r.ok) {
+      const text = await r.text();
+      throw new Error(`HTTP ${r.status} ${r.statusText} - ${text.slice(0,120)}`);
+    }
+
+    const d = await r.json();
+    const tbody = document.getElementById('tx-body');
+
+    const fmtMoney = v => (v || 0).toLocaleString('vi-VN');
+    const fmtDate = iso => iso ? new Date(iso).toLocaleString('vi-VN') : '';
+    const chip = s => {
+      const map = { pending: '#f59e0b', paid: '#16a34a', canceled: '#ef4444', failed: '#ef4444' };
+      const color = map[(s || '').toLowerCase()] || '#6b7280';
+      return `<span class="chip" style="padding:2px 8px;border-radius:999px;color:#fff;background:${color};font-size:12px">${s}</span>`;
+    };
+
+    const items = d.items || [];
+    if (!items.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="td-empty">Chưa có dữ liệu</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = items.map((t, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td class="td-strong">${t.product_name || ('Đơn ' + t.order_id)}</td>
+        <td>${t.buyer_name || ('#' + (t.buyer_id ?? ''))}</td>
+        <td>${fmtDate(t.created_at)}</td>
+        <td>${chip(t.status)}</td>
+        <td>${fmtMoney(t.amount)} đ</td>
+        <td>
+          <a href="${t.pay_url}" target="_blank" class="btn btn-sm">Xem</a>
+          <button onclick="approve(${t.id})" class="btn btn-sm btn-success">Duyệt</button>
+          <button onclick="reject(${t.id})" class="btn btn-sm btn-danger">Từ chối</button>
+        </td>
+      </tr>
+    `).join('');
+
+  } catch (e) {
+    console.error(e);
+    document.getElementById('tx-body').innerHTML =
+      `<tr><td colspan="7" style="text-align:center;color:red">Không tải được: ${e.message}</td></tr>`;
+  }
+})();
+
+async function approve(id) {
+  const r = await fetch(`/payment/admin/approve/${id}`, { method: 'POST' });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { alert(d.error || 'Lỗi duyệt'); return; }
+  alert('✅ Đã duyệt');
+  location.reload();
+}
+
+async function reject(id) {
+  const r = await fetch(`/payment/admin/reject/${id}`, { method: 'POST' });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { alert(d.error || 'Lỗi từ chối'); return; }
+  alert('⛔ Đã từ chối');
+  location.reload();
+}
+</script>
+
+      <!-- =========== HẾT PHẦN CHỈNH =========== -->
     </section>
   </main>
   <div id="adminLoginModal" class="modal" style="display:none;">
