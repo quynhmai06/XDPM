@@ -25,6 +25,18 @@ def add_cors_headers(resp):
     resp.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS,PUT"
     return resp
 
+
+# Ensure common python builtins are available in Jinja templates (some templates
+# use `int` in expressions). We set this before each request to be safe.
+@bp.before_app_request
+def _ensure_jinja_globals():
+  from flask import current_app
+  try:
+    current_app.jinja_env.globals.setdefault('int', int)
+  except Exception:
+    # if current_app isn't available for any reason, ignore silently
+    pass
+
 @bp.route("/<path:subpath>", methods=["OPTIONS"])
 def payment_options(subpath):
     return ("", 204)
@@ -34,8 +46,10 @@ JWT_SECRET = os.getenv("JWT_SECRET", "supersecret")
 JWT_ALGO = os.getenv("JWT_ALGO", "HS256")
 
 BANK_NAME = os.getenv("BANK_NAME", "MB Bank")
-BANK_ACCOUNT = os.getenv("BANK_ACCOUNT", "08008032005")
-BANK_OWNER = os.getenv("BANK_OWNER", "Nguyen Thanh Dat")
+# Mặc định thay đổi theo yêu cầu: số tài khoản mặc định được đặt thành '0359506148'
+BANK_ACCOUNT = os.getenv("BANK_ACCOUNT", "0359506148")
+# Tên chủ tài khoản hiển thị - dùng tên nền tảng theo yêu cầu
+BANK_OWNER = os.getenv("BANK_OWNER", "Second-hand EV & Battery Trading Platform")
 
 VAT_RATE = float(os.getenv("VAT_RATE", "0.1"))
 PAYMENT_PUBLIC_BASE = os.getenv("PAYMENT_PUBLIC_BASE", "http://localhost:5008")
@@ -55,6 +69,7 @@ def _payment_json(payment: Payment) -> dict:
         "buyer_id": payment.buyer_id,
         "seller_id": payment.seller_id,
         "amount": float(payment.amount or 0),
+    "items": payment.items or [],
         "method": payment.method.value,
         "provider": payment.provider,
         "status": payment.status.value,
@@ -299,6 +314,49 @@ def create_payment():
     seller_id = _extract_seller_id(data)
     amount = _coerce_amount(data.get("amount"))
 
+    # Normalize items payload so downstream consumers can rely on consistent keys
+    def _normalize_items(raw_items):
+        normalized = []
+        if not isinstance(raw_items, list):
+            return normalized
+        for item in raw_items:
+            if not isinstance(item, dict):
+                continue
+            candidate = {}
+            item_id = item.get("item_id") or item.get("id")
+            if item_id is not None:
+                try:
+                    candidate["item_id"] = int(item_id)
+                except Exception:
+                    candidate["item_id"] = item_id
+            title = item.get("title") or item.get("name")
+            if title:
+                candidate["title"] = str(title)
+            price = item.get("price")
+            coerced_price = _coerce_amount(price) if price is not None else None
+            if coerced_price is not None:
+                candidate["price"] = coerced_price
+            quantity = item.get("quantity") or 1
+            coerced_qty = _coerce_int(quantity)
+            if coerced_qty is not None:
+                candidate["quantity"] = coerced_qty
+            seller_ref = item.get("seller_id") or (item.get("seller") or {}).get("id")
+            if seller_ref is not None:
+                coerced_seller = _coerce_int(seller_ref)
+                if coerced_seller is not None:
+                    candidate["seller_id"] = coerced_seller
+            thumbnail = item.get("thumbnail") or item.get("image")
+            if thumbnail:
+                candidate["thumbnail"] = thumbnail
+            if candidate:
+                normalized.append(candidate)
+        return normalized
+
+    items_payload = _normalize_items(data.get("items"))
+
+    if items_payload:
+        data["items"] = items_payload
+
     if buyer_id is not None:
         data["buyer_id"] = buyer_id
     if seller_id is not None:
@@ -330,6 +388,7 @@ def create_payment():
             buyer_id=int(data["buyer_id"]),
             seller_id=int(data["seller_id"]),
             amount=float(data["amount"]),
+      items=data.get("items"),
             method=method,
             provider=data.get("provider", "Manual"),
         )
@@ -480,11 +539,20 @@ def checkout_page(payment_id: int):
         return redirect(url_for("payment.invoice_page", contract_id=inv.id))
 
     # GET: hiển thị trang giống screenshot
+    ui = _build_checkout_ui(payment)
+    # Build QR text similarly to invoice page (use checkout total, no VAT here)
+    subtotal = float(payment.amount or 0)
+    shipping = 0.0
+    total = subtotal + shipping
+    memo = f"PAY{payment.id}-ORD{payment.order_id}"
+    qr_text = f"{BANK_NAME}|{BANK_ACCOUNT}|{BANK_OWNER}|{memo}|{int(total)}"
+
     return render_template_string(
         _CHECKOUT_HTML,
         payment=payment,
-        ui=_build_checkout_ui(payment),
+        ui=ui,
         error=None,
+        qr_text=qr_text,
     )
 
 _CHECKOUT_HTML = r"""
@@ -556,12 +624,7 @@ _CHECKOUT_HTML = r"""
             </div>
             <div style="font-weight:700">{{ "{:,.0f}".format(ui.subtotal).replace(",", ".") }} đ</div>
           </div>
-          <div class="trust">
-            <span class="seal">🔒 SSL 256-bit</span>
-            <span class="seal">🏦 MB Bank VietQR</span>
-            <span class="seal">📄 Hóa đơn VAT</span>
-            <span class="seal">🤝 Đổi/Trả theo quy định</span>
-          </div>
+         
         </div>
 
         <!-- PAYMENT METHOD -->
@@ -694,6 +757,12 @@ _CHECKOUT_HTML = r"""
           </div>
 
           <div style="margin-top:12px">
+            <div style="margin-bottom:8px;text-align:center">
+              <div style="display:inline-block;border:1px dashed var(--line);border-radius:10px;padding:8px;background:#fff">
+                <img id="qrImg" src="https://img.vietqr.io/image/mbbank-0359506148-compact2.jpg?amount={{ ui.total|int }}&addInfo={{ ('PAY' ~ payment.id ~ '-ORD' ~ payment.order_id) | urlencode }}&accountName={{ bank_owner | urlencode }}" alt="QR" width="140" height="140" loading="eager"/>
+              </div>
+              <div class="small" style="margin-top:8px">Second-hand EV &amp; Battery Trading Platform</div>
+            </div>
             <button class="btn" type="submit" onclick="return onSubmit()">Đặt hàng ngay</button>
             <div class="safe">🔒 Thanh toán an toàn & bảo mật</div>
             <div id="methodWarn" class="safe" style="display:none">⚠️ Vui lòng chọn “Chuyển khoản ngân hàng” để tiếp tục đặt hàng.</div>
@@ -1131,11 +1200,11 @@ def invoice_page(contract_id: int):
 
       <!-- QR + THÔNG TIN NGÂN HÀNG -->
       <div class="section qrwrap">
-        <div class="qrhead">🔎 QUÉT MÃ QR ĐỂ THANH TOÁN <span class="vietqr" aria-label="VietQR"></span></div>
+  <div class="qrhead">🔎 Second-hand EV &amp; Battery Trading Platform <span class="vietqr" aria-label="VietQR"></span></div>
         <div class="qrgrid">
           <div class="center">
             <div class="qrbox">
-              <img id="qrImg" src="/payment/qr/{{ qr_text | urlencode }}" alt="QR" width="160" height="160" loading="eager"/>
+              <img id="qrImg" src="https://img.vietqr.io/image/mbbank-0359506148-compact2.jpg?amount={{ total|int }}&addInfo={{ memo | urlencode }}&accountName={{ bank_owner | urlencode }}" alt="QR" width="160" height="160" loading="eager"/>
             </div>
           </div>
           <div class="kv">
@@ -1329,22 +1398,58 @@ def barcode_image(code):
 # ============ ADMIN APIS (for Admin UI) ============
 @bp.get("/admin/reports")
 def admin_reports():
-    limit = request.args.get("limit", type=int) or 100
-    items = Payment.query.order_by(Payment.created_at.desc()).limit(limit).all()
-    # Có thể enrich thêm product_name, buyer_name nếu cần (join từ listing/auth)
-    out = []
-    for p in items:
-        out.append({
-            "id": p.id,
-            "order_id": p.order_id,
-            "buyer_id": p.buyer_id,
-            "seller_id": p.seller_id,
-            "amount": float(p.amount or 0),
-            "status": p.status.value,
-            "created_at": p.created_at.isoformat() if p.created_at else None,
-            "pay_url": f"/payment/invoice/{_invoice_contract(p).id}" if _invoice_contract(p) else f"/payment/checkout/{p.id}",
-        })
-    return jsonify({"items": out})
+  limit = request.args.get("limit", type=int) or 100
+  items = Payment.query.order_by(Payment.created_at.desc()).limit(limit).all()
+
+  # Build base list
+  out = []
+  for p in items:
+    out.append({
+      "id": p.id,
+      "order_id": p.order_id,
+      "buyer_id": p.buyer_id,
+      "seller_id": p.seller_id,
+      "items": p.items or [],
+      "amount": float(p.amount or 0),
+      "status": p.status.value,
+      "created_at": p.created_at.isoformat() if p.created_at else None,
+      "pay_url": f"/payment/invoice/{_invoice_contract(p).id}" if _invoice_contract(p) else f"/payment/checkout/{p.id}",
+    })
+
+  # Enrich buyer_name/seller_name via auth-service. This service typically has no session,
+  # so we read ADMIN_TOKEN (or alternatives) from env and call /auth/admin/users.
+  try:
+    import os, requests
+    ADMIN_TOKEN = os.getenv("ADMIN_TOKEN") or os.getenv("GATEWAY_ADMIN_TOKEN") or os.getenv("ADMIN_TOKEN_FALLBACK")
+    AUTH_URL = os.getenv("AUTH_URL", "http://auth_service:5001")
+    headers = {"Authorization": f"Bearer {ADMIN_TOKEN}"} if ADMIN_TOKEN else {}
+    user_map = {}
+    if headers:
+      ur = requests.get(f"{AUTH_URL}/auth/admin/users", headers=headers, timeout=5)
+      if ur.ok and ur.headers.get("content-type", "").startswith("application/json"):
+        udata = ur.json().get("data", [])
+        for u in udata:
+          try:
+            uid = int(u.get("id"))
+          except Exception:
+            continue
+          name = u.get("full_name") or u.get("username") or u.get("email")
+          if name:
+            user_map[uid] = name
+    # apply mapping
+    if user_map:
+      for it in out:
+        bid = it.get("buyer_id")
+        sid = it.get("seller_id")
+        if bid is not None and not it.get("buyer_name"):
+          it["buyer_name"] = user_map.get(int(bid))
+        if sid is not None and not it.get("seller_name"):
+          it["seller_name"] = user_map.get(int(sid))
+  except Exception:
+    # swallow enrichment errors to keep API stable
+    pass
+
+  return jsonify({"items": out})
 
 @bp.post("/admin/approve/<int:pid>")
 def admin_approve(pid):
@@ -1626,8 +1731,6 @@ def thankyou_page(payment_id: int):
     <div class="actions">
       <a class="btn" href="/">Quay về trang chủ</a>
       {% if inv %}<a class="btn" href="/payment/invoice/{{ inv.id }}">Xem hoá đơn</a>{% endif %}
-      {% if sale %}<a class="btn" href="/payment/contract/view/{{ sale.id }}">Xem hợp đồng</a>{% endif %}
-      <a class="btn primary" href="/payment/status/{{ p.id }}">Kiểm tra trạng thái</a>
     </div>
   </div>
 </div>

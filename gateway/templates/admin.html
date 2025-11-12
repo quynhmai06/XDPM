@@ -248,6 +248,7 @@
               <th>#</th>
               <th>Sản phẩm</th>
               <th>Người mua</th>
+              <th>Người bán</th>
               <th>Ngày giao dịch</th>
               <th>Trạng thái</th>
               <th>Số tiền</th>
@@ -273,12 +274,16 @@
     const d = await r.json();
     const tbody = document.getElementById('tx-body');
 
+    const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
     const fmtMoney = v => (v || 0).toLocaleString('vi-VN');
     const fmtDate = iso => iso ? new Date(iso).toLocaleString('vi-VN') : '';
     const chip = s => {
-      const map = { pending: '#f59e0b', paid: '#16a34a', canceled: '#ef4444', failed: '#ef4444' };
-      const color = map[(s || '').toLowerCase()] || '#6b7280';
-      return `<span class="chip" style="padding:2px 8px;border-radius:999px;color:#fff;background:${color};font-size:12px">${s}</span>`;
+      const mapColor = { pending: '#f59e0b', paid: '#16a34a', canceled: '#ef4444', failed: '#ef4444', refunded: '#2563eb' };
+      const labels = { pending: 'Chờ duyệt', paid: 'Đã thanh toán', canceled: 'Đã hủy', failed: 'Thất bại', refunded: 'Đã hoàn tiền' };
+      const key = (s || '').toLowerCase();
+      const color = mapColor[key] || '#6b7280';
+      const label = labels[key] || s || '';
+      return `<span class="chip" style="padding:2px 8px;border-radius:999px;color:#fff;background:${color};font-size:12px">${label}</span>`;
     };
 
     const items = d.items || [];
@@ -292,13 +297,14 @@
         <td>${i + 1}</td>
         <td class="td-strong">${t.product_name || ('Đơn ' + t.order_id)}</td>
         <td>${t.buyer_name || ('#' + (t.buyer_id ?? ''))}</td>
+        <td>${t.seller_name || ('#' + (t.seller_id ?? ''))}</td>
         <td>${fmtDate(t.created_at)}</td>
         <td>${chip(t.status)}</td>
         <td>${fmtMoney(t.amount)} đ</td>
         <td>
-          <a href="${t.pay_url}" target="_blank" class="btn btn-sm">Xem</a>
+          ${IS_ADMIN ? (`<a href="${t.pay_url}" target="_blank" class="btn btn-sm">Xem</a>
           <button onclick="approve(${t.id})" class="btn btn-sm btn-success">Duyệt</button>
-          <button onclick="reject(${t.id})" class="btn btn-sm btn-danger">Từ chối</button>
+          <button onclick="reject(${t.id})" class="btn btn-sm btn-danger">Từ chối</button>`) : ('—')}
         </td>
       </tr>
     `).join('');

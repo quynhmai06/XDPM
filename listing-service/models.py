@@ -44,6 +44,7 @@ class Product(db.Model):
     status           = db.Column(SAEnum(ProductStatus), default=ProductStatus.pending, nullable=False)
     verified         = db.Column(db.Boolean, default=False)
     moderation_notes = db.Column(db.Text)
+    sold             = db.Column(db.Boolean, default=False, index=True)  # Đánh dấu đã bán
 
 class BlockedUser(db.Model):
     __tablename__ = "blocked_users"

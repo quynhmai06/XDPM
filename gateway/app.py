@@ -1236,9 +1236,39 @@ def _forward_auth_headers():
 def gw_payment_create():
     """Tạo paymentId rồi trả về checkout_url"""
     try:
+        payload = request.get_json(silent=True) or {}
+        
+        # Auto-populate seller_id from listing if not provided or if items contain listing references
+        # Priority: explicit seller_id > items[0].seller_id > fetch from listing-service
+        if not payload.get("seller_id"):
+            # Try to derive seller from items
+            items = payload.get("items") or []
+            if items and isinstance(items, list):
+                first_item = items[0]
+                if isinstance(first_item, dict):
+                    # Check if item has item_id (listing id) but no seller_id
+                    item_id = first_item.get("item_id") or first_item.get("id")
+                    existing_seller = first_item.get("seller_id")
+                    
+                    if item_id and not existing_seller:
+                        # Fetch listing owner from listing-service
+                        try:
+                            lr = requests.get(f"{LISTING_URL}/listings/{item_id}", timeout=5)
+                            if lr.ok:
+                                listing_data = lr.json()
+                                owner_id = listing_data.get("owner_id") or (listing_data.get("owner") or {}).get("id")
+                                if owner_id:
+                                    payload["seller_id"] = int(owner_id)
+                                    # Also update item seller_id for consistency
+                                    first_item["seller_id"] = int(owner_id)
+                        except Exception:
+                            pass  # Silently skip enrichment on error
+                    elif existing_seller:
+                        payload["seller_id"] = existing_seller
+        
         r = requests.post(
             f"{PAYMENT_URL}/payment/create",
-            json=(request.get_json(silent=True) or {}),
+            json=payload,
             headers={**_forward_auth_headers(), "Content-Type": "application/json"},
             timeout=10
         )
@@ -1373,18 +1403,160 @@ def gw_payment_admin_reports():
         r = requests.get(f"{PAYMENT_URL}/payment/admin/reports",
                          headers=_forward_auth_headers(), timeout=10)
         ctype = r.headers.get("content-type") or "application/json"
-        return Response(r.content, status=r.status_code, content_type=ctype)
+
+        # Try to parse JSON so we can enrich with buyer/seller display names when
+        # the current session is admin. If parsing fails, return raw upstream body.
+        try:
+            payload = r.json()
+        except Exception:
+            return Response(r.content, status=r.status_code, content_type=ctype)
+
+        items = payload.get("items") or []
+
+        # If current session is admin, attempt to fetch user list from Auth service
+        # (requires admin token in session) and map ids -> username for better UX.
+        user_map = {}
+
+        # First attempt: use current admin session (forward Authorization header)
+        admin_session = is_admin_session()
+        print(f"[DEBUG] is_admin_session: {admin_session}, session keys: {list(session.keys())}")
+        
+        if admin_session:
+            try:
+                auth_headers = _forward_auth_headers()
+                print(f"[DEBUG] Calling /auth/admin/users with headers: {auth_headers}")
+                user_r = requests.get(f"{AUTH_URL}/auth/admin/users", headers=auth_headers, timeout=8)
+                print(f"[DEBUG] Auth response status: {user_r.status_code}")
+                if user_r.ok:
+                    udata = user_r.json().get("data", [])
+                    print(f"[DEBUG] Got {len(udata)} users from auth-service")
+                    user_map = {int(u.get("id")): (u.get("full_name") or u.get("username") or u.get("email") or f"#{u.get('id')}") for u in udata if u.get("id") is not None}
+                else:
+                    print(f"[DEBUG] Auth call failed: {user_r.text[:200]}")
+            except requests.RequestException as e:
+                # If auth service is unreachable or token not valid, silently skip this attempt
+                print(f"[DEBUG] Auth service unreachable: {e}")
+                user_map = {}
+
+        # Fallback attempt: try using an admin token from environment (useful for non-interactive sessions)
+        if not user_map:
+            try:
+                admin_token = os.getenv("ADMIN_TOKEN") or os.getenv("GATEWAY_ADMIN_TOKEN") or os.getenv("ADMIN_TOKEN_FALLBACK")
+                print(f"[DEBUG] Fallback token exists: {bool(admin_token)}, length: {len(admin_token) if admin_token else 0}")
+                if admin_token:
+                    hdr = {"Authorization": f"Bearer {admin_token}"}
+                    user_r = requests.get(f"{AUTH_URL}/auth/admin/users", headers=hdr, timeout=8)
+                    print(f"[DEBUG] Fallback auth response status: {user_r.status_code}")
+                    if user_r.ok:
+                        udata = user_r.json().get("data", [])
+                        print(f"[DEBUG] Fallback got {len(udata)} users")
+                        user_map = {int(u.get("id")): (u.get("full_name") or u.get("username") or u.get("email") or f"#{u.get('id')}") for u in udata if u.get("id") is not None}
+                    else:
+                        print(f"[DEBUG] Fallback auth failed: {user_r.text[:200]}")
+            except Exception as e:
+                print(f"[DEBUG] Fallback exception: {e}")
+                user_map = {}
+        
+        print(f"[DEBUG] Final user_map size: {len(user_map)}")
+
+        # Apply enrichment to items using any user_map we obtained
+        if user_map:
+            for it in items:
+                try:
+                    bid = it.get("buyer_id")
+                    sid = it.get("seller_id")
+                    if bid is not None:
+                        it["buyer_name"] = it.get("buyer_name") or user_map.get(int(bid)) or (f"#{bid}" if bid is not None else None)
+                    if sid is not None:
+                        it["seller_name"] = it.get("seller_name") or user_map.get(int(sid)) or (f"#{sid}" if sid is not None else None)
+                except Exception:
+                    # ignore per-item enrichment failures
+                    pass
+
+        # Return the potentially-enriched items
+        import json as _json
+        return Response(_json.dumps({"items": items}, ensure_ascii=False).encode("utf-8"), status=r.status_code, content_type="application/json; charset=utf-8")
     except requests.RequestException as e:
         return jsonify(error="payment_upstream_unreachable", detail=str(e)), 502
 
 @app.post("/payment/admin/approve/<int:payment_id>")
 def gw_payment_admin_approve(payment_id: int):
-    """Proxy duyệt giao dịch"""
+    """Proxy duyệt giao dịch, sau đó đánh dấu listing đã bán"""
     try:
+        # Approve payment
         r = requests.post(f"{PAYMENT_URL}/payment/admin/approve/{payment_id}",
                           headers={**_forward_auth_headers(),
                                    "X-Admin-Token": GATEWAY_ADMIN_TOKEN},
                           timeout=10)
+        
+        if r.ok:
+            # Get payment details to retrieve stored items and mark listings as sold
+            try:
+                pr = requests.get(
+                    f"{PAYMENT_URL}/payment/{payment_id}",
+                    headers=_forward_auth_headers(),
+                    timeout=5,
+                )
+                if pr.ok:
+                    payment_data = pr.json()
+                    items = payment_data.get("items") or []
+                    processed_ids = set()
+
+                    # Prefer explicit items payload to determine listing IDs
+                    for item in items:
+                        if not isinstance(item, dict):
+                            continue
+                        item_id = item.get("item_id") or item.get("id")
+                        if item_id is None:
+                            continue
+                        try:
+                            listing_id = int(item_id)
+                        except Exception:
+                            continue
+                        if listing_id in processed_ids:
+                            continue
+                        processed_ids.add(listing_id)
+                        try:
+                            mark_resp = requests.put(
+                                f"{LISTING_URL}/listings/{listing_id}/mark_sold",
+                                headers=_forward_auth_headers(),
+                                timeout=5,
+                            )
+                            print(
+                                f"[DEBUG] Marked listing {listing_id} as sold: {mark_resp.status_code}"
+                            )
+                        except Exception as exc:
+                            print(f"[DEBUG] Failed to mark listing {listing_id}: {exc}")
+
+                    # Fallback: attempt to parse listing IDs from order_id if no items present
+                    if not processed_ids:
+                        order_id = payment_data.get("order_id", "")
+                        if order_id.startswith("ORD-"):
+                            import re
+
+                            for listing_id_str in re.findall(r"\d+", order_id[4:]):
+                                try:
+                                    listing_id = int(listing_id_str)
+                                except Exception:
+                                    continue
+                                if listing_id in processed_ids:
+                                    continue
+                                try:
+                                    mark_resp = requests.put(
+                                        f"{LISTING_URL}/listings/{listing_id}/mark_sold",
+                                        headers=_forward_auth_headers(),
+                                        timeout=5,
+                                    )
+                                    processed_ids.add(listing_id)
+                                    print(
+                                        f"[DEBUG] Marked listing {listing_id} via fallback: {mark_resp.status_code}"
+                                    )
+                                except Exception as exc:
+                                    print(f"[DEBUG] Fallback failed for listing {listing_id}: {exc}")
+            except Exception as e:
+                print(f"[DEBUG] Failed to mark listings as sold: {e}")
+                # Payment approved but listing mark failed — do not block response
+        
         ctype = r.headers.get("content-type") or "application/json"
         return Response(r.content, status=r.status_code, content_type=ctype)
     except requests.RequestException as e:

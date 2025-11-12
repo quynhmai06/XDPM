@@ -90,6 +90,7 @@ def to_json(p: Product):
         "status": p.status.value if p.status else "pending",
         "verified": bool(p.verified),
         "moderation_notes": p.moderation_notes,
+        "sold": bool(getattr(p, 'sold', False)),
     }
 
 def parse_int(v, default=None, minv=None, maxv=None):
@@ -165,6 +166,10 @@ def list_products():
     if item_type in {"vehicle", "battery"}:
         q = q.filter(Product.item_type == ItemType(item_type))
 
+    # Filter out sold products by default (unless explicitly requested via ?include_sold=1)
+    include_sold = request.args.get("include_sold")
+    if include_sold not in ["1", "true", "True"]:
+        q = q.filter(Product.sold == False)
 
     sort = request.args.get("sort", "created_desc")
     if sort == "created_asc":
@@ -385,3 +390,19 @@ def unspam(pid):
         db.session.commit()
 
     return jsonify(message="Đã bỏ spam. Mở khoá tài khoản nếu không còn bài spam." , item=to_json(p)), 200
+
+@bp.put("/<int:pid>/mark_sold")
+def mark_sold(pid):
+    """Đánh dấu sản phẩm đã bán (gọi từ payment-service sau khi thanh toán thành công)"""
+    p = Product.query.get_or_404(pid)
+    p.sold = True
+    db.session.commit()
+    return jsonify(message="Sản phẩm đã được đánh dấu đã bán", item=to_json(p)), 200
+
+@bp.put("/<int:pid>/mark_available")
+def mark_available(pid):
+    """Đánh dấu sản phẩm còn hàng (rollback nếu cần)"""
+    p = Product.query.get_or_404(pid)
+    p.sold = False
+    db.session.commit()
+    return jsonify(message="Sản phẩm đã được đánh dấu còn hàng", item=to_json(p)), 200

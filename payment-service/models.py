@@ -44,6 +44,7 @@ class Payment(db.Model):
     buyer_id = db.Column(db.Integer, nullable=False, index=True)
     seller_id = db.Column(db.Integer, nullable=False, index=True)
     amount = db.Column(db.Float, nullable=False)  # Changed to Float for decimal amounts
+    items = db.Column(db.JSON, nullable=True)
 
     method = db.Column(
         Enum(PaymentMethod, name="payment_method"),
