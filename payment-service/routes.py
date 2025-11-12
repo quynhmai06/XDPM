@@ -73,8 +73,9 @@ def _payment_json(payment: Payment) -> dict:
         "method": payment.method.value,
         "provider": payment.provider,
         "status": payment.status.value,
-        "created_at": payment.created_at.isoformat() if payment.created_at else None,
-        "updated_at": payment.updated_at.isoformat() if payment.updated_at else None,
+  # Ensure we return explicit UTC timestamps (append 'Z' if naive)
+  "created_at": (payment.created_at.isoformat() + "Z") if payment.created_at and payment.created_at.tzinfo is None else (payment.created_at.isoformat() if payment.created_at else None),
+  "updated_at": (payment.updated_at.isoformat() + "Z") if payment.updated_at and payment.updated_at.tzinfo is None else (payment.updated_at.isoformat() if payment.updated_at else None),
         "contracts": [
             {
                 "id": c.id,
@@ -1066,16 +1067,16 @@ def view_contract(contract_id: int):
             "title": contract.title,
             "content": contract.content,
             "signer_name": contract.signer_name,
-            "signed_at": contract.signed_at.isoformat() if contract.signed_at else None,
+            "signed_at": (contract.signed_at.isoformat() + "Z") if contract.signed_at and contract.signed_at.tzinfo is None else (contract.signed_at.isoformat() if contract.signed_at else None),
             "signature_jwt": contract.signature_jwt,
-            "created_at": contract.created_at.isoformat() if contract.created_at else None,
+            "created_at": (contract.created_at.isoformat() + "Z") if contract.created_at and contract.created_at.tzinfo is None else (contract.created_at.isoformat() if contract.created_at else None),
             "contract_code": f"HD{contract.id}",
             "buyer_signature_type": contract.buyer_signature_type.value if contract.buyer_signature_type else None,
             "buyer_signature_data": contract.buyer_signature_data,
-            "buyer_signed_at": contract.buyer_signed_at.isoformat() if contract.buyer_signed_at else None,
+            "buyer_signed_at": (contract.buyer_signed_at.isoformat() + "Z") if contract.buyer_signed_at and contract.buyer_signed_at.tzinfo is None else (contract.buyer_signed_at.isoformat() if contract.buyer_signed_at else None),
             "seller_signature_type": contract.seller_signature_type.value if contract.seller_signature_type else None,
             "seller_signature_data": contract.seller_signature_data,
-            "seller_signed_at": contract.seller_signed_at.isoformat() if contract.seller_signed_at else None,
+            "seller_signed_at": (contract.seller_signed_at.isoformat() + "Z") if contract.seller_signed_at and contract.seller_signed_at.tzinfo is None else (contract.seller_signed_at.isoformat() if contract.seller_signed_at else None),
             "payment": {
                 "order_id": payment.order_id,
                 "amount": float(payment.amount),
@@ -1412,7 +1413,7 @@ def admin_reports():
       "items": p.items or [],
       "amount": float(p.amount or 0),
       "status": p.status.value,
-      "created_at": p.created_at.isoformat() if p.created_at else None,
+  "created_at": (p.created_at.isoformat() + "Z") if p.created_at and p.created_at.tzinfo is None else (p.created_at.isoformat() if p.created_at else None),
       "pay_url": f"/payment/invoice/{_invoice_contract(p).id}" if _invoice_contract(p) else f"/payment/checkout/{p.id}",
     })
 

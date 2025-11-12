@@ -421,6 +421,99 @@ def add_listing():
     return render_template("post_product.html")
 
 
+# ----------------- Member helpers: mine endpoints (module-level) -----------------
+@app.get('/listings/mine')
+def proxy_my_listings():
+    """Return current user's listings by proxying to listing-service.
+    Expected by front-end at `/listings/mine`.
+    """
+    u = session.get('user') or {}
+    username = u.get('username')
+    if not username:
+        return Response('Unauthorized', status=401)
+    headers = {}
+    if session.get('access_token'):
+        headers['Authorization'] = f"Bearer {session.get('access_token')}"
+    try:
+        # Include sold items so the user's own listing view shows sold/removed items too
+        params = {'owner': username, 'per_page': 200, 'include_sold': '1'}
+        r = requests.get(f"{LISTING_URL}/listings", params=params, timeout=8, headers=headers)
+    except requests.RequestException:
+        return Response('Listing service unreachable', status=502)
+    ctype = r.headers.get('content-type','application/json')
+    return Response(r.content, status=r.status_code, content_type=ctype)
+
+
+@app.get('/payments/mine')
+def proxy_my_payments():
+    """Return payments related to current user (as buyer or seller).
+    Front-end expects an object with `items` list.
+    """
+    u = session.get('user') or {}
+    uid = u.get('id')
+    if not uid:
+        return Response('Unauthorized', status=401)
+    headers = {}
+    if session.get('access_token'):
+        headers['Authorization'] = f"Bearer {session.get('access_token')}"
+
+    items = []
+    try:
+        # payments where user is buyer
+        r1 = requests.get(f"{PAYMENT_URL}/payment", params={'buyer_id': uid, 'per_page': 200}, timeout=8, headers=headers)
+        if r1.ok and r1.headers.get('content-type','').startswith('application/json'):
+            j1 = r1.json() or {}
+            items += j1.get('items') or j1.get('data') or j1 or []
+        # payments where user is seller
+        r2 = requests.get(f"{PAYMENT_URL}/payment", params={'seller_id': uid, 'per_page': 200}, timeout=8, headers=headers)
+        if r2.ok and r2.headers.get('content-type','').startswith('application/json'):
+            j2 = r2.json() or {}
+            items += j2.get('items') or j2.get('data') or j2 or []
+    except requests.RequestException:
+        return Response('Payment service unreachable', status=502)
+    # normalize items: ensure dicts (skip malformed string items)
+    normalized = []
+    for it in items:
+        if isinstance(it, dict):
+            normalized.append(it)
+        elif isinstance(it, str):
+            try:
+                parsed = json.loads(it)
+                if isinstance(parsed, dict):
+                    normalized.append(parsed)
+            except Exception:
+                # skip unparseable string
+                continue
+        else:
+            # unexpected type - skip
+            continue
+
+    # dedupe by id or order_id
+    seen = set()
+    out = []
+    for it in normalized:
+        key = None
+        try:
+            key = str(it.get('id') or it.get('order_id') or (it.get('order') if isinstance(it, dict) else None))
+        except Exception:
+            key = None
+        if key and key in seen:
+            continue
+        if key:
+            seen.add(key)
+        out.append(it)
+
+    # sort by created_at/updated_at defensively
+    def _ts(x):
+        if not isinstance(x, dict):
+            return ''
+        return x.get('created_at') or x.get('updated_at') or ''
+
+    out.sort(key=_ts, reverse=True)
+
+    return jsonify({'items': out})
+
+
 
 @app.get("/listings/<int:pid>")
 def product_detail(pid):
@@ -434,6 +527,76 @@ def product_detail(pid):
         flash("Không kết nối được listing service.", "error")
         return redirect(url_for("home"))
     return render_template("product_detail.html", item=item)
+
+
+@app.get('/seller/info')
+def seller_info():
+    """Return basic seller display info (full_name, avatar) for a given username.
+    This attempts to use an admin listing from auth-service (requires admin token in env or admin session).
+    If no admin access is available, returns a minimal object with username only.
+    Query params: username (required)
+    """
+    username = request.args.get('username') or request.args.get('user')
+    if not username:
+        return jsonify(error='missing_username'), 400
+
+    # Try to use admin session first
+    user_map = {}
+    try:
+        if is_admin_session():
+            hdr = _forward_auth_headers()
+            r = requests.get(f"{AUTH_URL}/auth/admin/users", headers=hdr, timeout=8)
+            if r.ok:
+                data = r.json().get('data', [])
+                for u in data:
+                    user_map[str(u.get('username'))] = u
+        # Fallback to ADMIN_TOKEN env
+        if not user_map:
+            admin_token = os.getenv('ADMIN_TOKEN') or os.getenv('GATEWAY_ADMIN_TOKEN')
+            if admin_token:
+                hdr = {'Authorization': f'Bearer {admin_token}'}
+                r = requests.get(f"{AUTH_URL}/auth/admin/users", headers=hdr, timeout=8)
+                if r.ok:
+                    data = r.json().get('data', [])
+                    for u in data:
+                        user_map[str(u.get('username'))] = u
+    except Exception:
+        user_map = {}
+
+    u = user_map.get(username)
+    if u:
+        # If admin endpoint returned an avatar filename, expose it as /auth/avatar/<name>
+        avatar_field = u.get('avatar_url') or u.get('avatar') or None
+        avatar_src = (f"/auth/avatar/{avatar_field}" if avatar_field else None)
+        return jsonify({
+            'username': u.get('username'),
+            'full_name': u.get('full_name') or u.get('username'),
+            'email': u.get('email'),
+            'phone': u.get('phone'),
+            'id': u.get('id'),
+            'avatar_src': avatar_src,
+            'reviews': []
+        })
+
+    # Try public user endpoint on auth service as a fallback so we can show contact info
+    try:
+        r = requests.get(f"{AUTH_URL}/auth/users/{username}", timeout=6)
+        if r.ok:
+            data = r.json() or {}
+            return jsonify({
+                'id': data.get('id'),
+                'username': data.get('username', username),
+                'full_name': data.get('full_name', username),
+                'email': data.get('email'),
+                'phone': data.get('phone'),
+                'avatar_src': data.get('avatar_url') and f"/auth/avatar/{data.get('avatar_url')}" or None,
+                'reviews': []
+            })
+    except Exception:
+        pass
+
+    # No info - return minimal
+    return jsonify({'username': username, 'full_name': username, 'phone': None, 'reviews': []})
 
 # ===================== Admin (duyệt/xoá bài, duyệt user) =====================
 @app.route("/admin", methods=["GET"], endpoint="admin_page")
@@ -1256,11 +1419,29 @@ def gw_payment_create():
                             lr = requests.get(f"{LISTING_URL}/listings/{item_id}", timeout=5)
                             if lr.ok:
                                 listing_data = lr.json()
-                                owner_id = listing_data.get("owner_id") or (listing_data.get("owner") or {}).get("id")
+                                owner_id = None
+                                # Listing may return owner as object with id, or as username string.
+                                if isinstance(listing_data.get("owner"), dict):
+                                    owner_id = listing_data.get("owner_id") or (listing_data.get("owner") or {}).get("id")
+                                else:
+                                    # owner is likely a username string; try to resolve to user id via auth-service
+                                    owner_name = listing_data.get("owner")
+                                    if owner_name:
+                                        try:
+                                            ar = requests.get(f"{AUTH_URL}/auth/users/{owner_name}", timeout=5)
+                                            if ar.ok:
+                                                au = ar.json() or {}
+                                                # public endpoint may return id now (see auth-service change)
+                                                owner_id = au.get("id")
+                                        except Exception:
+                                            owner_id = None
                                 if owner_id:
-                                    payload["seller_id"] = int(owner_id)
-                                    # Also update item seller_id for consistency
-                                    first_item["seller_id"] = int(owner_id)
+                                    try:
+                                        payload["seller_id"] = int(owner_id)
+                                        # Also update item seller_id for consistency
+                                        first_item["seller_id"] = int(owner_id)
+                                    except Exception:
+                                        pass
                         except Exception:
                             pass  # Silently skip enrichment on error
                     elif existing_seller:

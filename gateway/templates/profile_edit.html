@@ -47,11 +47,7 @@
       <label>Ảnh đại diện</label>
       <input type="file" name="avatar" accept="image/*" onchange="previewAvatar(event)">
       <div class="avatar-preview">
-        {% if user.avatar %}
-          <img id="avatarPreview" src="{{ user.avatar.startswith('http') and user.avatar or url_for('static', filename=user.avatar) }}" alt="avatar">
-        {% else %}
-          <img id="avatarPreview" src="{{ url_for('static', filename='images/default-avatar.png') }}" alt="avatar">
-        {% endif %}
+        <img id="avatarPreview" src="{{ url_for('static', filename='images/default-avatar.png') }}" alt="avatar">
       </div>
 
       <button type="submit">💾 Lưu thay đổi</button>
@@ -65,6 +61,31 @@
 
   <script>
     function previewAvatar(e){const p=document.getElementById('avatarPreview'); if(e.target.files[0]) p.src=URL.createObjectURL(e.target.files[0]);}
+
+    // On load, if user has an avatar or username, try predictable avatar paths
+    document.addEventListener('DOMContentLoaded', function(){
+      const userAvatar = {{ '"' + (user.avatar|e) + '"' if user and user.avatar else 'null' }};
+      const username = {{ '"' + (user.username|e) + '"' if user and user.username else 'null' }};
+      const img = document.getElementById('avatarPreview');
+      if (!img) return;
+      // If explicit avatar URL is provided from server, prefer it
+      if (userAvatar) {
+        try {
+          const s = String(userAvatar || '');
+          if (s.startsWith('http')) { img.src = s; return; }
+          // otherwise treat as filename saved by auth-service and request via /auth/avatar/<name>
+          img.src = '/auth/avatar/' + encodeURIComponent(s);
+          // onerror fallback will be handled by trying username below
+        } catch (e) {}
+      }
+      if (!userAvatar && username) {
+        const uname = encodeURIComponent(username);
+        const tryPaths = [`/auth/avatar/${uname}.jpg`, `/auth/avatar/${uname}.png`, `/auth/avatar/${uname}`];
+        let ti = 0;
+        img.onerror = function(){ ti += 1; if (ti < tryPaths.length) img.src = tryPaths[ti]; else img.onerror = null; };
+        img.src = tryPaths[0];
+      }
+    });
   </script>
 </body>
 </html>

@@ -79,7 +79,7 @@ def _require_user():
         return None, ({"error": "not_approved"}, 403)
     return u, None
 
-def _save_avatar(file_storage):
+def _save_avatar(file_storage, username: str | None = None):
     if not file_storage or not getattr(file_storage, "filename", ""):
         return None, "no_file"
 
@@ -94,6 +94,21 @@ def _save_avatar(file_storage):
     dest_dir = Path(current_app.static_folder) / AVATAR_DIR
     dest_dir.mkdir(parents=True, exist_ok=True)
 
+    # If a username is provided, prefer a predictable filename based on it.
+    # Use a secure version and append a short timestamp if the file exists to avoid collisions.
+    if username:
+        safe_user = secure_filename(username) or uuid.uuid4().hex
+        base_name = f"{safe_user}.{ext}"
+        target = dest_dir / base_name
+        if target.exists():
+            # append timestamp to avoid overwriting
+            ts = int(time.time())
+            base_name = f"{safe_user}_{ts}.{ext}"
+            target = dest_dir / base_name
+        file_storage.save(target)
+        return base_name, None
+
+    # Fallback: random UUID filename
     new_name = f"{uuid.uuid4().hex}.{ext}"
     file_storage.save(dest_dir / new_name)
     return new_name, None
@@ -219,20 +234,28 @@ def admin_list_users():
     _, err = _require_admin()
     if err:
         return err
+    # load users with related profile so admin view can include phone, full_name and avatar
     users = User.query.order_by(User.id.desc()).all()
-    data = [
-        {
+    data = []
+    for u in users:
+        prof = None
+        try:
+            prof = u.profile
+        except Exception:
+            prof = None
+        data.append({
             "id": u.id,
             "username": u.username,
             "email": u.email,
+            "phone": u.phone,
             "role": u.role,
             "is_admin": (u.role == "admin"),
             "approved": u.approved,
             "locked": u.locked,
             "created_at": u.created_at.isoformat(),
-        }
-        for u in users
-    ]
+            "full_name": (prof.full_name if prof else None),
+            "avatar_url": (prof.avatar_url if prof else None),
+        })
     return {"data": data}
 
 
@@ -264,6 +287,31 @@ def get_profile():
         db.session.add(p)
         db.session.commit()
     return {"user": u.to_dict_basic(), "profile": p.to_dict()}
+
+
+@bp.get('/users/<username>')
+def public_user(username: str):
+    """Public endpoint: return minimal public info for a username.
+    This is intentionally permissive for local/dev use so gateway/product pages
+    can display seller contact info without admin token. Returns email/phone
+    when present.
+    """
+    u = User.query.filter_by(username=username).first()
+    if not u:
+        return {"error": "not_found"}, 404
+    prof = None
+    try:
+        prof = u.profile
+    except Exception:
+        prof = None
+    return {
+        "id": u.id,
+        "username": u.username,
+        "full_name": prof.full_name if prof and prof.full_name else u.username,
+        "email": u.email,
+        "phone": u.phone,
+        "avatar_url": prof.avatar_url if prof else None,
+    }
 
 
 
@@ -327,7 +375,7 @@ def update_profile_form():
         u.phone = digits or None
     file = request.files.get("avatar")
     if file and file.filename:
-        filename, e = _save_avatar(file)
+        filename, e = _save_avatar(file, username=u.username if u else None)
         if not e:
             p.avatar_url = filename  
     db.session.commit()
