@@ -696,10 +696,11 @@
         <a href="{{ url_for('home') }}" class="nav-item">Trang chủ</a>
         <a href="{{ url_for('search_page') }}" class="nav-item active">Tìm kiếm</a>
       </nav>
+      {% set actual_user = session.get('user') %}
       <nav class="user-menu">
-        {% if session.get('user') %}
+        {% if actual_user %}
         <div class="user-dropdown">
-          {% set user = session['user'] %}
+          {% set user = actual_user %}
           {% set username = user.get('username', 'User') %}
           <div class="avatar-circle">{{ username[0]|upper }}</div>
           <div class="dropdown-content">

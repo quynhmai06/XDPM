@@ -361,7 +361,9 @@
         }
         if (summary) summary.style.display = "";
 
-        const details = await Promise.all(cart.map((c) => fetchListing(c.item_id)));
+        const details = await Promise.all(
+          cart.map((c) => fetchListing(c.item_id))
+        );
 
         let subtotal = 0;
         const html = cart
@@ -386,10 +388,16 @@
                 }</div>
                 <div class="cart-item-price">${formatVnd(price)}</div>
                 <div class="cart-qty-controls">
-                  <button class="qty-btn" data-action="decr" data-id="${line.item_id}">−</button>
+                  <button class="qty-btn" data-action="decr" data-id="${
+                    line.item_id
+                  }">−</button>
                   <span class="qty-display">${line.qty || 1}</span>
-                  <button class="qty-btn" data-action="incr" data-id="${line.item_id}">+</button>
-                  <button class="remove-btn" data-id="${line.item_id}"><i class="fas fa-trash"></i> Xóa</button>
+                  <button class="qty-btn" data-action="incr" data-id="${
+                    line.item_id
+                  }">+</button>
+                  <button class="remove-btn" data-id="${
+                    line.item_id
+                  }"><i class="fas fa-trash"></i> Xóa</button>
                 </div>
               </div>
             </div>`;
@@ -453,9 +461,13 @@
         }
 
         // Phải có buyer_id
-        const buyerId = (typeof CURRENT_USER_ID !== "undefined" && CURRENT_USER_ID) ? Number(CURRENT_USER_ID) : null;
+        const buyerId =
+          typeof CURRENT_USER_ID !== "undefined" && CURRENT_USER_ID
+            ? Number(CURRENT_USER_ID)
+            : null;
         if (!buyerId) {
-          window.location.href = "/login?next=" + encodeURIComponent(location.pathname);
+          window.location.href =
+            "/login?next=" + encodeURIComponent(location.pathname);
           return;
         }
 
@@ -493,7 +505,9 @@
 
           // Nếu vẫn chưa có, thử cố định 1 (tạm) — bạn có thể bỏ nếu API chắc chắn trả seller
           if (!sId) {
-            console.warn("Không tìm thấy seller_id trong listing, dùng fallback tạm = 1");
+            console.warn(
+              "Không tìm thấy seller_id trong listing, dùng fallback tạm = 1"
+            );
             sId = 1; // <-- có thể đổi hoặc bỏ khi API đã trả seller_id đúng
           }
 
@@ -505,13 +519,15 @@
             qty,
             price,
             seller_id: sId,
-            name: it.name || ("SP#" + line.item_id)
+            name: it.name || "SP#" + line.item_id,
           });
         }
 
         // Nếu giỏ có nhiều người bán -> bắt user tách đơn (hoặc bạn có thể nhóm theo seller để tạo nhiều payment)
         if (sellerIds.size > 1) {
-          alert("Giỏ hàng có nhiều người bán khác nhau. Vui lòng thanh toán theo từng người bán.");
+          alert(
+            "Giỏ hàng có nhiều người bán khác nhau. Vui lòng thanh toán theo từng người bán."
+          );
           return;
         }
 
@@ -523,24 +539,25 @@
           amount: Math.round(amount),
           buyer_id: buyerId,
           seller_id: sellerId,
-          items
+          items,
         };
 
         try {
           const res = await fetch("/payment/create", {
             method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(payload)
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
           });
           const data = await res.json();
 
           if (res.status === 401) {
-            window.location.href = "/login?next=" + encodeURIComponent(location.pathname);
+            window.location.href =
+              "/login?next=" + encodeURIComponent(location.pathname);
             return;
           }
 
           if (res.ok && data.checkout_url) {
-            window.location.href = data.checkout_url;            // /payment/checkout/<id>
+            window.location.href = data.checkout_url; // /payment/checkout/<id>
           } else if (data.payment_id) {
             window.location.href = "/payment/checkout/" + data.payment_id;
           } else {

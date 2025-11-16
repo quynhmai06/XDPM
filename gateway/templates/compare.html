@@ -241,11 +241,12 @@
           <button class="menu-toggle"><i class="fas fa-bars"></i></button>
           <img src="/static/images/logo.png" alt="EV Trading" class="logo" />
         </div>
+        {% set actual_user = session.get('user') %}
         <div class="user-menu">
           <a href="/favorites" class="user-menu-item">Yêu thích</a>
           <a href="/cart" class="user-menu-item">Giỏ hàng</a>
           <a href="/admin" class="user-menu-item">Admin</a>
-          {% if session.get('user') %}
+          {% if actual_user %}
           <a href="{{ url_for('logout_page') }}" class="user-menu-item"
             >Đăng xuất</a
           >

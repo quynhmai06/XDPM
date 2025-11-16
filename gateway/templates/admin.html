@@ -16,7 +16,7 @@
         <img src="/static/images/logo.png" alt="EV Trading" class="logo"/>
       </div>
       <div class="user-menu">
-        {% if session.get('user') and session['user'].get('role') == 'admin' %}
+        {% if is_admin %}
           <a href="{{ url_for('admin_logout') }}" class="user-menu-item">Đăng xuất</a>
         {% else %}
           <a href="#" class="user-menu-item" onclick="openAdminLogin(event)">Đăng nhập</a>
@@ -124,7 +124,7 @@
     <section class="admin-card" id="products">
       <div class="section-head">
         <h2 class="section-title"><i class="fa-solid fa-car"></i> Bài đăng</h2>
-        {% set is_admin = session.get('user') and session['user'].get('role') == 'admin' %}
+        {# Admin status provided by gateway route as `is_admin` #}
         {% if is_admin %}
           <div class="section-tools">
             <select id="filterPostsStatus" class="select">
@@ -187,7 +187,10 @@
                     {% endif %}
                   </td>
                   <td>{{ p.owner.username if p.owner is mapping else p.owner }}</td>
-                  <td>{{ "{:,.0f}".format(p.price) }} đ</td>
+                  <td style="white-space:nowrap; font-size:18px; letter-spacing:1px;">
+  {{ "{:,.0f}".format(p.price) }} đ
+</td>
+
                   <td>
                     <span class="chip {{ 'chip-success' if p.approved else 'chip-warning' }}">
                       {{ 'Đã duyệt' if p.approved else 'Chờ duyệt' }}

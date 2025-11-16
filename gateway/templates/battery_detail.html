@@ -219,13 +219,14 @@
           <a href="{{ url_for('auctions_page') }}" class="nav-item">Dau gia</a>
           <a href="{{ url_for('search_page') }}" class="nav-item">Tim kiem</a>
         </nav>
+        {% set actual_user = session.get('user') %}
         <nav class="user-menu">
-          {% if session.get('user') %}
+          {% if actual_user %}
           <a href="{{ url_for('cart_page') }}" class="user-menu-item">
             <i class="fas fa-shopping-cart"></i>
           </a>
           <div class="user-dropdown">
-            {% set user = session['user'] %} {% set avatar_url =
+            {% set user = actual_user %} {% set avatar_url =
             user.get('avatar_url', '') %} {% set username = user.get('username',
             user.get('email', 'User')) %} {% set first_initial =
             username[0]|upper if username else 'U' %} {% if avatar_url %} {% if

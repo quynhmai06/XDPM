@@ -223,6 +223,18 @@ còn product-detail
     </style>
   </head>
   <body>
+    {% if GATEWAY_DEBUG_SESSION %}
+    {% set actual_user = session.get('user') %}
+    <div style="background:#333;color:#fff;padding:6px 10px;font-size:13px;text-align:center;">
+      <strong>DEBUG SESSION</strong>
+      {% if actual_user %}
+        — Logged in as: {{ actual_user.get('username') }}
+        {% if actual_user.get('role') %} ({{ actual_user.get('role') }}){% endif %}
+      {% else %}
+        — Not signed in
+      {% endif %}
+    </div>
+    {% endif %}
     {# Chuẩn hoá nhãn loại sản phẩm để tái dùng #} {% set type_label = 'Xe điện'
     if item.product_type == 'car' else ('Pin xe điện' if item.product_type ==
     'battery' else (item.product_type or 'Sản phẩm')) %}
@@ -406,7 +418,10 @@ còn product-detail
                 <div style="flex:1;min-width:0">
                   <div style="display:flex;align-items:center;gap:8px;justify-content:space-between">
                     <div style="font-weight:700;color:#0f172a;font-size:15px" id="sellerName">{{ item.owner or item.owner_username or '-' }}</div>
-                    <div style="font-size:12px;color:#6b7280;padding:4px 8px;background:#fffbeb;border:1px solid #f8e3b8;border-radius:999px">Người bán</div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <a id="smallReviewsBtn" href="/reviews/product/{{ item.id }}" data-username="{{ seller_username | e }}" title="Xem đánh giá" style="font-size:12px;color:#111827;padding:6px 8px;border-radius:8px;border:1px solid #e6e9ee;background:#fff;display:inline-flex;align-items:center;gap:6px"><span style="font-size:10px">Bài đánh giá</span></a>
+                      <div style="font-size:12px;color:#6b7280;padding:4px 8px;background:#fffbeb;border:1px solid #f8e3b8;border-radius:999px">Người bán</div>
+                    </div>
                   </div>
                   <div style="display:flex;flex-direction:column;gap:4px">
                     <div id="sellerEmail" style="font-size:13px;color:#6b7280;">{{ item.email or '' }}</div>
@@ -415,6 +430,14 @@ còn product-detail
                 </div>
                 <!-- contact button removed as requested -->
               </div>
+            </div>
+
+            <!-- Nút Đánh giá người bán - sẽ được hiển thị bằng JS nếu đủ điều kiện -->
+            <div id="reviewButtonContainer" style="margin-top: 16px; display: none;">
+              <a href="#" id="reviewLink" class="btn" style="background-color: #10b981; color: white; width: 100%; text-align: center; justify-content: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9_M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                Viết đánh giá cho người bán
+              </a>
             </div>
 
             <div class="detail-price">{{ "{:,.0f}".format(item.price) }} đ</div>
@@ -441,7 +464,7 @@ còn product-detail
   <a class="btn btn-ghost" href="/">← Về trang chủ</a>
   <button id="buyNowBtn" class="btn"
     style="background:linear-gradient(135deg,#ff6b35,#ff8c61);color:white;border:none;">
-    ⚡ Mua ngay
+     Mua ngay
   </button>
 </div>
 
@@ -519,8 +542,8 @@ async function handleBuyNow() {
   // Lấy thông tin sản phẩm từ template Jinja
   const item = {
     id: {{ item.id }},
-    item_type: "{{ item.item_type or item.product_type or 'vehicle' }}",
-    name: "{{ (item.name or '').replace('"','\\"') }}",
+    item_type: {{ (item.item_type or item.product_type or 'vehicle')|tojson }},
+    name: {{ (item.name or '')|tojson }},
     price: Number({{ item.price or 0 }}),
     // mở rộng fallback seller: seller_id || owner_id || user_id
     seller_id: {{ item.seller_id or item.owner_id or item.user_id or 'null' }},
@@ -614,6 +637,114 @@ async function handleBuyNow() {
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("buyNowBtn");
   if (btn) btn.addEventListener("click", (e)=>{ e.preventDefault(); handleBuyNow(); });
+  const rbtn = document.getElementById('reviewsBtn');
+  if (rbtn){
+    rbtn.addEventListener('click', function(e){
+      e.preventDefault();
+      const pid = {{ item.id }};
+      // prefer direct seller review page when seller id available
+      const seller = {{ (item.seller_id or item.owner_id or 'null') }};
+      if (seller) {
+        window.location.href = '/reviews/seller/' + encodeURIComponent(seller) + '?product_id=' + encodeURIComponent(pid);
+      } else {
+        window.location.href = '/reviews/product/' + pid;
+      }
+    });
+  }
+  const smallBtn = document.getElementById('smallReviewsBtn');
+  if (smallBtn){
+    smallBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      const pid = {{ item.id }};
+      // Navigate to product review page which now shows seller reviews for that product
+      window.location.href = '/reviews/product/' + encodeURIComponent(pid);
+    });
+  }
+});
+</script>
+
+<!-- Script để kiểm tra và hiển thị nút đánh giá -->
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const reviewButtonContainer = document.getElementById('reviewButtonContainer');
+    const reviewLink = document.getElementById('reviewLink');
+
+    // 1. Lấy thông tin sản phẩm và người bán từ template
+    const product_id = {{ item.id }};
+    let seller_id = {{ item.seller_id or item.owner_id or item.user_id or 'null' }};
+    const sellerUsername = "{{ (item.owner or item.owner_username) | e }}";
+
+    if (!reviewButtonContainer || !reviewLink) return;
+
+    // 2. Lấy thông tin người dùng đang đăng nhập
+    let buyer_id = null;
+    try {
+        const r = await fetch("/auth/me");
+        if (r.ok) {
+            const me = await r.json();
+            buyer_id = me && (me.sub || me.id);
+        }
+    } catch (e) {
+        console.warn("Chưa đăng nhập hoặc lỗi khi fetch /auth/me", e);
+        return; // Không đăng nhập, không hiển thị nút
+    }
+
+    if (!buyer_id) {
+        return; // Không có người dùng, không làm gì cả
+    }
+
+    // 3. Nếu seller_id chưa có, thử lấy qua username
+    if (!seller_id && sellerUsername) {
+        try {
+            const r = await fetch('/auth/users/' + encodeURIComponent(sellerUsername));
+            if (r.ok) {
+                const u = await r.json();
+                if (u && u.id) seller_id = u.id;
+            }
+        } catch (err) { /* ignore */ }
+    }
+
+    if (!seller_id) {
+        console.warn("Không xác định được seller_id để kiểm tra đánh giá.");
+        return;
+    }
+
+    // 4. Kiểm tra xem người dùng đã mua và được duyệt sản phẩm này chưa
+    try {
+        const params = new URLSearchParams({
+            buyer_id: buyer_id,
+            seller_id: seller_id,
+            status: 'paid'
+        });
+        const paymentResponse = await fetch('/payments/mine', { credentials: 'include' });
+        if (!paymentResponse.ok) {
+            return; // Lỗi khi gọi payment service
+        }
+
+        const paymentData = await paymentResponse.json();
+        const payments = paymentData.items || [];
+
+        let hasPurchased = false;
+        for (const payment of payments) {
+          // filter by seller if provided
+          if (seller_id && String(payment.seller_id || payment.seller || '') !== String(seller_id)) continue;
+          if ((payment.status || '').toLowerCase() !== 'paid') continue;
+          const items = payment.items || [];
+          if (items.some(it => String((it.item_id || it.id || it.itemId) || '') === String(product_id))) {
+            hasPurchased = true;
+            break;
+          }
+        }
+
+        // 5. Nếu đã mua, hiển thị nút
+        if (hasPurchased) {
+            reviewLink.href = `/reviews/seller/${seller_id}?product_id=${product_id}`;
+            reviewButtonContainer.style.display = 'block';
+        }
+
+    } catch (e) {
+        console.error("Lỗi khi kiểm tra điều kiện hiển thị nút đánh giá:", e);
+    }
 });
 </script>
 

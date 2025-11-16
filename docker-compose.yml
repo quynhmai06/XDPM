@@ -174,7 +174,9 @@ services:
       PAYMENT_PUBLIC_BASE: http://localhost:5008
       JWT_SECRET: ${JWT_SECRET}
       GATEWAY_SECRET: ${GATEWAY_SECRET:-dev_gateway_secret}
+      REVIEWS_URL: http://reviews_service:5010
       PORT: 8000
+      #GATEWAY_DEBUG_SESSION: "1"  # disabled by default to avoid debug banner
     depends_on:
       auth_service:
         condition: service_healthy
@@ -188,6 +190,8 @@ services:
         condition: service_started
       payment_service:
         condition: service_started
+      reviews_service:
+        condition: service_started
     ports:
       - "8000:8000"
     restart: unless-stopped
@@ -195,6 +199,24 @@ services:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8000/ >/dev/null || exit 1"]
     volumes:
       - ./gateway/static/uploads:/app/static/uploads
+
+  reviews_service:
+    build: ./reviews-service
+    image: ev/reviews-service:latest
+    container_name: reviews_service
+    env_file: [.env]
+    environment:
+      PORT: 5010
+      DATABASE_URL: sqlite:///reviews.db
+      PAYMENT_BASE_URL: http://payment_service:5003
+      LISTING_URL: http://listing_service:5002
+      AUTH_URL: http://auth_service:5001
+      REVIEWS_DEV_ALLOW: "1"
+    ports:
+      - "5011:5010"
+    restart: unless-stopped
+    volumes:
+      - reviews_data:/data
 
   postgres:
     image: postgres:16
@@ -218,3 +240,4 @@ services:
 volumes:
   auth_data:
   ev_pgdata:
+  reviews_data:

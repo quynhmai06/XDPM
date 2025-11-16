@@ -69,7 +69,7 @@ def _payment_json(payment: Payment) -> dict:
         "buyer_id": payment.buyer_id,
         "seller_id": payment.seller_id,
         "amount": float(payment.amount or 0),
-    "items": payment.items or [],
+    "items": (payment.items if isinstance(payment.items, list) else (payment.items or [])),
         "method": payment.method.value,
         "provider": payment.provider,
         "status": payment.status.value,
@@ -354,6 +354,10 @@ def create_payment():
         return normalized
 
     items_payload = _normalize_items(data.get("items"))
+
+    # Always set items field to a JSON list (never keep raw strings or other types).
+    # This avoids storing whitespace strings or other malformed payloads into DB.
+    data["items"] = items_payload
 
     if items_payload:
         data["items"] = items_payload
@@ -1671,6 +1675,21 @@ def thankyou_page(payment_id: int):
     order_id = p.order_id
     sale_code = f"H{sale.id:03d}" if sale else "—"
     amount = float(p.amount or 0)
+    # Try to extract first product/listing id from payment items payload
+    product_id = None
+    try:
+        items = p.items or []
+        if isinstance(items, list) and len(items) > 0:
+            first = items[0] or {}
+            # candidate keys: item_id, id
+            candidate = first.get('item_id') or first.get('id')
+            if candidate is not None:
+                try:
+                    product_id = int(candidate)
+                except Exception:
+                    product_id = None
+    except Exception:
+        product_id = None
 
     html = r"""
 <!doctype html>
@@ -1732,6 +1751,7 @@ def thankyou_page(payment_id: int):
     <div class="actions">
       <a class="btn" href="/">Quay về trang chủ</a>
       {% if inv %}<a class="btn" href="/payment/invoice/{{ inv.id }}">Xem hoá đơn</a>{% endif %}
+      {# Review buttons removed: reviews must be created from product detail or My Orders flow only #}
     </div>
   </div>
 </div>

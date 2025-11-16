@@ -20,7 +20,15 @@ app = Flask(__name__, template_folder="templates", static_folder="static", stati
 app.secret_key = os.getenv("GATEWAY_SECRET", "dev")
 app.config.update(SESSION_COOKIE_SAMESITE="Lax")
 
-# uploads: gateway lưu ảnh, gửi URL cho listing-service
+# Dev-only: show session debug info in templates and enable a debug endpoint if set
+GATEWAY_DEBUG_SESSION = os.getenv("GATEWAY_DEBUG_SESSION", "0").lower() in ("1", "true", "yes")
+
+@app.context_processor
+def inject_debug_flags():
+    return {
+        "GATEWAY_DEBUG_SESSION": GATEWAY_DEBUG_SESSION,
+        "session": session,
+    }
 UPLOAD_DIR = os.path.join(app.static_folder, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 ALLOWED_EXTS = {"jpg", "jpeg", "png", "webp"}
@@ -48,7 +56,7 @@ def decode_token(token: str):
     return jwt.decode(token, JWT_SECRET, algorithms=JWT_ALGOS, options={"verify_sub": False})
 
 def is_admin_session() -> bool:
-    token = session.get("access_token")
+    token = session.get("admin_access_token") or session.get("access_token")
     if not token:
         return False
     try:
@@ -101,6 +109,14 @@ def __routes():
 @app.route("/", endpoint="home")
 def home():
     """Homepage with search and listings"""
+    # If a 'next_after_login' was previously stored (e.g., user tried to open /admin
+    # while logged out), clear it here so visiting / doesn't cause an automatic redirect
+    # after subsequent login attempts.
+    session.pop('next_after_login', None)
+    # Do not automatically redirect admins away from the public homepage.
+    # If the user is an admin and wants to open the admin dashboard they can
+    # click the explicit link in the header. We intentionally do not redirect
+    # admins here so they can preview the public site or test features.
     # Check if we have any search parameters
     has_search_params = any([
         request.args.get("q"),
@@ -160,9 +176,8 @@ def home():
                     is_search=True
                 )
         except requests.RequestException:
+            # Error calling search service - ignore and continue to show defaults
             pass
-    
-    # Default homepage - show featured cars and batteries
     def fetch(params):
         try:
             r = requests.get(f"{LISTING_URL}/listings/", params=params, timeout=6)
@@ -244,7 +259,9 @@ def login_page():
                 "role": payload.get("role")
             }
             next_url = request.args.get("next") or session.pop("next_after_login", None)
-            return redirect(next_url or (url_for("admin_page") if is_admin_session() else url_for("home")))
+            # Redirect to admin page only if the token used to login is admin.
+            is_token_admin = str(payload.get("role", "")).lower() == "admin"
+            return redirect(next_url or (url_for("admin_page") if is_token_admin else url_for("home")))
         flash("Đăng nhập thất bại.", "error")
     return render_template("login.html")
 
@@ -276,10 +293,14 @@ def register_page():
 
 @app.get("/logout", endpoint="logout_page")
 def logout_page():
-    was_admin = is_admin_session()
+    # If the session has an admin_user but also a normal user, treat this as a normal user logout
+    user_present = bool(session.get('user'))
+    admin_present = bool(session.get('admin_user'))
+    # Determine whether this was an admin-only session
+    admin_only = admin_present and not user_present
     session.clear()
     flash("Đã đăng xuất!", "success")
-    return redirect(url_for("admin_page") if was_admin else url_for("home"))
+    return redirect(url_for("admin_page") if admin_only else url_for("home"))
 
 # ===================== Profile proxy (auth-service) =====================
 @app.route("/auth/me")
@@ -544,7 +565,7 @@ def seller_info():
     user_map = {}
     try:
         if is_admin_session():
-            hdr = _forward_auth_headers()
+            hdr = _forward_admin_headers()
             r = requests.get(f"{AUTH_URL}/auth/admin/users", headers=hdr, timeout=8)
             if r.ok:
                 data = r.json().get('data', [])
@@ -609,7 +630,8 @@ def admin_page():
 
     # ---- USERS (chỉ khi là admin) ----
     if is_admin_session():
-        headers = {"Authorization": f"Bearer {session['access_token']}"}
+        # Use admin headers (fall back to normal access token if admin token not present)
+        headers = _forward_admin_headers()
         for url in (f"{ADMIN_URL}/admin/users",
                     f"{AUTH_URL}/auth/admin/users",
                     f"{AUTH_URL}/auth/users"):
@@ -674,8 +696,10 @@ def admin_login():
     if str(payload.get("role","")).lower() != "admin":
         flash("Tài khoản không phải admin.", "error")
         return redirect(url_for("admin_page"))
-    session["access_token"] = token
-    session["user"] = {
+    # Do not override normal user session when an admin logs in on the admin page.
+    # Store admin token and admin_user separately to avoid switching the primary user.
+    session["admin_access_token"] = token
+    session["admin_user"] = {
         "id": payload.get("sub"),
         "username": payload.get("username"),
         "role": payload.get("role")
@@ -685,7 +709,9 @@ def admin_login():
 
 @app.get("/admin/logout", endpoint="admin_logout")
 def admin_logout():
-    session.clear()
+    # Remove only admin session values (keep normal user session intact)
+    session.pop("admin_access_token", None)
+    session.pop("admin_user", None)
     flash("Đã đăng xuất khỏi Admin!", "success")
     return redirect(url_for("admin_page"))
 
@@ -699,7 +725,8 @@ def approve_product(pid):
     try:
         r = requests.put(
             f"{LISTING_URL}/listings/{pid}/approve",
-            headers={"Authorization": f"Bearer {session.get('access_token','')}"}
+            headers=_forward_admin_headers(),
+            timeout=10,
         )
         if r.ok:
             flash("✅ Đã duyệt bài đăng.", "success")
@@ -725,7 +752,8 @@ def reject_product(pid):
     requests.put(
         f"{LISTING_URL}/listings/{pid}/reject",
         json={"note": note},
-        headers={"Authorization": f"Bearer {session.get('access_token','')}"}
+        headers=_forward_admin_headers(),
+        timeout=10,
     )
     return redirect(url_for("admin_page"))
 
@@ -741,7 +769,8 @@ def mark_spam(pid):
         r = requests.put(
             f"{LISTING_URL}/listings/{pid}/mark_spam",
             json={"note": note} if note else None,
-            headers={"Authorization": f"Bearer {session.get('access_token','')}"}
+            headers=_forward_admin_headers(),
+            timeout=10,
         )
         if r.ok:
             flash("🚫 Đã gắn spam & chặn user đăng bài mới.", "success")
@@ -766,7 +795,8 @@ def unspam(pid):
     try:
         r = requests.put(
             f"{LISTING_URL}/listings/{pid}/unspam",
-            headers={"Authorization": f"Bearer {session.get('access_token','')}"}
+            headers=_forward_admin_headers(),
+            timeout=10,
         )
         flash("✅ Đã bỏ spam (mở khoá nếu không còn bài spam).", "success" if r.ok else "error")
     except requests.RequestException:
@@ -779,7 +809,7 @@ def verify(pid):
         session["next_after_login"] = url_for("verify", pid=pid)
         return redirect(url_for("login_page"))
     requests.put(f"{LISTING_URL}/listings/{pid}/verify",
-                 headers={"Authorization": f"Bearer {session.get('access_token','')}"})
+                 headers=_forward_admin_headers(), timeout=10)
     return redirect(url_for("admin_page"))
 
 @app.post("/admin/unverify/<int:pid>")
@@ -788,7 +818,7 @@ def unverify(pid):
         session["next_after_login"] = url_for("unverify", pid=pid)
         return redirect(url_for("login_page"))
     requests.put(f"{LISTING_URL}/listings/{pid}/unverify",
-                 headers={"Authorization": f"Bearer {session.get('access_token','')}"})
+                 headers=_forward_admin_headers(), timeout=10)
     return redirect(url_for("admin_page"))
 
 
@@ -824,8 +854,7 @@ def approve_user(user_id):
         session["next_after_login"] = url_for("approve_user", user_id=user_id)
         return redirect(url_for("login_page"))
 
-    headers = {"Authorization": f"Bearer {session['access_token']}",
-               "Content-Type": "application/json"}
+    headers = {**_forward_admin_headers(), "Content-Type": "application/json"}
 
     targets = [
         (f"{ADMIN_URL}/admin/users/{user_id}/status", {"status": "approved"}),
@@ -846,8 +875,7 @@ def delete_user(user_id):
         session["next_after_login"] = url_for("delete_user", user_id=user_id)
         return redirect(url_for("login_page"))
 
-    headers = {"Authorization": f"Bearer {session['access_token']}",
-               "Content-Type": "application/json"}
+    headers = {**_forward_admin_headers(), "Content-Type": "application/json"}
     targets = [
         (f"{ADMIN_URL}/admin/users/{user_id}/status", {"status": "locked"}),
         (f"{AUTH_URL}/auth/admin/users/{user_id}/status", {"status": "locked"}),
@@ -1386,11 +1414,69 @@ def ai_upstream_status_v2():
                 out[name] = {"url": url, "ok": False, "error": str(e)}
         out[name]["tried"] = tried
     return (out, 200)
+
+
+# ===================== Reviews proxy =====================
+REVIEWS_URL = os.getenv("REVIEWS_URL", "http://reviews_service:5010")
+
+
+@app.route('/reviews/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
+def gw_reviews_proxy(subpath: str):
+    """Simple proxy to forward /reviews/* requests to the reviews-service.
+
+    This lets templates link to /reviews/product/<id> and have the gateway
+    transparently forward the request to the reviews service inside compose.
+    """
+    try:
+        import requests
+        # Build target URL inside the compose network
+        target = REVIEWS_URL.rstrip('/') + '/reviews/' + subpath.lstrip('/')
+        # Prepare headers: forward auth if present and content-type
+        headers = {k: v for k, v in request.headers.items() if k.lower() != 'host'}
+        headers.update(_forward_auth_headers())
+
+        # OPTIONS quick response
+        if request.method == 'OPTIONS':
+            return ('', 204)
+
+        if request.method == 'GET':
+            r = requests.get(target, params=request.args, headers=headers, timeout=10)
+        elif request.method == 'POST':
+            # Support JSON and form posts
+            if (request.content_type or '').lower().startswith('application/json'):
+                r = requests.post(target, json=request.get_json(silent=True) or {}, headers=headers, timeout=10)
+            else:
+                r = requests.post(target, data=request.form or request.get_data(), headers=headers, timeout=10)
+        elif request.method == 'PUT':
+            r = requests.put(target, json=request.get_json(silent=True) or {}, headers=headers, timeout=10)
+        elif request.method == 'DELETE':
+            r = requests.delete(target, headers=headers, timeout=10)
+        else:
+            r = requests.request(request.method, target, headers=headers, timeout=10)
+
+        resp = Response(r.content, status=r.status_code, content_type=r.headers.get('content-type', 'application/json'))
+        return resp
+    except requests.RequestException as e:
+        return jsonify({'error': 'reviews_upstream_unreachable', 'detail': str(e)}), 502
 # ===================== Payment (proxy) =====================
 def _forward_auth_headers():
     """Forward Authorization header if user logged in."""
     headers = {}
+    # Use normal user access token for user-facing flows; admin-only flows should
+    # explicitly call `_forward_admin_headers()` to forward the admin token instead.
     tok = session.get("access_token")
+    if tok:
+        headers["Authorization"] = f"Bearer {tok}"
+    return headers
+
+
+def _forward_admin_headers():
+    """Forward admin Authorization header if admin user logged in.
+
+    Falls back to normal access_token if admin token not present.
+    """
+    headers = {}
+    tok = session.get("admin_access_token") or session.get("access_token")
     if tok:
         headers["Authorization"] = f"Bearer {tok}"
     return headers
@@ -1582,7 +1668,7 @@ def gw_payment_admin_reports():
     """Proxy danh sách giao dịch cho trang Admin"""
     try:
         r = requests.get(f"{PAYMENT_URL}/payment/admin/reports",
-                         headers=_forward_auth_headers(), timeout=10)
+                 headers=_forward_admin_headers(), timeout=10)
         ctype = r.headers.get("content-type") or "application/json"
 
         # Try to parse JSON so we can enrich with buyer/seller display names when
@@ -1604,7 +1690,7 @@ def gw_payment_admin_reports():
         
         if admin_session:
             try:
-                auth_headers = _forward_auth_headers()
+                auth_headers = _forward_admin_headers()
                 print(f"[DEBUG] Calling /auth/admin/users with headers: {auth_headers}")
                 user_r = requests.get(f"{AUTH_URL}/auth/admin/users", headers=auth_headers, timeout=8)
                 print(f"[DEBUG] Auth response status: {user_r.status_code}")
@@ -1666,7 +1752,7 @@ def gw_payment_admin_approve(payment_id: int):
     try:
         # Approve payment
         r = requests.post(f"{PAYMENT_URL}/payment/admin/approve/{payment_id}",
-                          headers={**_forward_auth_headers(),
+                  headers={**_forward_admin_headers(),
                                    "X-Admin-Token": GATEWAY_ADMIN_TOKEN},
                           timeout=10)
         
@@ -1675,7 +1761,7 @@ def gw_payment_admin_approve(payment_id: int):
             try:
                 pr = requests.get(
                     f"{PAYMENT_URL}/payment/{payment_id}",
-                    headers=_forward_auth_headers(),
+                    headers=_forward_admin_headers(),
                     timeout=5,
                 )
                 if pr.ok:
@@ -1700,7 +1786,7 @@ def gw_payment_admin_approve(payment_id: int):
                         try:
                             mark_resp = requests.put(
                                 f"{LISTING_URL}/listings/{listing_id}/mark_sold",
-                                headers=_forward_auth_headers(),
+                                headers=_forward_admin_headers(),
                                 timeout=5,
                             )
                             print(
@@ -1725,7 +1811,7 @@ def gw_payment_admin_approve(payment_id: int):
                                 try:
                                     mark_resp = requests.put(
                                         f"{LISTING_URL}/listings/{listing_id}/mark_sold",
-                                        headers=_forward_auth_headers(),
+                                        headers=_forward_admin_headers(),
                                         timeout=5,
                                     )
                                     processed_ids.add(listing_id)
@@ -1748,7 +1834,7 @@ def gw_payment_admin_reject(payment_id: int):
     """Proxy từ chối giao dịch"""
     try:
         r = requests.post(f"{PAYMENT_URL}/payment/admin/reject/{payment_id}",
-                          headers={**_forward_auth_headers(),
+                  headers={**_forward_admin_headers(),
                                    "X-Admin-Token": GATEWAY_ADMIN_TOKEN},
                           timeout=10)
         ctype = r.headers.get("content-type") or "application/json"
@@ -1769,6 +1855,23 @@ def proxy_auth(path):
     headers = [(name, value) for (name, value) in resp.raw.headers.items() if name.lower() not in excluded_headers]
     response = Response(resp.content, resp.status_code, headers)
     return response
+
+
+@app.get("/debug/session")
+def debug_session():
+    """Dev-only: return the entire Flask session (as JSON) when debug mode
+    is enabled. Prevent exposing this in production by requiring an env var.
+    """
+    if not GATEWAY_DEBUG_SESSION:
+        return Response("Not found", status=404)
+    # Possible sensitive values: access_token. Mask a bit for convenience.
+    try:
+        safe = dict(session)
+        if "access_token" in safe:
+            safe["access_token"] = (safe["access_token"][:8] + "..." ) if safe["access_token"] else None
+        return jsonify({"session": safe})
+    except Exception:
+        return jsonify({"session": None}), 200
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))

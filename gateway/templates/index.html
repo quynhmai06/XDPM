@@ -11,6 +11,21 @@
     />
   </head>
   <body>
+    {% set actual_user = session.get('user') %}
+    {% if GATEWAY_DEBUG_SESSION %}
+    <div style="background:#333;color:#fff;padding:6px 10px;font-size:13px;text-align:center;">
+      <strong>DEBUG SESSION</strong>
+      {% if actual_user %}
+        — Logged in as: {{ actual_user.get('username') }}
+        {% if actual_user.get('role') %} ({{ actual_user.get('role') }}){% endif %}
+      {% else %}
+        — Not signed in
+      {% endif %}
+      {% if session.get('display_name') %}
+        • display_name: {{ session.get('display_name') }}
+      {% endif %}
+    </div>
+    {% endif %}
     <div class="header">
       <div class="header-container">
         <div class="logo-section">
@@ -29,14 +44,13 @@
             ><i class="far fa-bell"></i> Thông báo</a
           >
 
-          {% if session.get('user') %}
+          {% set actual_user = session.get('user') %}
+          {% if actual_user %}
           <a href="{{ url_for('favorites_page') }}" class="user-menu-item">
             <i class="fas fa-heart"></i> Yêu thích
           </a>
-          {% set display_name = session.get('display_name') or
-          session.get('user', {}).get('full_name') or session.get('user',
-          {}).get('username') or 'User' %} {% set avatar_initial =
-          (display_name[:1] if display_name else 'U') | upper %}
+           {% set display_name = session.get('display_name') or (actual_user.get('full_name') if actual_user else None) or (actual_user.get('username') if actual_user else None) or 'User' %}
+           {% set avatar_initial = (display_name[:1] if display_name else 'U') | upper %}
 
           <div class="user-avatar-wrap">
             <button class="avatar-btn" onclick="toggleUserMenu(event)">
@@ -47,6 +61,9 @@
               <a href="{{ url_for('profile') }}" class="dropdown-item"
                 >Quản lý hồ sơ</a
               >
+              {% if actual_user and (actual_user.get('role')|lower == 'admin') %}
+              <a href="{{ url_for('admin_page') }}" class="dropdown-item">Quản trị</a>
+              {% endif %}
               <a href="/cart" class="dropdown-item"
                 >Giỏ hàng
                 <span

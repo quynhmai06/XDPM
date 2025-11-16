@@ -154,6 +154,40 @@ def register():
     return {"id": u.id, "username": u.username}, 201
 
 
+@bp.get("/users/by-id/<int:user_id>")
+def get_user_by_id(user_id: int):
+    """
+    Returns public user information by user ID.
+    This is intended for cross-service communication.
+    """
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "user_not_found"}), 404
+
+    profile = UserProfile.query.filter_by(user_id=user.id).first()
+
+    avatar_url = None
+    # New avatar system via UserProfile
+    if profile and profile.avatar:
+        avatar_url = url_for('static', filename=f'{AVATAR_DIR}/{profile.avatar}', _external=True)
+    
+    # Fallback to old avatar system if new profile avatar not found
+    if not avatar_url:
+        safe_user = secure_filename(user.username)
+        for ext in ALLOWED_IMAGE_EXTS:
+            avatar_path_str = f"{AVATAR_DIR}/{safe_user}.{ext}"
+            if (Path(current_app.static_folder) / avatar_path_str).exists():
+                avatar_url = url_for('static', filename=avatar_path_str, _external=True)
+                break
+
+    return jsonify({
+        "id": user.id,
+        "username": user.username,
+        "full_name": profile.full_name if profile else user.username,
+        "avatar_url": avatar_url
+    })
+
+
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "GET":
