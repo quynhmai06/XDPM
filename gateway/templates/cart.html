@@ -84,31 +84,19 @@
       .cart-qty-controls {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 8px;
         margin-top: 12px;
       }
-      .qty-btn {
-        width: 32px;
-        height: 32px;
-        border: 1px solid #ddd;
-        background: #fff;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s;
-      }
-      .qty-btn:hover {
-        background: #f5f5f5;
-        border-color: #ff6b35;
-      }
+      /* Removed increment/decrement buttons by design; keep minimal styling for qty display */
       .qty-display {
         font-size: 16px;
         font-weight: 600;
-        min-width: 40px;
+        min-width: 30px;
         text-align: center;
+        padding: 6px 8px;
+        border-radius: 6px;
+        background: #fff;
+        border: 1px solid #f0f0f0;
       }
       .remove-btn {
         background: transparent;
@@ -224,27 +212,15 @@
               Công suất: {{ it.capacity_kwh or it.battery_capacity or 'N/A' }}
               kWh {% if it.health_percent %} •
               <i class="fas fa-heartbeat" style="margin-left: 8px"></i>
-              {{ it.health_percent }}% {% endif %} {% if it.cycles %} •
-              {{ it.cycles }} chu kỳ {% endif %}
+              {{ it.health_percent }}% {% endif %} {% if it.cycles %} • {{
+              it.cycles }} chu kỳ {% endif %}
             </div>
             {% endif %} {% endif %}
             <div class="cart-item-price">
               {{ "{:,.0f}".format(((line.price or 0)|float)) }} đ
             </div>
             <div class="cart-qty-controls">
-              <button
-                class="qty-btn"
-                onclick="updateQty('{{ line.item_type }}', {{ line.item_id }}, Math.max({{ line.qty }}-1,0))"
-              >
-                −
-              </button>
               <span class="qty-display">{{ line.qty }}</span>
-              <button
-                class="qty-btn"
-                onclick="updateQty('{{ line.item_type }}', {{ line.item_id }}, {{ line.qty }}+1)"
-              >
-                +
-              </button>
               <button
                 class="remove-btn"
                 onclick="removeItem('{{ line.item_type }}', {{ line.item_id }})"
@@ -340,9 +316,7 @@
 
       function formatVnd(n) {
         try {
-          return (
-            new Intl.NumberFormat("vi-VN").format(Math.round(n)) + " đ"
-          );
+          return new Intl.NumberFormat("vi-VN").format(Math.round(n)) + " đ";
         } catch (e) {
           return (n || 0) + " đ";
         }
@@ -363,6 +337,10 @@
               <a href="/" style="color: #ff6b35">← Tiếp tục mua sắm</a>
             </div>`;
           if (summary) summary.style.display = "none";
+          try {
+            const el = document.getElementById("hdrCartCount");
+            if (el) el.textContent = 0;
+          } catch (e) {}
           return;
         }
 
@@ -422,8 +400,7 @@
               it && it.main_image_url
                 ? it.main_image_url
                 : "/static/images/logo.png";
-            const name =
-              it && it.name ? it.name : "Sản phẩm " + line.item_id;
+            const name = it && it.name ? it.name : "Sản phẩm " + line.item_id;
             const price = Number(line.price || (it && it.price) || 0);
             subtotal += price * (line.qty || 1);
             return `
@@ -439,13 +416,7 @@
                   }</div>
                   <div class="cart-item-price">${formatVnd(price)}</div>
                   <div class="cart-qty-controls">
-                    <button class="qty-btn" data-action="decr" data-id="${
-                      line.item_id
-                    }">−</button>
                     <span class="qty-display">${line.qty || 1}</span>
-                    <button class="qty-btn" data-action="incr" data-id="${
-                      line.item_id
-                    }">+</button>
                     <button class="remove-btn" data-id="${
                       line.item_id
                     }"><i class="fas fa-trash"></i> Xóa</button>
@@ -456,57 +427,34 @@
           .join("\n");
 
         container.innerHTML = html;
+        // Update header cart count to reflect number of items (qtys currently always 1)
+        try {
+          const el = document.getElementById("hdrCartCount");
+          if (el) el.textContent = cart.reduce((s, c) => s + (c.qty || 0), 0);
+        } catch (e) {}
 
         const subtotalEl = document.getElementById("summarySubtotal");
         const totalEl = document.getElementById("summaryTotal");
         if (subtotalEl) subtotalEl.textContent = formatVnd(subtotal);
         if (totalEl) totalEl.textContent = formatVnd(subtotal);
 
-        // gắn lại event cho nút tăng/giảm/xoá
-        container.querySelectorAll(".qty-btn").forEach((btn) => {
-          btn.addEventListener("click", () => {
-            const id = Number(btn.dataset.id);
-            const action = btn.dataset.action;
-            const c = getCart();
-            const idx = c.findIndex((x) => Number(x.item_id) === id);
-            if (idx === -1) return;
-            if (action === "incr") c[idx].qty = (c[idx].qty || 1) + 1;
-            else c[idx].qty = Math.max((c[idx].qty || 1) - 1, 0);
-            if (c[idx].qty === 0) c.splice(idx, 1);
-            saveCart(c);
-            renderCart();
-          });
-        });
+        // No increment/decrement buttons — only remove button is used
 
         container.querySelectorAll(".remove-btn").forEach((btn) => {
           btn.addEventListener("click", () => {
             const id = Number(btn.dataset.id);
-            const c = getCart().filter(
-              (x) => Number(x.item_id) !== id
-            );
+            const c = getCart().filter((x) => Number(x.item_id) !== id);
             saveCart(c);
             renderCart();
           });
         });
       }
 
-      function updateQty(type, id, qty) {
-        const cart = getCart();
-        const idx = cart.findIndex(
-          (c) => Number(c.item_id) === Number(id)
-        );
-        if (idx === -1) return;
-        cart[idx].qty = qty;
-        if (cart[idx].qty <= 0) cart.splice(idx, 1);
-        saveCart(cart);
-        renderCart();
-      }
+      // Update function intentionally removed — increment/decrement not exposed in UI
 
       function removeItem(type, id) {
         if (!confirm("Bạn có chắc muốn xóa sản phẩm này?")) return;
-        const cart = getCart().filter(
-          (c) => Number(c.item_id) !== Number(id)
-        );
+        const cart = getCart().filter((c) => Number(c.item_id) !== Number(id));
         saveCart(cart);
         renderCart();
       }
@@ -633,10 +581,35 @@
           }
 
           if (res.ok && data.checkout_url) {
+            // Payment created successfully -> clear purchased items from local cart
+            try {
+              // The payload items used for creating payment are in `items` variable above
+              const currentCart = getCart();
+              const purchasedIds = new Set(
+                items.map((it) => Number(it.item_id))
+              );
+              const newCart = currentCart.filter(
+                (c) => !purchasedIds.has(Number(c.item_id))
+              );
+              saveCart(newCart);
+              renderCart();
+            } catch (e) {
+              /* ignore local storage errors */
+            }
             window.location.href = data.checkout_url;
           } else if (data.payment_id) {
-            window.location.href =
-              "/payment/checkout/" + data.payment_id;
+            try {
+              const currentCart = getCart();
+              const purchasedIds = new Set(
+                items.map((it) => Number(it.item_id))
+              );
+              const newCart = currentCart.filter(
+                (c) => !purchasedIds.has(Number(c.item_id))
+              );
+              saveCart(newCart);
+              renderCart();
+            } catch (e) {}
+            window.location.href = "/payment/checkout/" + data.payment_id;
           } else {
             alert(data.error || "Không tạo được thanh toán");
           }

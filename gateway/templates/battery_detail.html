@@ -426,6 +426,15 @@
       async function buyNow() {
         // Add to cart and redirect to checkout
         try {
+          // Prevent duplicate add: if item exists in client-side cart, do not add again
+          try {
+            const ccart = JSON.parse(localStorage.getItem('cart') || '[]');
+            const exists = ccart.find(c => Number(c.item_id) === Number(batteryId));
+            if (exists) {
+              window.location.href = '/checkout';
+              return;
+            }
+          } catch (err) { /* ignore localStorage parse issues */ }
           const res = await fetch('/cart/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -438,7 +447,22 @@
           });
 
           if (res.ok) {
+            // Keep local cart in sync: add to localStorage if not exist
+            try {
+              const ccart = JSON.parse(localStorage.getItem('cart') || '[]');
+              const exists = ccart.find(c => Number(c.item_id) === Number(batteryId));
+              if (!exists) {
+                ccart.push({item_type: 'battery', item_id: batteryId, price: batteryPrice || 0, qty: 1});
+                localStorage.setItem('cart', JSON.stringify(ccart));
+                try { const el = document.getElementById('hdrCartCount'); if (el) el.textContent = ccart.reduce((s, c) => s + (c.qty || 0), 0); } catch (e) {}
+              }
+            } catch (err) {
+              // ignore localStorage errors
+            }
+            // remove this purchased item from local cart as checkout has been initiated
+            try { const ccart = JSON.parse(localStorage.getItem('cart')||'[]'); const newCart = ccart.filter(c => Number(c.item_id)!==Number(batteryId)); localStorage.setItem('cart', JSON.stringify(newCart)); try{const el = document.getElementById('hdrCartCount'); if (el) el.textContent = newCart.reduce((s,c)=>s+(c.qty||0),0);}catch(e){} } catch(e) {}
             window.location.href = '/checkout';
+          } else {
           } else {
             const data = await res.json();
             alert(data.error || 'Không thể thêm vào giỏ hàng');
@@ -450,6 +474,15 @@
 
       async function addToCart() {
         try {
+          // Prevent duplicate add: if item exists in client-side cart, warn and do nothing
+          try {
+            const ccart = JSON.parse(localStorage.getItem('cart') || '[]');
+            const exists = ccart.find(c => Number(c.item_id) === Number(batteryId));
+            if (exists) {
+              alert('Sản phẩm đã có trong giỏ hàng');
+              return;
+            }
+          } catch (err) { /* ignore localStorage parse issues */ }
           const res = await fetch('/cart/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -462,6 +495,15 @@
           });
 
           if (res.ok) {
+            try {
+              const ccart = JSON.parse(localStorage.getItem('cart') || '[]');
+              const exists = ccart.find(c => Number(c.item_id) === Number(batteryId));
+              if (!exists) {
+                ccart.push({item_type: 'battery', item_id: batteryId, price: batteryPrice || 0, qty: 1});
+                localStorage.setItem('cart', JSON.stringify(ccart));
+                try { const el = document.getElementById('hdrCartCount'); if (el) el.textContent = ccart.reduce((s, c) => s + (c.qty || 0), 0); } catch (e) {}
+              }
+            } catch (err) { /* ignore */ }
             alert('Đã thêm vào giỏ hàng!');
           } else {
             const data = await res.json();

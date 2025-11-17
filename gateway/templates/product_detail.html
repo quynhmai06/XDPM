@@ -620,9 +620,22 @@ async function handleBuyNow() {
     console.log("Payment create result:", data);
 
     if (res.ok && data.checkout_url) {
+      // Clear item from local cart because payment has been created for this item
+      try {
+        const c = JSON.parse(localStorage.getItem('cart') || '[]');
+        const newCart = c.filter(x => Number(x.item_id) !== Number(item.id));
+        localStorage.setItem('cart', JSON.stringify(newCart));
+        try { const el = document.getElementById('hdrCartCount'); if (el) el.textContent = newCart.reduce((s, it) => s + (it.qty || 0), 0); } catch(e){}
+      } catch (e) {}
       // Đi tới trang checkout UI
       window.location.href = data.checkout_url; // /payment/checkout/<payment_id>
     } else if (data.payment_id) {
+      try {
+        const c = JSON.parse(localStorage.getItem('cart') || '[]');
+        const newCart = c.filter(x => Number(x.item_id) !== Number(item.id));
+        localStorage.setItem('cart', JSON.stringify(newCart));
+        try { const el = document.getElementById('hdrCartCount'); if (el) el.textContent = newCart.reduce((s, it) => s + (it.qty || 0), 0); } catch(e){}
+      } catch (e) {}
       window.location.href = "/payment/checkout/" + data.payment_id;
     } else {
       alert(data.error || "Không tạo được thanh toán.");
