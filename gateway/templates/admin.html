@@ -57,6 +57,8 @@
       <a class="tab" data-tab="products"><i class="fa-solid fa-car"></i> Bài đăng</a>
       <a class="tab" data-tab="transactions"><i class="fa-solid fa-receipt"></i> Giao dịch</a>
     </div>
+
+    <!-- ===== THÀNH VIÊN ===== -->
     <section class="admin-card" id="users">
       <div class="section-head">
         <h2 class="section-title"><i class="fa-solid fa-users"></i> Quản lý thành viên</h2>
@@ -76,7 +78,7 @@
               <th>Tên đăng nhập</th>
               <th>Email</th>
               <th>Quyền</th>
-              <th>Trạng thái</th> 
+              <th>Trạng thái</th>
               <th class="th-actions">Thao tác</th>
             </tr>
           </thead>
@@ -121,10 +123,10 @@
       </div>
     </section>
 
+    <!-- ===== BÀI ĐĂNG ===== -->
     <section class="admin-card" id="products">
       <div class="section-head">
         <h2 class="section-title"><i class="fa-solid fa-car"></i> Bài đăng</h2>
-        {# Admin status provided by gateway route as `is_admin` #}
         {% if is_admin %}
           <div class="section-tools">
             <select id="filterPostsStatus" class="select">
@@ -156,7 +158,7 @@
               </tr>
             </thead>
             <tbody>
-                  <tr><td colspan="6" class="td-empty">Chưa có dữ liệu</td></tr>
+              <tr><td colspan="6" class="td-empty">Chưa có dữ liệu</td></tr>
             </tbody>
           </table>
         </div>
@@ -178,7 +180,6 @@
                 {% for p in products %}
                 {% set row_status = 'spam' if p.status == 'spam' else ('approved' if p.approved else 'pending') %}
                 <tr data-status="{{ row_status }}" data-verified="{{ '1' if p.verified else '0' }}">
-
                   <td>{{ p.id }}</td>
                   <td class="td-strong">
                     <a href="{{ url_for('product_detail', pid=p.id) }}">{{ p.name }}</a>
@@ -188,9 +189,8 @@
                   </td>
                   <td>{{ p.owner.username if p.owner is mapping else p.owner }}</td>
                   <td style="white-space:nowrap; font-size:18px; letter-spacing:1px;">
-  {{ "{:,.0f}".format(p.price) }} đ
-</td>
-
+                    {{ "{:,.0f}".format(p.price) }} đ
+                  </td>
                   <td>
                     <span class="chip {{ 'chip-success' if p.approved else 'chip-warning' }}">
                       {{ 'Đã duyệt' if p.approved else 'Chờ duyệt' }}
@@ -238,12 +238,30 @@
       {% endif %}
     </section>
 
-
+    <!-- ===== GIAO DỊCH / DOANH THU ===== -->
     <section class="admin-card" id="transactions">
       <div class="section-head">
         <h2 class="section-title"><i class="fa-solid fa-receipt"></i> Báo cáo giao dịch</h2>
       </div>
-      <!-- =========== CHỈNH Ở ĐÂY: payment (same-origin) =========== -->
+
+      {% if is_admin %}
+      <!-- Tổng quan doanh thu -->
+      <div class="stats-row stats-row-sm" id="revenueSummary">
+        <div class="stat-card stat-card-soft">
+          <span class="stat-label">Tổng giá trị giao dịch</span>
+          <span class="stat-value" id="totalGross">0 đ</span>
+        </div>
+        <div class="stat-card stat-card-soft">
+          <span class="stat-label">Doanh thu nền tảng (VAT)</span>
+          <span class="stat-value" id="totalVat">0 đ</span>
+        </div>
+        <div class="stat-card stat-card-soft">
+          <span class="stat-label">Tiền thực nhận của người bán</span>
+          <span class="stat-value" id="totalSellerNet">0 đ</span>
+        </div>
+      </div>
+
+      <!-- Bảng chi tiết giao dịch -->
       <div class="table-wrap">
         <table class="table">
           <thead>
@@ -259,86 +277,148 @@
             </tr>
           </thead>
           <tbody id="tx-body">
-            <tr><td colspan="7" style="text-align:center;color:#999">Đang tải dữ liệu…</td></tr>
+            <tr><td colspan="8" style="text-align:center;color:#999">Đang tải dữ liệu…</td></tr>
           </tbody>
         </table>
       </div>
 
       <script>
-(async function loadReports(){
-  try {
-    // Gọi same-origin -> gateway proxy sang payment-service
-    const r = await fetch('/payment/admin/reports?limit=100', { credentials: 'omit' });
-    if (!r.ok) {
-      const text = await r.text();
-      throw new Error(`HTTP ${r.status} ${r.statusText} - ${text.slice(0,120)}`);
-    }
+      (async function loadReports(){
+        try {
+          const r = await fetch('/payment/admin/reports?limit=100', { credentials: 'omit' });
+          if (!r.ok) {
+            const text = await r.text();
+            throw new Error(`HTTP ${r.status} ${r.statusText} - ${text.slice(0,120)}`);
+          }
 
-    const d = await r.json();
-    const tbody = document.getElementById('tx-body');
+          const d = await r.json();
+          const tbody  = document.getElementById('tx-body');
 
-    const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
-    const fmtMoney = v => (v || 0).toLocaleString('vi-VN');
-    const fmtDate = iso => iso ? new Date(iso).toLocaleString('vi-VN') : '';
-    const chip = s => {
-      const mapColor = { pending: '#f59e0b', paid: '#16a34a', canceled: '#ef4444', failed: '#ef4444', refunded: '#2563eb' };
-      const labels = { pending: 'Chờ duyệt', paid: 'Đã thanh toán', canceled: 'Đã hủy', failed: 'Thất bại', refunded: 'Đã hoàn tiền' };
-      const key = (s || '').toLowerCase();
-      const color = mapColor[key] || '#6b7280';
-      const label = labels[key] || s || '';
-      return `<span class="chip" style="padding:2px 8px;border-radius:999px;color:#fff;background:${color};font-size:12px">${label}</span>`;
-    };
+          const IS_ADMIN = true; // đã kiểm tra bằng Jinja ở ngoài
+          const fmtMoney = v => (v || 0).toLocaleString('vi-VN');
+          const fmtDate  = iso => iso ? new Date(iso).toLocaleString('vi-VN') : '';
+          const chip = s => {
+            const mapColor = { pending: '#f59e0b', paid: '#16a34a', canceled: '#ef4444', failed: '#ef4444', refunded: '#2563eb' };
+            const labels   = { pending: 'Chờ duyệt', paid: 'Đã thanh toán', canceled: 'Đã hủy', failed: 'Thất bại', refunded: 'Đã hoàn tiền' };
+            const key = (s || '').toLowerCase();
+            const color = mapColor[key] || '#6b7280';
+            const label = labels[key] || s || '';
+            return `<span class="chip" style="padding:2px 8px;border-radius:999px;color:#fff;background:${color};font-size:12px">${label}</span>`;
+          };
 
-    const items = d.items || [];
-    if (!items.length) {
-      tbody.innerHTML = `<tr><td colspan="7" class="td-empty">Chưa có dữ liệu</td></tr>`;
-      return;
-    }
+          const items = d.items || [];
 
-    tbody.innerHTML = items.map((t, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td class="td-strong">${t.product_name || ('Đơn ' + t.order_id)}</td>
-        <td>${t.buyer_name || ('#' + (t.buyer_id ?? ''))}</td>
-        <td>${t.seller_name || ('#' + (t.seller_id ?? ''))}</td>
-        <td>${fmtDate(t.created_at)}</td>
-        <td>${chip(t.status)}</td>
-        <td>${fmtMoney(t.amount)} đ</td>
-        <td>
-          ${IS_ADMIN ? (`<a href="${t.pay_url}" target="_blank" class="btn btn-sm">Xem</a>
-          <button onclick="approve(${t.id})" class="btn btn-sm btn-success">Duyệt</button>
-          <button onclick="reject(${t.id})" class="btn btn-sm btn-danger">Từ chối</button>`) : ('—')}
-        </td>
-      </tr>
-    `).join('');
+          // Tính tổng trên FE nếu backend không trả totals
+          let totals = d.totals;
+          if (!totals) {
+            const isPaidLike = (st) => {
+              const s = String(st || '').toLowerCase().trim();
+              return ['paid', 'completed', 'done'].includes(s);
+            };
+            let paidRows = items.filter(it => isPaidLike(it.status));
+            if (!paidRows.length && items.length) paidRows = items;
 
-  } catch (e) {
-    console.error(e);
-    document.getElementById('tx-body').innerHTML =
-      `<tr><td colspan="7" style="text-align:center;color:red">Không tải được: ${e.message}</td></tr>`;
-  }
-})();
+            const sum = fn => paidRows.reduce((acc, it) => acc + (fn(it) || 0), 0);
+            totals = {
+              total_gross:      sum(it => it.amount),
+              total_vat:        sum(it => it.vat_amount),
+              total_seller_net: sum(it => it.seller_net_amount),
+            };
+          }
 
-async function approve(id) {
-  const r = await fetch(`/payment/admin/approve/${id}`, { method: 'POST' });
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) { alert(d.error || 'Lỗi duyệt'); return; }
-  alert('✅ Đã duyệt');
-  location.reload();
-}
+          // Gán 3 ô tổng
+          const grossEl  = document.getElementById('totalGross');
+          const vatEl    = document.getElementById('totalVat');
+          const sellerEl = document.getElementById('totalSellerNet');
 
-async function reject(id) {
-  const r = await fetch(`/payment/admin/reject/${id}`, { method: 'POST' });
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) { alert(d.error || 'Lỗi từ chối'); return; }
-  alert('⛔ Đã từ chối');
-  location.reload();
-}
-</script>
+          if (grossEl)  grossEl.textContent  = fmtMoney(totals.total_gross || 0) + ' đ';
+          if (vatEl)    vatEl.textContent    = fmtMoney(totals.total_vat || 0) + ' đ';
+          if (sellerEl) sellerEl.textContent = fmtMoney(totals.total_seller_net || 0) + ' đ';
 
-      <!-- =========== HẾT PHẦN CHỈNH =========== -->
+          // Bảng chi tiết
+          if (!items.length) {
+            tbody.innerHTML = `<tr><td colspan="8" class="td-empty">Chưa có dữ liệu</td></tr>`;
+            return;
+          }
+
+          tbody.innerHTML = items.map((t, i) => `
+            <tr>
+              <td>${i + 1}</td>
+              <td class="td-strong">${t.product_name || ('Đơn ' + t.order_id)}</td>
+              <td>${t.buyer_name || ('#' + (t.buyer_id ?? ''))}</td>
+              <td>${t.seller_name || ('#' + (t.seller_id ?? ''))}</td>
+              <td>${fmtDate(t.created_at)}</td>
+              <td>${chip(t.status)}</td>
+              <td>
+                <div><b>${fmtMoney(t.amount)} đ</b></div>
+                <div class="money-meta">
+                  VAT nền tảng: ${fmtMoney(t.vat_amount || 0)} đ<br>
+                  Người bán nhận: ${fmtMoney(t.seller_net_amount || 0)} đ
+                </div>
+              </td>
+              <td>
+                <a href="${t.pay_url}" target="_blank" class="btn btn-sm">Xem</a>
+                <button onclick="approve(${t.id})" class="btn btn-sm btn-success">Duyệt</button>
+                <button onclick="reject(${t.id})" class="btn btn-sm btn-danger">Từ chối</button>
+              </td>
+            </tr>
+          `).join('');
+
+        } catch (e) {
+          console.error(e);
+          document.getElementById('tx-body').innerHTML =
+            `<tr><td colspan="8" style="text-align:center;color:red">Không tải được: ${e.message}</td></tr>`;
+        }
+      })();
+
+      async function approve(id) {
+        const r = await fetch(`/payment/admin/approve/${id}`, { method: 'POST' });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) { alert(d.error || 'Lỗi duyệt'); return; }
+        alert('✅ Đã duyệt');
+        location.reload();
+      }
+
+      async function reject(id) {
+        const r = await fetch(`/payment/admin/reject/${id}`, { method: 'POST' });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) { alert(d.error || 'Lỗi từ chối'); return; }
+        alert('⛔ Đã từ chối');
+        location.reload();
+      }
+      </script>
+
+      {% else %}
+      <!-- Non-admin: chỉ hiển thị thông báo, không gọi API -->
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Sản phẩm</th>
+              <th>Người mua</th>
+              <th>Người bán</th>
+              <th>Ngày giao dịch</th>
+              <th>Trạng thái</th>
+              <th>Số tiền</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colspan="8" class="td-empty">
+                Chưa có dữ liệu
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
     </section>
+
   </main>
+
+  <!-- Modal đăng nhập admin -->
   <div id="adminLoginModal" class="modal" style="display:none;">
     <div class="modal-content" style="max-width:420px;margin:auto;">
       <span class="close" onclick="closeAdminLogin()">&times;</span>
@@ -366,6 +446,7 @@ async function reject(id) {
       </form>
     </div>
   </div>
+
   <script>
     function openAdminLogin(e){ if(e) e.preventDefault(); document.getElementById('adminLoginModal').style.display='block'; }
     function closeAdminLogin(){ document.getElementById('adminLoginModal').style.display='none'; }
@@ -443,7 +524,7 @@ async function reject(id) {
       initFromHash();
     })();
 
-    // Bộ lọc Users (giữ nguyên hành vi cũ)
+    // Bộ lọc Users
     (function(){
       function setupStatusFilter(selectId, sectionSelector){
         const sel = document.getElementById(selectId);
@@ -474,7 +555,7 @@ async function reject(id) {
       setupStatusFilter('filterUsers', '#users');
     })();
 
-    // Bộ lọc Bài đăng (client-side, đọc ĐÚNG cột 5 và chip ở cột 2)
+    // Bộ lọc Bài đăng
     (function(){
       const section = document.querySelector('#products');
       if (!section) return;
@@ -482,13 +563,9 @@ async function reject(id) {
       const selStatus   = document.getElementById('filterPostsStatus');
       const selVerified = document.getElementById('filterPostsVerified');
 
-      // Chỉ lấy các hàng dữ liệu (bỏ hàng "Chưa có dữ liệu")
       const rows = Array.from(section.querySelectorAll('tbody tr'))
         .filter(tr => !tr.querySelector('.td-empty'));
 
-      // Suy ra từ ĐÚNG cột:
-      // - Cột 5: Trạng thái (Đã duyệt/Chờ duyệt/Spam)
-      // - Cột 2: chip "ĐÃ KIỂM ĐỊNH"
       function ensureDataset(tr){
         if (!tr.dataset.status){
           const stCell = tr.querySelector('td:nth-child(5)');
@@ -536,6 +613,32 @@ async function reject(id) {
       display:flex; align-items:center; justify-content:space-between; gap:12px;
     }
     .section-tools{ margin-left:auto; display:flex; gap:8px; }
+
+    /* Nhóm card doanh thu nhỏ ở phần giao dịch */
+    .stats-row-sm {
+      margin-top: 8px;
+      margin-bottom: 12px;
+    }
+    .stat-card-soft {
+      background:#fff7ed;
+      border:1px solid #fed7aa;
+    }
+    .stat-card-soft .stat-label {
+      font-size:12px;
+      color:#92400e;
+      text-transform:uppercase;
+    }
+    .stat-card-soft .stat-value {
+      font-size:18px;
+      font-weight:700;
+      color:#b45309;
+    }
+    .money-meta {
+      font-size:12px;
+      color:#6b7280;
+      margin-top:4px;
+      line-height:1.4;
+    }
   </style>
 
   <footer class="footer">
