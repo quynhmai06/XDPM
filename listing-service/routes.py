@@ -319,17 +319,24 @@ def unapprove_product(pid):
 
 @bp.delete("/<int:pid>")
 def delete_product(pid):
-    u, err = require_auth()
+    user, err = require_auth()
     if err:
         return err
+
     p = Product.query.get_or_404(pid)
 
-    if str(u.get("role", "")).lower() == "admin":
-        pass
-    elif u["username"] == p.owner and not p.approved:
-        pass
-    else:
-        return jsonify(error="Forbidden"), 403
+    if str(user.get("role", "")).lower() == "admin":
+        db.session.delete(p)
+        db.session.commit()
+        return jsonify(message="Đã xoá."), 200
+
+    if user["username"] == p.owner and not p.approved:
+        db.session.delete(p)
+        db.session.commit()
+        return jsonify(message="Đã xoá."), 200
+
+    return jsonify(error="Forbidden"), 403
+
 
     db.session.delete(p)
     db.session.commit()

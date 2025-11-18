@@ -829,7 +829,7 @@ def delete_product(pid):
         return redirect(url_for("login_page"))
     try:
         r = requests.delete(f"{LISTING_URL}/listings/{pid}",
-                            headers={"Authorization": f"Bearer {session.get('access_token','')}"})
+                            headers=_forward_admin_headers())
         flash("Đã xoá bài đăng." if r.ok else "Xoá thất bại.", "success" if r.ok else "error")
     except requests.RequestException:
         flash("Không kết nối được listing service.", "error")
