@@ -35,15 +35,7 @@
 
         <div class="user-menu">
           <a href="{{ url_for('policy_page') }}" class="user-menu-item"
-            >Chính sách</a
-          >
-          <a href="#" class="user-menu-item"
-            ><i class="far fa-comment"></i> Chat</a
-          >
-          <a href="#" class="user-menu-item"
-            ><i class="far fa-bell"></i> Thông báo</a
-          >
-
+            >Chính sách</a>
           {% set actual_user = session.get('user') %}
           {% if actual_user %}
           <a href="{{ url_for('favorites_page') }}" class="user-menu-item">
@@ -606,9 +598,46 @@
       </div>
     </div>
 
-    <footer class="footer">
-      <p>© 2025 EV Trading Platform. Tất cả quyền được bảo lưu.</p>
+   <footer class="footer">
+      <div class="footer-container">
+
+        <div class="footer-col">
+          <h3>Liên hệ</h3>
+          <ul>
+            <li><i class="fas fa-phone"></i> Hotline: <strong>0901 234 567</strong></li>
+            <li><i class="fas fa-envelope"></i> Email: support@evplatform.vn</li>
+            <li><i class="fas fa-map-marker-alt"></i> 450 Lê Văn Việt, TP. Thủ Đức, TP.HCM</li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h3>Hỗ trợ người dùng</h3>
+          <ul>
+            <li><i class="fas fa-clock"></i> Giờ hỗ trợ: 08:00 - 21:00</li>
+            <li>
+              <i class="fas fa-file-alt"></i>
+              <a href="{{ url_for('policy_page') }}">Chính sách sàn giao dịch</a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h3>Kết nối với chúng tôi</h3>
+          <div class="footer-social">
+            <a href="#"><i class="fab fa-facebook-square"></i></a>
+            <a href="#"><i class="fab fa-youtube"></i></a>
+            <a href="#"><i class="fab fa-tiktok"></i></a>
+            <a href="#"><i class="fab fa-instagram"></i></a>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="footer-bottom">
+        © 2025 EV Trading Platform. Tất cả quyền được bảo lưu.
+      </div>
     </footer>
+
 
     <script>
       function showTab(tab) {
