@@ -530,10 +530,13 @@
           }
 
           if (!sId) {
-            console.warn(
-              "Không tìm thấy seller_id trong listing, dùng fallback tạm = 1"
+            alert(
+              "Lỗi: Không xác định được người bán cho sản phẩm '" +
+                (it.name || "#" + line.item_id) +
+                "'. Vui lòng liên hệ hỗ trợ."
             );
-            sId = 1;
+            console.error("Missing seller_id for item:", it);
+            return;
           }
 
           sellerIds.add(String(sId));

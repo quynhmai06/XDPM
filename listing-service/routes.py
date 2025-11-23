@@ -2,13 +2,14 @@
 from flask import Blueprint, request, jsonify
 from models import db, Product, ProductStatus, ItemType, BlockedUser
 from sqlalchemy import or_
-import os, jwt, json
+import os, jwt, json, requests
 from datetime import datetime
 
 
 bp = Blueprint("listing", __name__, url_prefix="/listings")
 JWT_SECRET = os.getenv("JWT_SECRET", "devsecret")
 STATIC_UPLOAD_PREFIX = "/static/uploads/"
+AUTH_URL = os.getenv("AUTH_URL", "http://auth_service:5001")
 
 # ---------- Auth helpers ----------
 def current_user():
@@ -59,6 +60,19 @@ def _strip_prefix(u: str | None) -> str | None:
     return u
 
 # ---------- Utils ----------
+def _resolve_owner_id(username: str | None) -> int | None:
+    """Resolve username to user ID via auth-service."""
+    if not username:
+        return None
+    try:
+        r = requests.get(f"{AUTH_URL}/auth/users/{username}", timeout=3)
+        if r.ok:
+            data = r.json()
+            return data.get("id")
+    except Exception:
+        pass
+    return None
+
 def to_json(p: Product):
     """Chuyển Product sang dict JSON trả về cho client."""
     sub_urls = []
@@ -68,6 +82,8 @@ def to_json(p: Product):
             sub_urls = []
     except Exception:
         sub_urls = []
+
+    owner_id = _resolve_owner_id(p.owner)
 
     return {
         "id": p.id,
@@ -80,6 +96,7 @@ def to_json(p: Product):
         "mileage": p.mileage,
         "battery_capacity": p.battery_capacity,
         "owner": p.owner,
+        "owner_id": owner_id,
         "main_image_url": _norm_img(p.main_image_url),
         "sub_image_urls": [_norm_img(u) for u in sub_urls],
         "approved": bool(p.approved),
